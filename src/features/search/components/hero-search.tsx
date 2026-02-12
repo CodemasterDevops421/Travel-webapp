@@ -4,12 +4,23 @@ import { useState } from 'react';
 import { Calendar, Search, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
+import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 export function HeroSearch() {
   const [query, setQuery] = useState('');
+  const [activeQuery, setActiveQuery] = useState('');
   const { data, isFetching } = useAutocomplete(query);
+  const {
+    data: propertyPreview,
+    isFetching: isPreviewLoading
+  } = usePropertyPreview(activeQuery);
+
+  const onSearch = () => {
+    if (query.trim().length < 3) return;
+    setActiveQuery(query.trim());
+  };
 
   return (
     <motion.div
@@ -54,8 +65,33 @@ export function HeroSearch() {
         </label>
       </div>
       <div className="mt-3 flex justify-end">
-        <Button size="lg">Search stays</Button>
+        <Button size="lg" onClick={onSearch}>Search stays</Button>
       </div>
+
+      {activeQuery && (
+        <section className="mt-4 space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Property preview</h3>
+          {isPreviewLoading ? (
+            <p className="text-sm text-muted-foreground">Loading properties...</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-3">
+              {(propertyPreview ?? []).map((hotel) => (
+                <article key={hotel.hotelId} className="rounded-xl border border-border bg-background p-3">
+                  <h4 className="text-sm font-semibold">{hotel.name}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {hotel.city}
+                    {hotel.countryCode ? `, ${hotel.countryCode}` : ''}
+                    {hotel.starRating ? ` · ${hotel.starRating}★` : ''}
+                  </p>
+                  <p className="mt-2 text-sm font-medium">
+                    {hotel.price ? `${hotel.currency} ${hotel.price}/night` : 'Price on request'}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </motion.div>
   );
 }
