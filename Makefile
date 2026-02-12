@@ -1,16 +1,16 @@
-.PHONY: install dev test docker-build run
+.PHONY: install dev lint test build
 
 install:
-	npm install
+	npm ci
 
 dev:
 	npm run dev
 
+lint:
+	npm run lint
+
 test:
-	npm test
+	npm run test
 
-docker-build:
-	docker build -t travel-webapp:latest .
-
-run:
-	docker compose up --build
+build:
+	npm run build

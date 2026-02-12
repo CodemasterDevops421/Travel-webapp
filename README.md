@@ -1,27 +1,19 @@
-# LiteAPI Booking Webapp
-
-Express + EJS booking flow using LiteAPI (server-side API calls only).
-
-## Features
-- Search hotels by **destination** (places autocomplete + rates)
-- Search hotels by **vibe** (AI search)
-- Hotel details page with offers grouped by room (`mappedRoomId`) and room image/name
-- Checkout with guest details, then LiteAPI Payment SDK
-- Booking confirmation with booking ID, confirmation code, and hotel details
+# TravelForge OTA (LiteAPI + Next.js 15)
 
 ## Setup
 ```bash
 cp .env.example .env
-npm install
+npm ci
 npm run dev
 ```
-Open http://localhost:3000
 
-## Test
-```bash
-npm test
-```
+## Commands
+- `npm run dev`
+- `npm run lint`
+- `npm run test`
+- `npm run build`
 
 ## Notes
-- All LiteAPI calls are server-side to keep API key private.
-- Sandbox card: `4242424242424242`, any 3-digit CVV, any future expiration date.
+- LiteAPI keys stay server-side only.
+- Autocomplete route uses LiteAPI first and Google fallback for landmark/address-intent queries.
+- Redis is optional; app falls back to in-memory cache/ratelimit in local development.
