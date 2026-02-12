@@ -16,10 +16,11 @@ const {
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const LITEAPI_KEY = process.env.LITEAPI_KEY;
+const IS_PROD = process.env.NODE_ENV === 'production';
+const LITEAPI_KEY = process.env.LITEAPI_API_KEY || process.env.LITEAPI_KEY;
 
 if (!LITEAPI_KEY) {
-  throw new Error('Missing LITEAPI_KEY environment variable.');
+  throw new Error('Missing LiteAPI key environment variable. Set LITEAPI_API_KEY (preferred) or LITEAPI_KEY.');
 }
 
 app.set('view engine', 'ejs');
@@ -29,12 +30,14 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(morgan('combined'));
+app.set('trust proxy', 1);
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'change-me-now',
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, secure: false, sameSite: 'lax' }
+    cookie: { httpOnly: true, secure: IS_PROD, sameSite: 'lax' }
   })
 );
 
