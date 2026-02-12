@@ -1,13 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    typedRoutes: true
-  },
+  typedRoutes: true,
   poweredByHeader: false,
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '**' }
-    ]
+    remotePatterns: [{ protocol: 'https', hostname: '**' }]
   }
 };
 
