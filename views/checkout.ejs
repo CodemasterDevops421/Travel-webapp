@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout - <%= hotel.name %></title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v=a1"></script>
+</head>
+<body>
+  <main class="container">
+    <h1>Checkout</h1>
+    <article class="card">
+      <h2><%= hotel.name %></h2>
+      <p>Total: $<%= prebook.price %> <%= prebook.currency %></p>
+      <p>Refundability: <%= prebook.roomTypes?.[0]?.rates?.[0]?.cancellationPolicies?.refundableTag || 'N/A' %></p>
+    </article>
+
+    <form id="guestForm" class="card">
+      <h3>Guest details</h3>
+      <input name="firstName" placeholder="First name" required>
+      <input name="lastName" placeholder="Last name" required>
+      <input name="email" type="email" placeholder="Email" required>
+      <button type="submit">Continue to payment</button>
+    </form>
+
+    <section id="paymentSection" class="card hidden">
+      <h3>Payment</h3>
+      <p class="note">Sandbox test card: 4242424242424242, any 3-digit CVV, any future expiration date.</p>
+      <div id="targetElement"></div>
+    </section>
+  </main>
+
+  <script>
+    const prebook = <%- JSON.stringify(prebook) %>;
+    const apiEnv = '<%= apiEnv %>';
+
+    document.getElementById('guestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const payload = Object.fromEntries(formData.entries());
+
+      const response = await fetch('/checkout/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        alert('Please provide valid guest details.');
+        return;
+      }
+
+      document.getElementById('paymentSection').classList.remove('hidden');
+      const returnUrl = `${window.location.origin}/confirmation?prebookId=${encodeURIComponent(prebook.prebookId)}&transactionId=${encodeURIComponent(prebook.transactionId)}`;
+
+      const liteAPIPayment = new LiteAPIPayment({
+        publicKey: apiEnv,
+        secretKey: prebook.secretKey,
+        returnUrl,
+        targetElement: '#targetElement',
+        appearance: { theme: 'flat' },
+        options: { business: { name: 'Travel Webapp' } }
+      });
+
+      liteAPIPayment.handlePayment();
+    });
+  </script>
+</body>
+</html>

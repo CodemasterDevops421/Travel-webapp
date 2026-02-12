@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking Confirmed</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Booking Confirmed ✅</h1>
+    <article class="card">
+      <p>Status: <strong><%= booking.status %></strong></p>
+      <p>Booking ID: <strong><%= booking.bookingId %></strong></p>
+      <p>Hotel confirmation code: <strong><%= booking.hotelConfirmationCode %></strong></p>
+      <p>Check-in: <%= booking.checkin %> · Check-out: <%= booking.checkout %></p>
+      <p>Price: $<%= booking.price %> <%= booking.currency %></p>
+    </article>
+
+    <% if (hotel) { %>
+      <article class="card">
+        <h2><%= hotel.name %></h2>
+        <p><%= hotel.address %>, <%= hotel.city %>, <%= hotel.country %></p>
+        <% if (hotel.main_photo) { %><img class="hero" src="<%= hotel.main_photo %>" alt="<%= hotel.name %>"><% } %>
+      </article>
+    <% } %>
+
+    <a href="/">Make another booking</a>
+  </main>
+</body>
+</html>
