@@ -31,6 +31,12 @@ type FallbackQuoteRecord = {
 };
 
 const fallbackQuotes = new Map<string, FallbackQuoteRecord>();
+let supabaseSchemaUnavailable = false;
+
+function isSchemaMissingError(error: unknown): boolean {
+  const code = (error as { code?: string } | null | undefined)?.code;
+  return code === 'PGRST205';
+}
 
 export async function persistQuote(input: PersistQuoteInput): Promise<string | null> {
   const fallbackId = randomUUID();
@@ -47,6 +53,11 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     created_at: new Date().toISOString()
   };
+
+  if (supabaseSchemaUnavailable) {
+    fallbackQuotes.set(fallbackId, fallbackRecord);
+    return fallbackId;
+  }
 
   const supabase = createAdminClient();
 
@@ -67,7 +78,12 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
     .single();
 
   if (error) {
-    logger.error({ error }, 'Failed to persist booking quote');
+    if (isSchemaMissingError(error)) {
+      supabaseSchemaUnavailable = true;
+      logger.warn({ error }, 'Supabase booking schema missing. Using fallback booking quote storage.');
+    } else {
+      logger.error({ error }, 'Failed to persist booking quote');
+    }
     fallbackQuotes.set(fallbackId, fallbackRecord);
     return fallbackId;
   }
@@ -96,6 +112,11 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
     created_at: new Date().toISOString()
   };
 
+  if (supabaseSchemaUnavailable) {
+    fallbackBookings.set(fallbackId, fallbackRecord);
+    return fallbackId;
+  }
+
   const supabase = createAdminClient();
 
   const { data, error } = await supabase
@@ -110,7 +131,12 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
     .single();
 
   if (error) {
-    logger.error({ error }, 'Failed to persist booking');
+    if (isSchemaMissingError(error)) {
+      supabaseSchemaUnavailable = true;
+      logger.warn({ error }, 'Supabase booking schema missing. Using fallback booking storage.');
+    } else {
+      logger.error({ error }, 'Failed to persist booking');
+    }
     fallbackBookings.set(fallbackId, fallbackRecord);
     return fallbackId;
   }
@@ -128,6 +154,10 @@ export type BookingRecord = {
 };
 
 export async function getBookingById(id: string): Promise<BookingRecord | null> {
+  if (supabaseSchemaUnavailable) {
+    return fallbackBookings.get(id) ?? null;
+  }
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')
@@ -136,7 +166,12 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
     .single();
 
   if (error) {
-    logger.warn({ error, id }, 'Booking lookup by id failed');
+    if (isSchemaMissingError(error)) {
+      supabaseSchemaUnavailable = true;
+      logger.warn({ error, id }, 'Supabase booking schema missing during lookup. Using fallback storage.');
+    } else {
+      logger.warn({ error, id }, 'Booking lookup by id failed');
+    }
     return fallbackBookings.get(id) ?? null;
   }
 
@@ -159,6 +194,10 @@ export async function updateBookingStatusByLiteApiId(
     }
   }
 
+  if (supabaseSchemaUnavailable) {
+    return false;
+  }
+
   const supabase = createAdminClient();
   const { error } = await supabase
     .from('bookings')
@@ -169,7 +208,12 @@ export async function updateBookingStatusByLiteApiId(
     .eq('liteapi_booking_id', liteApiBookingId);
 
   if (error) {
-    logger.error({ error, liteApiBookingId }, 'Failed to update booking by liteapi booking id');
+    if (isSchemaMissingError(error)) {
+      supabaseSchemaUnavailable = true;
+      logger.warn({ error, liteApiBookingId }, 'Supabase booking schema missing during update by liteapi id.');
+    } else {
+      logger.error({ error, liteApiBookingId }, 'Failed to update booking by liteapi booking id');
+    }
     return false;
   }
 
@@ -195,6 +239,10 @@ export async function updateBookingStatusByTransactionId(
     }
   }
 
+  if (supabaseSchemaUnavailable) {
+    return false;
+  }
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')
@@ -204,7 +252,12 @@ export async function updateBookingStatusByTransactionId(
     .single();
 
   if (error || !data?.id) {
-    logger.warn({ error, transactionId }, 'Booking lookup by transactionId failed');
+    if (isSchemaMissingError(error)) {
+      supabaseSchemaUnavailable = true;
+      logger.warn({ error, transactionId }, 'Supabase booking schema missing during lookup by transactionId.');
+    } else {
+      logger.warn({ error, transactionId }, 'Booking lookup by transactionId failed');
+    }
     return false;
   }
 
