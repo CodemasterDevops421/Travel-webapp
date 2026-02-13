@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { env } from '@/server/env';
+import { getQuoteSigningSecret } from '@/server/secrets';
 
 type SessionSignaturePayload = {
   prebookId: string;
@@ -10,7 +10,7 @@ type SessionSignaturePayload = {
 };
 
 function createSessionSignature(payload: SessionSignaturePayload): string {
-  return createHmac('sha256', env.QUOTE_SIGNING_SECRET).update(JSON.stringify(payload)).digest('hex');
+  return createHmac('sha256', getQuoteSigningSecret()).update(JSON.stringify(payload)).digest('hex');
 }
 
 function safeCompare(a: string, b: string): boolean {

@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { env } from '@/server/env';
+import { getQuoteSigningSecret } from '@/server/secrets';
 import { applyMarkup } from '@/shared/lib/utils';
 
 export type PriceQuote = {
@@ -20,7 +21,7 @@ type QuotePayload = {
 };
 
 function createQuoteSignature(payload: QuotePayload): string {
-  return createHmac('sha256', env.QUOTE_SIGNING_SECRET).update(JSON.stringify(payload)).digest('hex');
+  return createHmac('sha256', getQuoteSigningSecret()).update(JSON.stringify(payload)).digest('hex');
 }
 
 function safeCompare(a: string, b: string): boolean {

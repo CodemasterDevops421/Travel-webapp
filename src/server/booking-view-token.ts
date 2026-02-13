@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { env } from '@/server/env';
+import { getBookingViewTokenSigningSecret } from '@/server/secrets';
 
 const BOOKING_VIEW_TOKEN_VERSION = 1;
 
@@ -23,7 +24,7 @@ type VerifyBookingViewTokenInput = {
 };
 
 function signingSecret(): string {
-  return env.BOOKING_VIEW_TOKEN_SECRET ?? env.QUOTE_SIGNING_SECRET;
+  return getBookingViewTokenSigningSecret();
 }
 
 function base64UrlEncode(value: string): string {

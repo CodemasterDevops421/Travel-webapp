@@ -16,7 +16,7 @@ const envSchema = z.object({
   LITEAPI_BOOK_BASE_URL: emptyStringToUndefined(z.string().url().default('https://book.liteapi.travel/v3.0')),
   LITEAPI_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
   LITEAPI_WEBHOOK_SECRET: emptyStringToUndefined(z.string().optional()),
-  QUOTE_SIGNING_SECRET: emptyStringToUndefined(z.string().min(16)),
+  QUOTE_SIGNING_SECRET: emptyStringToUndefined(z.string().min(16).optional()),
   BOOKING_VIEW_TOKEN_SECRET: emptyStringToUndefined(z.string().min(16).optional()),
   BOOKING_VIEW_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(600),
   DEFAULT_GUEST_NATIONALITY: z.string().length(2).default('US'),
