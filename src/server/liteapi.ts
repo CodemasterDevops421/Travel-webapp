@@ -51,6 +51,8 @@ export type HotelDetails = {
   address?: string;
   mainPhoto?: string;
   starRating?: number | null;
+  reviewScore?: number | null;
+  reviewCount?: number | null;
 };
 
 export type HotelRateOption = {
@@ -552,7 +554,17 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
       countryCode: typeof data.countryCode === 'string' ? data.countryCode : undefined,
       address: typeof data.address === 'string' ? data.address : undefined,
       mainPhoto: typeof data.main_photo === 'string' ? data.main_photo : undefined,
-      starRating: typeof data.starRating === 'number' ? data.starRating : null
+      starRating: parseNumber(data.starRating),
+      reviewScore:
+        parseNumber(data.reviewScore) ??
+        parseNumber(data.review_rating) ??
+        parseNumber(data.guestRating) ??
+        parseNumber(data.rating),
+      reviewCount:
+        parseNumber(data.reviewCount) ??
+        parseNumber(data.reviewsCount) ??
+        parseNumber(data.numReviews) ??
+        parseNumber(data.totalReviews)
     };
   } catch (error) {
     logger.warn({ error, hotelId }, 'LiteAPI hotel details failed');

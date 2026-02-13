@@ -214,10 +214,20 @@ export function HeroSearch() {
           ) : (
             <div className="grid gap-3 md:grid-cols-3">
               {(propertyPreview ?? []).map((hotel, idx) => (
-                <article
+                <Link
                   key={hotel.hotelId}
+                  href={`/hotels/${hotel.hotelId}`}
                   className="animate-soft-rise overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
                   style={{ animationDelay: `${idx * 45}ms` }}
+                  onClick={() =>
+                    trackFunnelEvent({
+                      name: 'preview_card_opened',
+                      step: 'consideration',
+                      properties: {
+                        hotelId: hotel.hotelId
+                      }
+                    })
+                  }
                 >
                   {hotel.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -248,23 +258,11 @@ export function HeroSearch() {
                     <p className="text-base font-semibold text-primary">
                       {hotel.price ? `${hotel.currency} ${hotel.price} total/night` : 'Price on request'}
                     </p>
-                    <Link
-                      href={`/hotels/${hotel.hotelId}`}
-                      className="inline-flex text-xs font-semibold underline underline-offset-4"
-                      onClick={() =>
-                        trackFunnelEvent({
-                          name: 'preview_card_opened',
-                          step: 'consideration',
-                          properties: {
-                            hotelId: hotel.hotelId
-                          }
-                        })
-                      }
-                    >
+                    <span className="inline-flex text-xs font-semibold underline underline-offset-4">
                       View details and rates
-                    </Link>
+                    </span>
                   </div>
-                </article>
+                </Link>
               ))}
             </div>
           )}

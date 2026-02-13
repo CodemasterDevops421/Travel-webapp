@@ -100,6 +100,12 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
               {hotel?.countryCode ? `, ${hotel.countryCode}` : ''}
               {hotel?.starRating ? ` · ${hotel.starRating}★` : ''}
             </p>
+            {hotel?.reviewScore ? (
+              <p className="mt-1 text-sm font-medium text-foreground/90">
+                {hotel.reviewScore.toFixed(1)} / 10 guest rating
+                {hotel.reviewCount ? ` · ${Math.round(hotel.reviewCount)} reviews` : ''}
+              </p>
+            ) : null}
           </div>
           <div className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-right">
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Rates from</p>
@@ -139,6 +145,14 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
             <li className="rounded-xl border border-border bg-background/70 px-3 py-2">
               <p className="text-xs text-muted-foreground">Category</p>
               <p className="font-medium">{hotel?.starRating ? `${hotel.starRating} Star` : 'Premium Selection'}</p>
+            </li>
+            <li className="rounded-xl border border-border bg-background/70 px-3 py-2">
+              <p className="text-xs text-muted-foreground">Guest rating</p>
+              <p className="font-medium">
+                {hotel?.reviewScore
+                  ? `${hotel.reviewScore.toFixed(1)} / 10${hotel.reviewCount ? ` (${Math.round(hotel.reviewCount)} reviews)` : ''}`
+                  : 'Review data not available'}
+              </p>
             </li>
             <li className="rounded-xl border border-border bg-background/70 px-3 py-2">
               <p className="text-xs text-muted-foreground">Trust Signals</p>
