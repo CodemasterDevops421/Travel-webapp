@@ -53,9 +53,19 @@ export type HotelDetails = {
   photos?: string[];
   facilities?: string[];
   description?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   starRating?: number | null;
   reviewScore?: number | null;
   reviewCount?: number | null;
+  reviewBreakdown?: Array<{ label: string; score: number }>;
+  reviews?: Array<{
+    author?: string;
+    travelerType?: string;
+    comment: string;
+    score?: number | null;
+    createdAt?: string;
+  }>;
 };
 
 export type HotelRateOption = {
@@ -225,6 +235,108 @@ function pickFacilities(data: Record<string, unknown>): string[] {
     if (names.length > 0) {
       return names.slice(0, 20);
     }
+  }
+  return [];
+}
+
+function pickCoordinates(data: Record<string, unknown>): { latitude: number | null; longitude: number | null } {
+  const latitude =
+    parseNumber(data.latitude) ??
+    parseNumber((data.coordinates as Record<string, unknown> | undefined)?.lat) ??
+    parseNumber((data.geo as Record<string, unknown> | undefined)?.latitude);
+  const longitude =
+    parseNumber(data.longitude) ??
+    parseNumber((data.coordinates as Record<string, unknown> | undefined)?.lng) ??
+    parseNumber((data.geo as Record<string, unknown> | undefined)?.longitude);
+  return { latitude, longitude };
+}
+
+function pickReviewBreakdown(data: Record<string, unknown>): Array<{ label: string; score: number }> {
+  const candidates = [
+    data.reviewBreakdown,
+    data.reviewCategories,
+    (data.reviews as Record<string, unknown> | undefined)?.categories
+  ];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const mapped = candidate
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const row = item as Record<string, unknown>;
+        const label =
+          typeof row.label === 'string'
+            ? row.label
+            : typeof row.name === 'string'
+              ? row.name
+              : typeof row.category === 'string'
+                ? row.category
+                : null;
+        const score = parseNumber(row.score) ?? parseNumber(row.rating) ?? parseNumber(row.value);
+        if (!label || score === null) return null;
+        return { label, score };
+      })
+      .filter((item): item is { label: string; score: number } => Boolean(item));
+    if (mapped.length > 0) return mapped.slice(0, 12);
+  }
+  return [];
+}
+
+function pickGuestReviews(data: Record<string, unknown>) {
+  const candidates = [
+    data.reviews,
+    (data.reviewData as Record<string, unknown> | undefined)?.reviews,
+    (data.guestReviews as Record<string, unknown> | undefined)?.items
+  ];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const mapped = candidate
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const row = item as Record<string, unknown>;
+        const comment =
+          typeof row.comment === 'string'
+            ? row.comment
+            : typeof row.reviewText === 'string'
+              ? row.reviewText
+              : typeof row.text === 'string'
+                ? row.text
+                : '';
+        if (!comment.trim()) return null;
+        return {
+          author:
+            typeof row.author === 'string'
+              ? row.author
+              : typeof row.userName === 'string'
+                ? row.userName
+                : typeof row.guest === 'string'
+                  ? row.guest
+                  : undefined,
+          travelerType:
+            typeof row.travelerType === 'string'
+              ? row.travelerType
+              : typeof row.tripType === 'string'
+                ? row.tripType
+                : undefined,
+          comment: comment.trim(),
+          score: parseNumber(row.score) ?? parseNumber(row.rating),
+          createdAt:
+            typeof row.createdAt === 'string'
+              ? row.createdAt
+              : typeof row.date === 'string'
+                ? row.date
+                : undefined
+        } as {
+          author?: string;
+          travelerType?: string;
+          comment: string;
+          score?: number | null;
+          createdAt?: string;
+        };
+      })
+      .filter((item) => item !== null);
+    if (mapped.length > 0) return mapped.slice(0, 20);
   }
   return [];
 }
@@ -619,6 +731,9 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
     const data = json.data ?? {};
     const photos = pickImageUrls(data);
     const mainPhoto = typeof data.main_photo === 'string' ? data.main_photo : photos[0];
+    const { latitude, longitude } = pickCoordinates(data);
+    const reviewBreakdown = pickReviewBreakdown(data);
+    const reviews = pickGuestReviews(data);
     return {
       id: String(data.id ?? hotelId),
       name: String(data.name ?? 'Hotel'),
@@ -634,6 +749,8 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
           : typeof data.overview === 'string'
             ? data.overview
             : undefined,
+      latitude,
+      longitude,
       starRating: parseNumber(data.starRating),
       reviewScore:
         parseNumber(data.reviewScore) ??
@@ -644,7 +761,9 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
         parseNumber(data.reviewCount) ??
         parseNumber(data.reviewsCount) ??
         parseNumber(data.numReviews) ??
-        parseNumber(data.totalReviews)
+        parseNumber(data.totalReviews),
+      reviewBreakdown,
+      reviews
     };
   } catch (error) {
     logger.warn({ error, hotelId }, 'LiteAPI hotel details failed');
