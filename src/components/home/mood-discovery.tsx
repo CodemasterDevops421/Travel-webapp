@@ -9,7 +9,7 @@ export function MoodDiscovery() {
   const setActiveMood = useSearchUIStore((state) => state.setActiveMood);
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 rounded-2xl border border-border/80 bg-card/70 p-5">
       <h2 className="text-2xl font-semibold">Discover by mood</h2>
       <div className="flex flex-wrap gap-2">
         {moods.map((mood) => (
@@ -17,15 +17,19 @@ export function MoodDiscovery() {
             type="button"
             key={mood}
             onClick={() => setActiveMood(mood)}
-            className={`rounded-full px-4 py-2 text-sm transition ${
-              activeMood === mood ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-border'
+            className={`cursor-pointer rounded-full px-4 py-2 text-sm transition ${
+              activeMood === mood
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'border border-border bg-background hover:bg-muted'
             }`}
           >
             {mood}
           </button>
         ))}
       </div>
-      <p className="text-sm text-muted-foreground">Semantic search is enabled only for vibe-style queries.</p>
+      <p className="text-sm text-muted-foreground">
+        Use mood tags to narrow to properties with the right vibe before comparing price and cancellation flexibility.
+      </p>
     </section>
   );
 }

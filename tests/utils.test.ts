@@ -21,4 +21,18 @@ describe('pricing utilities', () => {
     const payload = { hotelId: 'h1', roomId: 'r1', amount: 1000, currency: 'USD' };
     expect(buildPriceQuote(payload).signature).toBe(buildPriceQuote(payload).signature);
   });
+
+  it('detects tampered quote signature', async () => {
+    const { verifyPriceQuoteSignature } = await import('@/server/pricing');
+    const payload = { hotelId: 'h1', roomId: 'r1', amount: 1000, currency: 'USD' };
+    const quote = buildPriceQuote(payload);
+
+    expect(verifyPriceQuoteSignature(quote)).toBe(true);
+    expect(
+      verifyPriceQuoteSignature({
+        ...quote,
+        totalAmount: quote.totalAmount + 1
+      })
+    ).toBe(false);
+  });
 });

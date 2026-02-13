@@ -3,29 +3,86 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 33% 98%;
-  --foreground: 222 25% 12%;
-  --primary: 72 93% 55%;
-  --primary-foreground: 222 35% 15%;
-  --muted: 210 20% 92%;
+  --background: 42 47% 97%;
+  --foreground: 216 33% 14%;
+  --primary: 183 80% 34%;
+  --primary-foreground: 195 100% 97%;
+  --muted: 40 20% 90%;
   --muted-foreground: 220 8% 35%;
   --card: 0 0% 100%;
-  --card-foreground: 222 25% 12%;
-  --border: 220 15% 88%;
+  --card-foreground: 216 33% 14%;
+  --border: 35 20% 82%;
 }
 
 .dark {
-  --background: 224 30% 8%;
-  --foreground: 210 25% 96%;
-  --primary: 72 93% 55%;
-  --primary-foreground: 220 40% 10%;
-  --muted: 221 20% 16%;
-  --muted-foreground: 215 20% 70%;
-  --card: 222 25% 12%;
-  --card-foreground: 210 25% 96%;
-  --border: 220 20% 22%;
+  --background: 214 40% 9%;
+  --foreground: 195 36% 96%;
+  --primary: 180 63% 46%;
+  --primary-foreground: 210 50% 9%;
+  --muted: 219 29% 16%;
+  --muted-foreground: 214 20% 70%;
+  --card: 218 30% 12%;
+  --card-foreground: 195 36% 96%;
+  --border: 218 20% 26%;
 }
 
 body {
   @apply bg-background text-foreground antialiased;
+  font-family: var(--font-body);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at 8% 8%, rgba(14, 165, 173, 0.14), transparent 36%),
+    radial-gradient(circle at 80% 12%, rgba(225, 168, 52, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes soft-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-soft-rise {
+  animation: soft-rise 400ms ease-out both;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(210, 214, 218, 0.45) 0%, rgba(210, 214, 218, 0.72) 50%, rgba(210, 214, 218, 0.45) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
 }
