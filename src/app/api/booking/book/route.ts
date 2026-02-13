@@ -6,10 +6,14 @@ import { getPrebookSession } from '@/server/booking-store';
 import { verifyPriceQuoteSignature } from '@/server/pricing';
 import { HttpError, toHttpError } from '@/server/errors';
 import { persistBooking } from '@/server/booking/repository';
+import { verifyCheckoutSessionSignature } from '@/server/booking-session';
 
 const requestSchema = z.object({
   prebookId: z.string().trim().min(1),
   transactionId: z.string().trim().min(1),
+  clientReference: z.string().trim().min(1).optional(),
+  quoteId: z.string().trim().min(1).nullable().optional(),
+  sessionSignature: z.string().trim().min(32).optional(),
   quote: z.object({
     hotelId: z.string().trim().min(1),
     roomId: z.string().trim().min(1),
@@ -44,10 +48,39 @@ export async function POST(request: NextRequest) {
       throw new HttpError(400, 'Invalid quote signature');
     }
 
-    const session = await getPrebookSession(payload.transactionId);
+    const storedSession = await getPrebookSession(payload.transactionId);
+    const session = storedSession ?? (
+      payload.clientReference && payload.sessionSignature
+        ? {
+            prebookId: payload.prebookId,
+            transactionId: payload.transactionId,
+            clientReference: payload.clientReference,
+            quoteId: payload.quoteId ?? null,
+            quote: payload.quote,
+            createdAt: new Date().toISOString()
+          }
+        : null
+    );
     if (!session) {
       throw new HttpError(400, 'Prebook session expired');
     }
+
+    if (!storedSession) {
+      const validSessionSignature = verifyCheckoutSessionSignature(
+        {
+          prebookId: payload.prebookId,
+          transactionId: payload.transactionId,
+          clientReference: session.clientReference,
+          quoteId: session.quoteId,
+          quoteSignature: payload.quote.signature
+        },
+        payload.sessionSignature ?? ''
+      );
+      if (!validSessionSignature) {
+        throw new HttpError(400, 'Invalid session signature');
+      }
+    }
+
     if (session.prebookId !== payload.prebookId) {
       throw new HttpError(400, 'Prebook mismatch');
     }

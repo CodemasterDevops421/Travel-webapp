@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import { createAdminClient } from '@/server/supabase/admin';
 import type { PriceQuote } from '@/server/pricing';
 import { logger } from '@/server/logger';
@@ -15,7 +16,38 @@ type PersistQuoteInput = {
   guests: GuestInput[];
 };
 
+type FallbackQuoteRecord = {
+  id: string;
+  hotel_id: string;
+  room_id: string;
+  check_in: string;
+  check_out: string;
+  guests: GuestInput[];
+  total_amount: number;
+  currency: string;
+  price_signature: string;
+  expires_at: string;
+  created_at: string;
+};
+
+const fallbackQuotes = new Map<string, FallbackQuoteRecord>();
+
 export async function persistQuote(input: PersistQuoteInput): Promise<string | null> {
+  const fallbackId = randomUUID();
+  const fallbackRecord: FallbackQuoteRecord = {
+    id: fallbackId,
+    hotel_id: input.quote.hotelId,
+    room_id: input.quote.roomId,
+    check_in: input.checkIn,
+    check_out: input.checkOut,
+    guests: input.guests,
+    total_amount: input.quote.totalAmount,
+    currency: input.quote.currency,
+    price_signature: input.quote.signature,
+    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    created_at: new Date().toISOString()
+  };
+
   const supabase = createAdminClient();
 
   const { data, error } = await supabase
@@ -36,10 +68,11 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
 
   if (error) {
     logger.error({ error }, 'Failed to persist booking quote');
-    return null;
+    fallbackQuotes.set(fallbackId, fallbackRecord);
+    return fallbackId;
   }
 
-  return data?.id ?? null;
+  return data?.id ?? fallbackId;
 }
 
 type PersistBookingInput = {
@@ -49,7 +82,20 @@ type PersistBookingInput = {
   metadata: Record<string, unknown>;
 };
 
+type FallbackBookingRecord = BookingRecord;
+const fallbackBookings = new Map<string, FallbackBookingRecord>();
+
 export async function persistBooking(input: PersistBookingInput): Promise<string | null> {
+  const fallbackId = randomUUID();
+  const fallbackRecord: FallbackBookingRecord = {
+    id: fallbackId,
+    liteapi_booking_id: input.liteApiBookingId,
+    status: input.status,
+    quote_id: input.quoteId,
+    metadata: input.metadata,
+    created_at: new Date().toISOString()
+  };
+
   const supabase = createAdminClient();
 
   const { data, error } = await supabase
@@ -65,10 +111,11 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
 
   if (error) {
     logger.error({ error }, 'Failed to persist booking');
-    return null;
+    fallbackBookings.set(fallbackId, fallbackRecord);
+    return fallbackId;
   }
 
-  return data?.id ?? null;
+  return data?.id ?? fallbackId;
 }
 
 export type BookingRecord = {
@@ -90,10 +137,10 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
 
   if (error) {
     logger.warn({ error, id }, 'Booking lookup by id failed');
-    return null;
+    return fallbackBookings.get(id) ?? null;
   }
 
-  return data as BookingRecord;
+  return (data as BookingRecord) ?? fallbackBookings.get(id) ?? null;
 }
 
 export async function updateBookingStatusByLiteApiId(
@@ -101,6 +148,17 @@ export async function updateBookingStatusByLiteApiId(
   status: string,
   metadata: Record<string, unknown>
 ): Promise<boolean> {
+  for (const [id, booking] of fallbackBookings) {
+    if (booking.liteapi_booking_id === liteApiBookingId) {
+      fallbackBookings.set(id, {
+        ...booking,
+        status,
+        metadata
+      });
+      return true;
+    }
+  }
+
   const supabase = createAdminClient();
   const { error } = await supabase
     .from('bookings')
@@ -123,6 +181,20 @@ export async function updateBookingStatusByTransactionId(
   status: string,
   metadata: Record<string, unknown>
 ): Promise<boolean> {
+  for (const [id, booking] of fallbackBookings) {
+    const existingTransactionId = typeof booking.metadata?.transactionId === 'string'
+      ? booking.metadata.transactionId
+      : null;
+    if (existingTransactionId === transactionId) {
+      fallbackBookings.set(id, {
+        ...booking,
+        status,
+        metadata
+      });
+      return true;
+    }
+  }
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')

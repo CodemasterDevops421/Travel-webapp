@@ -6,6 +6,7 @@ import { prebookRate } from '@/server/liteapi';
 import { savePrebookSession } from '@/server/booking-store';
 import { toHttpError } from '@/server/errors';
 import { persistQuote } from '@/server/booking/repository';
+import { signCheckoutSession } from '@/server/booking-session';
 
 const requestSchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -65,6 +66,13 @@ export async function POST(request: NextRequest) {
       quote,
       createdAt: new Date().toISOString()
     });
+    const sessionSignature = signCheckoutSession({
+      prebookId: prebook.prebookId,
+      transactionId: prebook.transactionId,
+      clientReference,
+      quoteId,
+      quoteSignature: quote.signature
+    });
 
     return NextResponse.json({
       prebookId: prebook.prebookId,
@@ -73,6 +81,7 @@ export async function POST(request: NextRequest) {
       secretKey: prebook.secretKey,
       paymentSdk: true,
       quoteId,
+      sessionSignature,
       quote
     });
   } catch (error) {

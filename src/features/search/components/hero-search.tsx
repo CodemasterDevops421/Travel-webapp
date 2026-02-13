@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 export function HeroSearch() {
   const [query, setQuery] = useState('');
   const [activeQuery, setActiveQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const { data, isFetching } = useAutocomplete(query);
   const {
     data: propertyPreview,
@@ -21,6 +22,13 @@ export function HeroSearch() {
   const onSearch = () => {
     if (query.trim().length < 3) return;
     setActiveQuery(query.trim());
+    setShowSuggestions(false);
+  };
+
+  const onPickSuggestion = (name: string) => {
+    setQuery(name);
+    setActiveQuery(name);
+    setShowSuggestions(false);
   };
 
   return (
@@ -46,20 +54,39 @@ export function HeroSearch() {
             placeholder="Where to? city, hotel, landmark"
             className="h-12 pl-10"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setShowSuggestions(true);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                onSearch();
+              }
+            }}
           />
-          {query.length > 2 && (
+          {query.length > 2 && showSuggestions && (
             <div className="absolute z-20 mt-2 w-full rounded-xl border border-border bg-card p-2 shadow-xl">
               {isFetching ? (
                 <p className="p-2 text-sm text-muted-foreground">Fetching destinations...</p>
               ) : (
                 <ul className="space-y-1" role="listbox" aria-label="Autocomplete suggestions">
-                  {(data ?? []).map((item) => (
-                    <li key={item.id} className="cursor-pointer rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted">
-                      <span className="font-medium">{item.name}</span>{' '}
-                      <span className="text-muted-foreground">· {item.source}</span>
-                    </li>
-                  ))}
+                  {(data ?? []).length === 0 ? (
+                    <li className="rounded-lg px-2 py-2 text-sm text-muted-foreground">No destinations found.</li>
+                  ) : (
+                    (data ?? []).map((item) => (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
+                          onClick={() => onPickSuggestion(item.name)}
+                        >
+                          <span className="font-medium">{item.name}</span>
+                          <span className="text-muted-foreground">{item.source}</span>
+                        </button>
+                      </li>
+                    ))
+                  )}
                 </ul>
               )}
             </div>

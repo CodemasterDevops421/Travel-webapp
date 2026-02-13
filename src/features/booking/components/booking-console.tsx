@@ -30,6 +30,7 @@ type PrebookResult = {
   clientReference: string;
   secretKey: string;
   quoteId: string | null;
+  sessionSignature: string;
   quote: {
     hotelId: string;
     roomId: string;
@@ -48,6 +49,8 @@ type CheckoutSessionPayload = {
   prebookId: string;
   transactionId: string;
   clientReference: string;
+  quoteId: string | null;
+  sessionSignature: string;
   quote: PrebookResult['quote'];
   holder: {
     firstName: string;
@@ -163,6 +166,8 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
       prebookId: prebook.prebookId,
       transactionId: prebook.transactionId,
       clientReference: prebook.clientReference,
+      quoteId: prebook.quoteId,
+      sessionSignature: prebook.sessionSignature,
       quote: prebook.quote,
       holder: {
         firstName: values.firstName,

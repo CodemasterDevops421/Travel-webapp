@@ -4,20 +4,44 @@ import { assertRateLimit } from '@/server/ratelimit';
 import { autocomplete } from '@/server/liteapi';
 import { getOrSetRedisCache } from '@/server/cache';
 import { toHttpError } from '@/server/errors';
+import { env } from '@/server/env';
+import { logger } from '@/server/logger';
 
 const querySchema = z.object({
   q: z.string().trim().min(2).max(120)
 });
 
 async function googlePlacesFallback(query: string): Promise<Array<{ id: string; name: string; type: 'landmark'; source: 'google' }>> {
-  return [
-    {
-      id: `google-${query}`,
-      name: `${query} (Google fallback)`,
-      type: 'landmark',
-      source: 'google'
+  if (!env.GOOGLE_PLACES_API_KEY) {
+    return [];
+  }
+
+  try {
+    const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
+    url.searchParams.set('input', query);
+    url.searchParams.set('key', env.GOOGLE_PLACES_API_KEY);
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) {
+      return [];
     }
-  ];
+
+    const json = (await response.json()) as {
+      predictions?: Array<{
+        place_id?: string;
+        description?: string;
+      }>;
+    };
+
+    return (json.predictions ?? []).slice(0, 6).map((item, index) => ({
+      id: item.place_id ?? `google-${query}-${index}`,
+      name: item.description ?? query,
+      type: 'landmark' as const,
+      source: 'google' as const
+    }));
+  } catch (error) {
+    logger.warn({ error }, 'Google autocomplete fallback failed');
+    return [];
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -39,7 +63,7 @@ export async function GET(request: NextRequest) {
         return liteResults.map((item) => ({ ...item, source: 'liteapi' as const }));
       }
 
-      const shouldFallbackToGoogle = q.split(' ').length > 2 || /near|address|street/i.test(q);
+      const shouldFallbackToGoogle = true;
       if (shouldFallbackToGoogle) {
         return googlePlacesFallback(q);
       }

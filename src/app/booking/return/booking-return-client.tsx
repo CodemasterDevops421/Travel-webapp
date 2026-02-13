@@ -7,6 +7,8 @@ type CheckoutSessionPayload = {
   prebookId: string;
   transactionId: string;
   clientReference: string;
+  quoteId: string | null;
+  sessionSignature: string;
   quote: {
     hotelId: string;
     roomId: string;
@@ -78,6 +80,9 @@ export function BookingReturnClient() {
           body: JSON.stringify({
             prebookId,
             transactionId,
+            clientReference: session.clientReference,
+            quoteId: session.quoteId,
+            sessionSignature: session.sessionSignature,
             quote: session.quote,
             holder: session.holder,
             guests: session.guests

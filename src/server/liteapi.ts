@@ -2,6 +2,7 @@ import 'server-only';
 import LiteAPI from 'liteapi-node-sdk';
 import { env } from '@/server/env';
 import { logger } from '@/server/logger';
+import { HttpError } from '@/server/errors';
 
 const liteApiClient = new LiteAPI({
   apiKey: env.LITEAPI_API_KEY,
@@ -14,6 +15,11 @@ type AutocompleteEntity = {
   name: string;
   type: 'city' | 'hotel' | 'landmark';
   countryCode?: string;
+};
+
+type LiteApiResponse<T> = {
+  data?: T;
+  hotels?: Array<Record<string, unknown>>;
 };
 
 export type PropertyPreview = {
@@ -55,18 +61,199 @@ export type HotelRateOption = {
   currency: string;
 };
 
-export async function autocomplete(query: string): Promise<AutocompleteEntity[]> {
+type RatesSearchPayload = {
+  checkin: string;
+  checkout: string;
+  occupancies: Array<{ adults: number }>;
+  guestNationality: string;
+  currency: string;
+  roomMapping: boolean;
+  includeHotelData: boolean;
+  maxRatesPerHotel: number;
+  limit: number;
+  placeId?: string;
+  cityName?: string;
+  aiSearch?: string;
+};
+
+function nextStayWindow(): { checkin: string; checkout: string } {
+  const checkinDate = new Date();
+  checkinDate.setDate(checkinDate.getDate() + 14);
+  const checkoutDate = new Date(checkinDate);
+  checkoutDate.setDate(checkoutDate.getDate() + 2);
+  return {
+    checkin: checkinDate.toISOString().slice(0, 10),
+    checkout: checkoutDate.toISOString().slice(0, 10)
+  };
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> {
   try {
+    const response = await fetch(url, init);
+    const text = await response.text();
+    if (!response.ok) {
+      logger.warn(
+        {
+          url,
+          status: response.status,
+          bodySample: text.slice(0, 180)
+        },
+        'LiteAPI request failed'
+      );
+      return null;
+    }
+    return JSON.parse(text) as T;
+  } catch (error) {
+    logger.warn({ error, url }, 'LiteAPI request errored');
+    return null;
+  }
+}
+
+function parseRateAmount(rate: Record<string, unknown>): { amount: number | null; currency: string | null } {
+  if (typeof rate.retailRate === 'number') {
+    return {
+      amount: rate.retailRate,
+      currency: typeof rate.retailRateCurrency === 'string' ? rate.retailRateCurrency : null
+    };
+  }
+
+  const retailRate = (rate.retailRate as Record<string, unknown> | undefined) ?? {};
+  const totals = (retailRate.total as Array<Record<string, unknown>> | undefined) ?? [];
+  const first = totals[0] ?? {};
+  const rawAmount = first.amount;
+  const parsedAmount = typeof rawAmount === 'number' ? rawAmount : Number(rawAmount);
+  return {
+    amount: Number.isFinite(parsedAmount) ? parsedAmount : null,
+    currency: typeof first.currency === 'string' ? first.currency : null
+  };
+}
+
+function mapRatesResponse(
+  response: LiteApiResponse<Array<Record<string, unknown>>>,
+  fallbackCity: string
+): PropertyPreview[] {
+  const hotelLookup = new Map<string, Record<string, unknown>>();
+  for (const item of response.hotels ?? []) {
+    const id = String(item.id ?? item.hotelId ?? '');
+    if (id) {
+      hotelLookup.set(id, item);
+    }
+  }
+
+  const previews = (response.data ?? []).map((entry: Record<string, unknown>) => {
+    const hotelId = String(entry.hotelId ?? '');
+    const hotelFromRates = (entry.hotel || entry.hotelData || {}) as Record<string, unknown>;
+    const hotelFromLookup = hotelLookup.get(hotelId) ?? {};
+    const hotel = { ...hotelFromLookup, ...hotelFromRates };
+
+    const roomTypes = (entry.roomTypes as Array<Record<string, unknown>> | undefined) ?? [];
+    const firstRate = roomTypes
+      .flatMap((roomType) => ((roomType.rates as Array<Record<string, unknown>> | undefined) ?? []))
+      .find(Boolean) ?? {};
+    const amountInfo = parseRateAmount(firstRate);
+
+    const starRaw = hotel.starRating;
+    const parsedStar = typeof starRaw === 'number' ? starRaw : Number(starRaw);
+
+    return {
+      hotelId: hotelId || String(hotel.id ?? `hotel-${Math.random().toString(16).slice(2, 8)}`),
+      name: String(hotel.name ?? 'Hotel'),
+      city: String(hotel.city ?? fallbackCity),
+      countryCode: typeof hotel.countryCode === 'string' ? hotel.countryCode : undefined,
+      starRating: Number.isFinite(parsedStar) ? parsedStar : null,
+      price: amountInfo.amount,
+      currency: amountInfo.currency ?? env.DEFAULT_CURRENCY
+    } satisfies PropertyPreview;
+  });
+
+  const deduped = new Map<string, PropertyPreview>();
+  for (const item of previews) {
+    if (!item.hotelId || !item.name) {
+      continue;
+    }
+    if (!deduped.has(item.hotelId)) {
+      deduped.set(item.hotelId, item);
+    }
+  }
+  return Array.from(deduped.values());
+}
+
+async function searchRates(payload: RatesSearchPayload, fallbackCity: string): Promise<PropertyPreview[]> {
+  const response = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'X-API-Key': env.LITEAPI_API_KEY
+    },
+    body: JSON.stringify(payload),
+    cache: 'no-store'
+  });
+
+  if (!response) {
+    return [];
+  }
+  return mapRatesResponse(response, fallbackCity);
+}
+
+export async function autocomplete(query: string): Promise<AutocompleteEntity[]> {
+  if (!hasConfiguredLiteApiKey()) {
+    return fallbackProperties.map((item) => ({
+      id: item.hotelId,
+      name: item.city,
+      type: 'city' as const,
+      countryCode: item.countryCode
+    }));
+  }
+
+  try {
+    const placesResponse = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(
+      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=8`,
+      {
+        headers: {
+          accept: 'application/json',
+          'X-API-Key': env.LITEAPI_API_KEY
+        },
+        cache: 'no-store'
+      }
+    );
+
+    const places = (placesResponse?.data ?? []).map((item) => {
+      const label = String(item.name ?? item.displayName ?? item.formattedAddress ?? query);
+      const typeRaw = String(item.type ?? item.placeType ?? '').toLowerCase();
+      const mappedType = typeRaw.includes('hotel')
+        ? 'hotel'
+        : typeRaw.includes('landmark') || typeRaw.includes('point_of_interest')
+          ? 'landmark'
+          : 'city';
+
+      return {
+        id: String(item.placeId ?? item.id ?? label),
+        name: label,
+        type: mappedType as 'city' | 'hotel' | 'landmark',
+        countryCode: typeof item.countryCode === 'string' ? item.countryCode : undefined
+      } satisfies AutocompleteEntity;
+    });
+    if (places.length > 0) {
+      return places.slice(0, 8);
+    }
+
     const response = await liteApiClient.data.cities({ query });
-    return (response?.data ?? []).slice(0, 8).map((item: Record<string, string>) => ({
+    const cities = (response?.data ?? []).slice(0, 8).map((item: Record<string, string>) => ({
       id: item.id,
       name: item.name,
       type: 'city' as const,
       countryCode: item.countryCode
     }));
+    return cities;
   } catch (error) {
     logger.warn({ error }, 'LiteAPI autocomplete failed');
-    return [];
+    return fallbackProperties.map((item) => ({
+      id: item.hotelId,
+      name: item.city,
+      type: 'city' as const,
+      countryCode: item.countryCode
+    }));
   }
 }
 
@@ -110,6 +297,56 @@ export async function searchPropertyPreviews(query: string): Promise<PropertyPre
   }
 
   try {
+    const placeResponse = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(
+      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=5`,
+      {
+        headers: {
+          accept: 'application/json',
+          'X-API-Key': env.LITEAPI_API_KEY
+        },
+        cache: 'no-store'
+      }
+    );
+    const firstPlaceId = String(placeResponse?.data?.[0]?.placeId ?? placeResponse?.data?.[0]?.id ?? '');
+    const { checkin, checkout } = nextStayWindow();
+    const basePayload: Omit<RatesSearchPayload, 'placeId' | 'cityName' | 'aiSearch'> = {
+      checkin,
+      checkout,
+      occupancies: [{ adults: 2 }],
+      guestNationality: env.DEFAULT_GUEST_NATIONALITY,
+      currency: env.DEFAULT_CURRENCY,
+      roomMapping: true,
+      includeHotelData: true,
+      maxRatesPerHotel: 1,
+      limit: 12
+    };
+
+    if (firstPlaceId) {
+      const byPlace = await searchRates({
+        ...basePayload,
+        placeId: firstPlaceId
+      }, query);
+      if (byPlace.length > 0) {
+        return byPlace.slice(0, 8);
+      }
+    }
+
+    const byCity = await searchRates({
+      ...basePayload,
+      cityName: query
+    }, query);
+    if (byCity.length > 0) {
+      return byCity.slice(0, 8);
+    }
+
+    const byAiSearch = await searchRates({
+      ...basePayload,
+      aiSearch: query
+    }, query);
+    if (byAiSearch.length > 0) {
+      return byAiSearch.slice(0, 8);
+    }
+
     const placeRes = await fetch(`${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}`, {
       headers: {
         accept: 'application/json',
@@ -120,16 +357,11 @@ export async function searchPropertyPreviews(query: string): Promise<PropertyPre
     if (!placeRes.ok) {
       throw new Error(`LiteAPI places request failed: ${placeRes.status}`);
     }
-    const placeResponse = (await placeRes.json()) as { data?: Array<{ id?: string }> };
-    const firstPlaceId = placeResponse?.data?.[0]?.id;
-    if (!firstPlaceId) {
+    const fallbackPlaceResponse = (await placeRes.json()) as { data?: Array<{ id?: string }> };
+    const fallbackPlaceId = fallbackPlaceResponse?.data?.[0]?.id;
+    if (!fallbackPlaceId) {
       return fallbackProperties;
     }
-
-    const checkin = new Date();
-    checkin.setDate(checkin.getDate() + 14);
-    const checkout = new Date(checkin);
-    checkout.setDate(checkin.getDate() + 2);
 
     const ratesRes = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
       method: 'POST',
@@ -139,9 +371,9 @@ export async function searchPropertyPreviews(query: string): Promise<PropertyPre
         'X-API-Key': env.LITEAPI_API_KEY
       },
       body: JSON.stringify({
-        placeId: firstPlaceId,
-        checkin: checkin.toISOString().slice(0, 10),
-        checkout: checkout.toISOString().slice(0, 10),
+        placeId: fallbackPlaceId,
+        checkin,
+        checkout,
         occupancies: [{ adults: 2 }],
         guestNationality: env.DEFAULT_GUEST_NATIONALITY,
         currency: env.DEFAULT_CURRENCY,
@@ -152,24 +384,8 @@ export async function searchPropertyPreviews(query: string): Promise<PropertyPre
     if (!ratesRes.ok) {
       throw new Error(`LiteAPI rates request failed: ${ratesRes.status}`);
     }
-    const ratesResponse = (await ratesRes.json()) as { data?: Array<Record<string, unknown>> };
-
-    const mapped = (ratesResponse?.data ?? []).slice(0, 6).map((entry: Record<string, unknown>) => {
-      const hotel = (entry.hotel || entry.hotelData || {}) as Record<string, string | number>;
-      const roomTypes = (entry.roomTypes || []) as Array<Record<string, unknown>>;
-      const firstRoom = roomTypes[0] || {};
-      const firstRate = ((firstRoom.rates as Array<Record<string, unknown>>) || [])[0] || {};
-
-      return {
-        hotelId: String(entry.hotelId || hotel.id || `hotel-${Math.random().toString(16).slice(2, 8)}`),
-        name: String(hotel.name || 'Hotel'),
-        city: String(hotel.city || query),
-        countryCode: typeof hotel.countryCode === 'string' ? hotel.countryCode : undefined,
-        starRating: typeof hotel.starRating === 'number' ? hotel.starRating : null,
-        price: typeof firstRate.retailRate === 'number' ? firstRate.retailRate : null,
-        currency: typeof firstRate.retailRateCurrency === 'string' ? firstRate.retailRateCurrency : env.DEFAULT_CURRENCY
-      } satisfies PropertyPreview;
-    });
+    const ratesResponse = (await ratesRes.json()) as LiteApiResponse<Array<Record<string, unknown>>>;
+    const mapped = mapRatesResponse(ratesResponse, query).slice(0, 8);
 
     return mapped.length > 0 ? mapped : fallbackProperties;
   } catch (error) {
@@ -194,8 +410,12 @@ export async function prebookRate(offerId: string): Promise<LiteApiPrebookRespon
   });
 
   if (!response.ok) {
-    logger.error({ status: response.status }, 'LiteAPI prebook failed');
-    throw new Error('LiteAPI prebook failed');
+    const body = await response.text();
+    logger.error({ status: response.status, bodySample: body.slice(0, 180) }, 'LiteAPI prebook failed');
+    throw new HttpError(
+      response.status >= 400 && response.status < 500 ? 400 : 502,
+      'Unable to prebook this rate right now. Please choose another rate.'
+    );
   }
 
   const data = (await response.json()) as { data?: LiteApiPrebookResponse };
@@ -244,8 +464,12 @@ export async function bookRate(payload: BookPayload) {
   });
 
   if (!response.ok) {
-    logger.error({ status: response.status }, 'LiteAPI book failed');
-    throw new Error('LiteAPI book failed');
+    const body = await response.text();
+    logger.error({ status: response.status, bodySample: body.slice(0, 180) }, 'LiteAPI book failed');
+    throw new HttpError(
+      response.status >= 400 && response.status < 500 ? 400 : 502,
+      'Payment is not confirmed or booking session is invalid. Please retry checkout.'
+    );
   }
 
   return response.json();
