@@ -183,15 +183,16 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
     }
   });
 
-  async function startPayment(values: FormValues): Promise<void> {
-    if (!prebook) return;
+  async function startPayment(values: FormValues, prebookPayload?: PrebookResult): Promise<void> {
+    const activePrebook = prebookPayload ?? prebook;
+    if (!activePrebook) return;
     setPaymentError(null);
 
     const checkoutSession: CheckoutSessionPayload = {
-      clientReference: prebook.clientReference,
-      quoteId: prebook.quoteId,
-      sessionSignature: prebook.sessionSignature,
-      quoteSignature: prebook.quote.signature,
+      clientReference: activePrebook.clientReference,
+      quoteId: activePrebook.quoteId,
+      sessionSignature: activePrebook.sessionSignature,
+      quoteSignature: activePrebook.quote.signature,
       holder: {
         firstName: values.firstName,
         lastName: values.lastName,
@@ -206,16 +207,19 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
       ]
     };
 
-    saveCheckoutSession(prebook.transactionId, checkoutSession);
+    saveCheckoutSession(activePrebook.transactionId, checkoutSession);
     await ensurePaymentScriptLoaded();
     if (!window.LiteAPIPayment) {
       throw new Error('LiteAPI payment SDK unavailable');
     }
+    if (!publicEnv.NEXT_PUBLIC_LITEAPI_ENV) {
+      throw new Error('Payment environment is not configured');
+    }
 
-    const returnUrl = `${window.location.origin}/booking/return?prebookId=${encodeURIComponent(prebook.prebookId)}&transactionId=${encodeURIComponent(prebook.transactionId)}`;
+    const returnUrl = `${window.location.origin}/booking/return?prebookId=${encodeURIComponent(activePrebook.prebookId)}&transactionId=${encodeURIComponent(activePrebook.transactionId)}`;
     const liteAPIPayment = new window.LiteAPIPayment({
       publicKey: publicEnv.NEXT_PUBLIC_LITEAPI_ENV,
-      secretKey: prebook.secretKey,
+      secretKey: activePrebook.secretKey,
       returnUrl,
       targetElement: '#liteapi-payment-target',
       appearance: { theme: 'flat' },
@@ -227,7 +231,10 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (!prebook) {
-      await prebookMutation.mutateAsync(values);
+      const createdPrebook = await prebookMutation.mutateAsync(values);
+      await startPayment(values, createdPrebook).catch((error: unknown) => {
+        setPaymentError(errorMessage(error));
+      });
       return;
     }
     await startPayment(values).catch((error: unknown) => {
@@ -291,7 +298,7 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
 
           <div className="md:col-span-2">
             <Button type="submit" size="lg" disabled={prebookMutation.isPending}>
-              {prebookMutation.isPending ? 'Securing your quote...' : !prebook ? 'Validate and prebook' : 'Launch secure payment'}
+              {prebookMutation.isPending ? 'Securing your quote...' : !prebook ? 'Validate and launch payment' : 'Launch secure payment'}
             </Button>
           </div>
         </form>
