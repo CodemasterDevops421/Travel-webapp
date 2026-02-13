@@ -134,13 +134,13 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
               <PreferenceLink
                 key={hotel.hotelId}
                 href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&adults=${adults}&rooms=${rooms}&currency=${encodeURIComponent(currency)}`}
-                className="grid gap-3 rounded-2xl border border-border/80 bg-card/80 p-3 shadow-sm transition-all duration-200 hover:border-primary/40 hover:shadow-md md:grid-cols-[260px,1fr,180px]"
+                className="grid gap-4 rounded-3xl border border-border/40 bg-card/60 p-4 shadow-[0_12px_30px_-22px_rgba(15,23,42,0.45)] transition-all duration-200 hover:border-primary/50 hover:shadow-[0_18px_40px_-24px_rgba(15,23,42,0.6)] md:grid-cols-[320px,1fr,220px]"
               >
                 {hotel.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={hotel.imageUrl} alt={hotel.name} className="h-44 w-full rounded-xl object-cover md:h-40" />
+                  <img src={hotel.imageUrl} alt={hotel.name} className="h-56 w-full rounded-2xl object-cover md:h-48" />
                 ) : (
-                  <div className="h-44 rounded-xl bg-[linear-gradient(120deg,hsl(var(--muted))_0%,hsl(var(--card))_55%,hsl(var(--muted))_100%)] md:h-40" />
+                  <div className="h-56 rounded-2xl bg-[linear-gradient(120deg,hsl(var(--muted))_0%,hsl(var(--card))_55%,hsl(var(--muted))_100%)] md:h-48" />
                 )}
                 <div className="space-y-2">
                   <h2 className="text-xl font-semibold">{hotel.name}</h2>
@@ -154,13 +154,15 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
                     {hotel.reviewCount ? ` · Based on ${Math.round(hotel.reviewCount)} reviews` : ''}
                   </p>
                 </div>
-                <div className="flex flex-col items-start justify-between md:items-end">
-                  <div className="text-left md:text-right">
-                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">From</p>
-                    <p className="text-2xl font-bold text-primary">{formatMoney(hotel.currency, hotel.price)}</p>
-                    <p className="text-xs text-muted-foreground">/ night</p>
+                <div className="flex flex-col items-start justify-between gap-4 md:items-end">
+                  <div className="rounded-2xl border border-border/50 bg-background/80 px-4 py-3 text-left md:text-right">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">From</p>
+                    <p className="text-2xl font-bold text-primary md:text-3xl">{formatMoney(hotel.currency, hotel.price)}</p>
+                    <p className="text-xs text-muted-foreground">per night</p>
                   </div>
-                  <span className="inline-flex rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold">View details</span>
+                  <span className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm">
+                    View stay
+                  </span>
                 </div>
               </PreferenceLink>
             ))}
