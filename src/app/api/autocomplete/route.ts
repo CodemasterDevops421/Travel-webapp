@@ -10,10 +10,11 @@ import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
 import { getClientIp } from '@/server/request';
 
 const querySchema = z.object({
-  q: z.string().trim().min(2).max(120)
+  q: z.string().trim().min(2).max(120),
+  language: z.string().trim().toLowerCase().length(2).optional()
 });
 
-async function googlePlacesFallback(query: string): Promise<Array<{ id: string; name: string; type: 'landmark'; source: 'maps' }>> {
+async function googlePlacesFallback(query: string, language?: string): Promise<Array<{ id: string; name: string; type: 'landmark'; source: 'maps' }>> {
   if (!env.GOOGLE_PLACES_API_KEY) {
     return [];
   }
@@ -22,6 +23,9 @@ async function googlePlacesFallback(query: string): Promise<Array<{ id: string; 
     const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
     url.searchParams.set('input', query);
     url.searchParams.set('key', env.GOOGLE_PLACES_API_KEY);
+    if (language) {
+      url.searchParams.set('language', language);
+    }
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) {
       return [];
@@ -49,25 +53,27 @@ async function googlePlacesFallback(query: string): Promise<Array<{ id: string; 
 export async function GET(request: NextRequest) {
   try {
     const parsed = querySchema.safeParse({
-      q: request.nextUrl.searchParams.get('q')
+      q: request.nextUrl.searchParams.get('q'),
+      language: request.nextUrl.searchParams.get('language') ?? undefined
     });
     if (!parsed.success) {
       return NextResponse.json([], { status: 200 });
     }
 
     const q = parsed.data.q;
+    const language = parsed.data.language;
     const clientIp = getClientIp(request);
     await assertRateLimit(`autocomplete:${clientIp}`);
 
-    const payload = await getOrSetRedisCache(`autocomplete:${q.toLowerCase()}`, CACHE_TTL_SECONDS.autocomplete, async () => {
-      const liteResults = await autocomplete(q);
+    const payload = await getOrSetRedisCache(`autocomplete:${q.toLowerCase()}:${language ?? 'en'}`, CACHE_TTL_SECONDS.autocomplete, async () => {
+      const liteResults = await autocomplete(q, language);
       if (liteResults.length > 0) {
         return liteResults.map((item) => ({ ...item, source: 'inventory' as const }));
       }
 
       const shouldFallbackToGoogle = true;
       if (shouldFallbackToGoogle) {
-        return googlePlacesFallback(q);
+        return googlePlacesFallback(q, language);
       }
 
       return [];

@@ -3,13 +3,13 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Calendar, Search, Shield, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
 import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PreferenceLink } from '@/components/navigation/preference-link';
 import { trackFunnelEvent } from '@/shared/lib/analytics';
 
 export function HeroSearch() {
@@ -28,16 +28,17 @@ export function HeroSearch() {
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const router = useRouter();
+  const language = useSearchUIStore((state) => state.language);
   const currency = useSearchUIStore((state) => state.currency);
   const hasTrackedSearchInput = useRef(false);
   const suggestionsListId = useId();
-  const { data, isFetching } = useAutocomplete(query);
+  const { data, isFetching } = useAutocomplete(query, language);
   const suggestions = data ?? [];
   const isSuggestionsOpen = query.length > 2 && showSuggestions;
   const {
     data: propertyPreview,
     isFetching: isPreviewLoading
-  } = usePropertyPreview(activeQuery, currency, checkIn, checkOut, adults, rooms);
+  } = usePropertyPreview(activeQuery, language, currency, checkIn, checkOut, adults, rooms);
   const selectedNights = (() => {
     const start = new Date(checkIn);
     const end = new Date(checkOut);
@@ -68,6 +69,7 @@ export function HeroSearch() {
       checkout: checkOut,
       adults: String(adults),
       rooms: String(rooms),
+      language,
       currency
     });
     router.push(`/search?${params.toString()}`);
@@ -288,9 +290,9 @@ export function HeroSearch() {
           ) : (
             <div className="grid gap-3 md:grid-cols-3">
               {(propertyPreview ?? []).map((hotel, idx) => (
-                <Link
+                <PreferenceLink
                   key={hotel.hotelId}
-                  href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkIn)}&checkout=${encodeURIComponent(checkOut)}&adults=${adults}`}
+                  href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkIn)}&checkout=${encodeURIComponent(checkOut)}&adults=${adults}&rooms=${rooms}&currency=${encodeURIComponent(currency)}`}
                   className="animate-soft-rise overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
                   style={{ animationDelay: `${idx * 45}ms` }}
                   onClick={() =>
@@ -336,7 +338,7 @@ export function HeroSearch() {
                       View details and rates
                     </span>
                   </div>
-                </Link>
+                </PreferenceLink>
               ))}
             </div>
           )}

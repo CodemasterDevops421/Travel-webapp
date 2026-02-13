@@ -8,6 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { publicEnv } from '@/shared/env.public';
+import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
 
 const formSchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -15,6 +16,8 @@ const formSchema = z.object({
   offerId: z.string().trim().min(1),
   amount: z.coerce.number().positive(),
   currency: z.string().trim().length(3),
+  adults: z.coerce.number().int().positive(),
+  rooms: z.coerce.number().int().positive(),
   checkIn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkOut: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   firstName: z.string().trim().min(1),
@@ -43,6 +46,8 @@ type PrebookResult = {
 
 type BookingConsoleProps = {
   initialValues?: Partial<FormValues>;
+  preferredLanguage?: string;
+  preferredCurrency?: string;
 };
 
 type CheckoutSessionPayload = {
@@ -69,9 +74,31 @@ function checkoutStorageKey(transactionId: string): string {
   return `booking:checkout:${transactionId}`;
 }
 
+function buildPrebookGuests(adults: number, rooms: number): Array<{ adults: number }> {
+  const normalizedAdults = Math.max(1, Math.floor(adults));
+  const requestedRooms = Math.max(1, Math.floor(rooms));
+  const roomCount = Math.min(requestedRooms, normalizedAdults);
+  const baseAdultsPerRoom = Math.floor(normalizedAdults / roomCount);
+  const remainder = normalizedAdults % roomCount;
+
+  return Array.from({ length: roomCount }, (_, idx) => ({
+    adults: baseAdultsPerRoom + (idx < remainder ? 1 : 0)
+  }));
+}
+
+function saveToStorage(storage: Storage, key: string, value: string): void {
+  try {
+    storage.setItem(key, value);
+  } catch {
+    // Ignore storage write failures to avoid blocking checkout launch.
+  }
+}
+
 function saveCheckoutSession(transactionId: string, payload: CheckoutSessionPayload): void {
+  const key = checkoutStorageKey(transactionId);
   const encoded = JSON.stringify(payload);
-  sessionStorage.setItem(checkoutStorageKey(transactionId), encoded);
+  saveToStorage(sessionStorage, key, encoded);
+  saveToStorage(localStorage, key, encoded);
 }
 
 async function ensurePaymentScriptLoaded(): Promise<void> {
@@ -114,7 +141,7 @@ async function ensurePaymentScriptLoaded(): Promise<void> {
   });
 }
 
-export function BookingConsole({ initialValues }: BookingConsoleProps) {
+export function BookingConsole({ initialValues, preferredLanguage, preferredCurrency }: BookingConsoleProps) {
   const [prebook, setPrebook] = useState<PrebookResult | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
@@ -133,6 +160,8 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
       offerId: initialValues?.offerId ?? '',
       amount: initialValues?.amount ?? 100,
       currency: initialValues?.currency ?? 'USD',
+      adults: initialValues?.adults ?? 2,
+      rooms: initialValues?.rooms ?? 1,
       checkIn: initialValues?.checkIn ?? '',
       checkOut: initialValues?.checkOut ?? '',
       firstName: initialValues?.firstName ?? '',
@@ -168,7 +197,7 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
           offerId: values.offerId,
           checkIn: values.checkIn,
           checkOut: values.checkOut,
-          guests: [{ adults: 2 }]
+          guests: buildPrebookGuests(values.adults, values.rooms)
         })
       });
 
@@ -216,7 +245,19 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
       throw new Error('Payment environment is not configured');
     }
 
-    const returnUrl = `${window.location.origin}/booking/return?prebookId=${encodeURIComponent(activePrebook.prebookId)}&transactionId=${encodeURIComponent(activePrebook.transactionId)}`;
+    const returnParams = new URLSearchParams({
+      prebookId: activePrebook.prebookId,
+      transactionId: activePrebook.transactionId
+    });
+    const resolvedLanguage = normalizeLanguage(preferredLanguage) ?? normalizeLanguage(window.localStorage.getItem('tf:language'));
+    const resolvedCurrency = normalizeCurrency(values.currency) ?? normalizeCurrency(preferredCurrency);
+    if (resolvedLanguage) {
+      returnParams.set('language', resolvedLanguage);
+    }
+    if (resolvedCurrency) {
+      returnParams.set('currency', resolvedCurrency);
+    }
+    const returnUrl = `${window.location.origin}/booking/return?${returnParams.toString()}`;
     const liteAPIPayment = new window.LiteAPIPayment({
       publicKey: publicEnv.NEXT_PUBLIC_LITEAPI_ENV,
       secretKey: activePrebook.secretKey,
@@ -275,6 +316,8 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
               <Input aria-label="Offer ID" placeholder="Offer ID" {...form.register('offerId')} />
               <Input aria-label="Amount" placeholder="Amount" type="number" step="1" {...form.register('amount')} />
               <Input aria-label="Currency" placeholder="Currency (USD)" {...form.register('currency')} />
+              <Input aria-label="Adults" placeholder="Adults" type="number" min={1} step="1" {...form.register('adults')} />
+              <Input aria-label="Rooms" placeholder="Rooms" type="number" min={1} step="1" {...form.register('rooms')} />
               <Input aria-label="Check-in date" placeholder="Check-in YYYY-MM-DD" {...form.register('checkIn')} />
               <Input aria-label="Check-out date" placeholder="Check-out YYYY-MM-DD" {...form.register('checkOut')} />
             </>
@@ -287,6 +330,8 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
               <input type="hidden" {...form.register('offerId')} />
               <input type="hidden" {...form.register('amount')} />
               <input type="hidden" {...form.register('currency')} />
+              <input type="hidden" {...form.register('adults')} />
+              <input type="hidden" {...form.register('rooms')} />
               <input type="hidden" {...form.register('checkIn')} />
               <input type="hidden" {...form.register('checkOut')} />
             </>

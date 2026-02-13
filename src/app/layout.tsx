@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { Sora, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AppQueryProvider } from '@/components/providers/query-provider';
+import { GlobalTopBar } from '@/components/layout/global-top-bar';
 
 const headingFont = Sora({
   subsets: ['latin'],
@@ -48,7 +50,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={`${headingFont.variable} ${bodyFont.variable}`}>
         <ThemeProvider>
-          <AppQueryProvider>{children}</AppQueryProvider>
+          <AppQueryProvider>
+            <Suspense fallback={null}>
+              <GlobalTopBar />
+            </Suspense>
+            {children}
+          </AppQueryProvider>
         </ThemeProvider>
       </body>
     </html>

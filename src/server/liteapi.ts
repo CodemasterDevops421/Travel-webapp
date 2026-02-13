@@ -341,6 +341,97 @@ function pickGuestReviews(data: Record<string, unknown>) {
   return [];
 }
 
+function pickReviewScore(data: Record<string, unknown>): number | null {
+  return (
+    parseNumber(data.reviewScore) ??
+    parseNumber(data.review_rating) ??
+    parseNumber(data.guestRating) ??
+    parseNumber(data.rating)
+  );
+}
+
+function pickReviewCount(data: Record<string, unknown>): number | null {
+  return (
+    parseNumber(data.reviewCount) ??
+    parseNumber(data.reviewsCount) ??
+    parseNumber(data.numReviews) ??
+    parseNumber(data.totalReviews)
+  );
+}
+
+function shouldEnrichReviews(
+  reviewScore: number | null,
+  reviewCount: number | null,
+  reviewBreakdown: Array<{ label: string; score: number }>,
+  reviews: Array<{ author?: string; travelerType?: string; comment: string; score?: number | null; createdAt?: string }>
+): boolean {
+  return reviewScore === null || reviewCount === null || reviewBreakdown.length === 0 || reviews.length === 0;
+}
+
+async function fetchReviewEnrichmentFromRates(
+  hotelId: string
+): Promise<{
+  reviewScore: number | null;
+  reviewCount: number | null;
+  reviewBreakdown: Array<{ label: string; score: number }>;
+  reviews: Array<{ author?: string; travelerType?: string; comment: string; score?: number | null; createdAt?: string }>;
+} | null> {
+  try {
+    const stayWindow = nextStayWindow();
+    const response = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'X-API-Key': env.LITEAPI_API_KEY
+      },
+      body: JSON.stringify({
+        hotelIds: [hotelId],
+        checkin: stayWindow.checkin,
+        checkout: stayWindow.checkout,
+        occupancies: [{ adults: 2 }],
+        guestNationality: env.DEFAULT_GUEST_NATIONALITY,
+        currency: env.DEFAULT_CURRENCY,
+        includeHotelData: true,
+        roomMapping: true,
+        maxRatesPerHotel: 1
+      }),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      logger.warn({ hotelId, status: response.status }, 'LiteAPI review enrichment request failed');
+      return null;
+    }
+
+    const payload = (await response.json()) as LiteApiResponse<Array<Record<string, unknown>>>;
+    const hotelLookup = new Map<string, Record<string, unknown>>();
+    for (const item of payload.hotels ?? []) {
+      const id = String(item.id ?? item.hotelId ?? '');
+      if (id) hotelLookup.set(id, item);
+    }
+
+    const firstResult = payload.data?.[0] ?? {};
+    const embeddedHotel = (firstResult.hotel || firstResult.hotelData || {}) as Record<string, unknown>;
+    const lookupHotel = hotelLookup.get(hotelId) ?? hotelLookup.get(String(embeddedHotel.id ?? embeddedHotel.hotelId ?? '')) ?? {};
+    const mergedHotel = { ...lookupHotel, ...embeddedHotel };
+
+    if (Object.keys(mergedHotel).length === 0) {
+      return null;
+    }
+
+    return {
+      reviewScore: pickReviewScore(mergedHotel),
+      reviewCount: pickReviewCount(mergedHotel),
+      reviewBreakdown: pickReviewBreakdown(mergedHotel),
+      reviews: pickGuestReviews(mergedHotel)
+    };
+  } catch (error) {
+    logger.warn({ error, hotelId }, 'LiteAPI review enrichment failed');
+    return null;
+  }
+}
+
 function mapRatesResponse(
   response: LiteApiResponse<Array<Record<string, unknown>>>,
   fallbackCity: string
@@ -422,7 +513,7 @@ async function searchRates(payload: RatesSearchPayload, fallbackCity: string): P
   return mapRatesResponse(response, fallbackCity);
 }
 
-export async function autocomplete(query: string): Promise<AutocompleteEntity[]> {
+export async function autocomplete(query: string, language?: string): Promise<AutocompleteEntity[]> {
   if (!hasConfiguredLiteApiKey()) {
     return fallbackProperties.map((item) => ({
       id: item.hotelId,
@@ -434,7 +525,7 @@ export async function autocomplete(query: string): Promise<AutocompleteEntity[]>
 
   try {
     const placesResponse = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(
-      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=8`,
+      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=8${language ? `&language=${encodeURIComponent(language)}` : ''}`,
       {
         headers: {
           accept: 'application/json',
@@ -519,6 +610,7 @@ function hasConfiguredLiteApiKey(): boolean {
 
 export async function searchPropertyPreviews(
   query: string,
+  language?: string,
   currency?: string,
   checkin?: string,
   checkout?: string,
@@ -531,7 +623,7 @@ export async function searchPropertyPreviews(
 
   try {
     const placeResponse = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(
-      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=5`,
+      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=5${language ? `&language=${encodeURIComponent(language)}` : ''}`,
       {
         headers: {
           accept: 'application/json',
@@ -586,13 +678,16 @@ export async function searchPropertyPreviews(
       return byAiSearch.slice(0, 8);
     }
 
-    const placeRes = await fetch(`${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}`, {
+    const placeRes = await fetch(
+      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}${language ? `&language=${encodeURIComponent(language)}` : ''}`,
+      {
       headers: {
         accept: 'application/json',
         'X-API-Key': env.LITEAPI_API_KEY
       },
       cache: 'no-store'
-    });
+      }
+    );
     if (!placeRes.ok) {
       throw new Error(`LiteAPI places request failed: ${placeRes.status}`);
     }
@@ -734,6 +829,12 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
     const { latitude, longitude } = pickCoordinates(data);
     const reviewBreakdown = pickReviewBreakdown(data);
     const reviews = pickGuestReviews(data);
+    const reviewScore = pickReviewScore(data);
+    const reviewCount = pickReviewCount(data);
+    const enrichment = shouldEnrichReviews(reviewScore, reviewCount, reviewBreakdown, reviews)
+      ? await fetchReviewEnrichmentFromRates(hotelId)
+      : null;
+
     return {
       id: String(data.id ?? hotelId),
       name: String(data.name ?? 'Hotel'),
@@ -752,18 +853,10 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
       latitude,
       longitude,
       starRating: parseNumber(data.starRating),
-      reviewScore:
-        parseNumber(data.reviewScore) ??
-        parseNumber(data.review_rating) ??
-        parseNumber(data.guestRating) ??
-        parseNumber(data.rating),
-      reviewCount:
-        parseNumber(data.reviewCount) ??
-        parseNumber(data.reviewsCount) ??
-        parseNumber(data.numReviews) ??
-        parseNumber(data.totalReviews),
-      reviewBreakdown,
-      reviews
+      reviewScore: reviewScore ?? enrichment?.reviewScore ?? null,
+      reviewCount: reviewCount ?? enrichment?.reviewCount ?? null,
+      reviewBreakdown: reviewBreakdown.length > 0 ? reviewBreakdown : (enrichment?.reviewBreakdown ?? []),
+      reviews: reviews.length > 0 ? reviews : (enrichment?.reviews ?? [])
     };
   } catch (error) {
     logger.warn({ error, hotelId }, 'LiteAPI hotel details failed');

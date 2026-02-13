@@ -9,6 +9,7 @@ import { getClientIp } from '@/server/request';
 
 const querySchema = z.object({
   q: z.string().trim().min(2).max(120),
+  language: z.string().trim().toLowerCase().length(2).optional(),
   currency: z.string().trim().toUpperCase().length(3).optional(),
   checkin: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   checkout: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
   try {
     const parsed = querySchema.safeParse({
       q: request.nextUrl.searchParams.get('q'),
+      language: request.nextUrl.searchParams.get('language') ?? undefined,
       currency: request.nextUrl.searchParams.get('currency') ?? undefined,
       checkin: request.nextUrl.searchParams.get('checkin') ?? undefined,
       checkout: request.nextUrl.searchParams.get('checkout') ?? undefined,
@@ -31,6 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     const q = parsed.data.q;
+    const language = parsed.data.language;
     const currency = parsed.data.currency;
     const checkin = parsed.data.checkin;
     const checkout = parsed.data.checkout;
@@ -40,10 +43,10 @@ export async function GET(request: NextRequest) {
     await assertRateLimit(`property-preview:${clientIp}`);
 
     const payload = await getOrSetRedisCache(
-      `property-preview:${q.toLowerCase()}:${currency ?? 'default'}:${checkin ?? 'auto'}:${checkout ?? 'auto'}:${adults ?? 2}:${rooms ?? 1}`,
+      `property-preview:${q.toLowerCase()}:${language ?? 'en'}:${currency ?? 'default'}:${checkin ?? 'auto'}:${checkout ?? 'auto'}:${adults ?? 2}:${rooms ?? 1}`,
       CACHE_TTL_SECONDS.propertyPreview,
       async () => {
-      return searchPropertyPreviews(q, currency, checkin, checkout, adults, rooms);
+        return searchPropertyPreviews(q, language, currency, checkin, checkout, adults, rooms);
       }
     );
 

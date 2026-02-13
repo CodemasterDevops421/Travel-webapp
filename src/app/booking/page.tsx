@@ -1,5 +1,6 @@
 import { BookingConsole } from '@/features/booking/components/booking-console';
 import type { Metadata } from 'next';
+import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
 
 export const metadata: Metadata = {
   title: 'Secure Checkout | TravelForge',
@@ -31,11 +32,22 @@ function pickParam(params: Record<string, string | string[] | undefined>, key: s
   return Array.isArray(value) ? value[0] : undefined;
 }
 
+function pickPositiveInt(params: Record<string, string | string[] | undefined>, key: string): number | undefined {
+  const raw = pickParam(params, key);
+  if (!raw) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return undefined;
+  const intValue = Math.floor(parsed);
+  return intValue > 0 ? intValue : undefined;
+}
+
 export default async function BookingPage({ searchParams }: BookingPageProps) {
   const params = await searchParams;
   const amountRaw = pickParam(params, 'amount');
   const parsedAmount = amountRaw ? Number(amountRaw) : undefined;
   const amount = parsedAmount && Number.isFinite(parsedAmount) ? parsedAmount : undefined;
+  const preferredLanguage = normalizeLanguage(pickParam(params, 'language'));
+  const preferredCurrency = normalizeCurrency(pickParam(params, 'currency'));
 
   return (
     <main className="mx-auto max-w-5xl space-y-4 px-4 py-8">
@@ -51,11 +63,15 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
           hotelId: pickParam(params, 'hotelId'),
           roomId: pickParam(params, 'roomId'),
           offerId: pickParam(params, 'offerId'),
-          currency: pickParam(params, 'currency')?.toUpperCase(),
+          currency: preferredCurrency,
+          adults: pickPositiveInt(params, 'adults'),
+          rooms: pickPositiveInt(params, 'rooms'),
           checkIn: pickParam(params, 'checkIn'),
           checkOut: pickParam(params, 'checkOut'),
           amount
         }}
+        preferredLanguage={preferredLanguage}
+        preferredCurrency={preferredCurrency}
       />
     </main>
   );

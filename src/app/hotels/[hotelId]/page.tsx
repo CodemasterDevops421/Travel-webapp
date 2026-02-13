@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getHotelDetails, getHotelRates } from '@/server/liteapi';
 import { HotelDetailExperience } from '@/features/hotels/components/hotel-detail-experience';
+import { DEFAULT_CURRENCY, normalizeCurrency } from '@/shared/lib/preferences';
 
 type PageProps = {
   params: Promise<{ hotelId: string }>;
@@ -8,6 +9,8 @@ type PageProps = {
     checkin?: string;
     checkout?: string;
     adults?: string;
+    rooms?: string;
+    currency?: string;
   }>;
 };
 
@@ -45,7 +48,9 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
   const dates = defaultDates();
   const checkin = qs.checkin ?? dates.checkin;
   const checkout = qs.checkout ?? dates.checkout;
-  const adults = Number(qs.adults ?? '2') || 2;
+  const adults = Math.max(1, Number(qs.adults ?? '2') || 2);
+  const rooms = Math.max(1, Number(qs.rooms ?? '1') || 1);
+  const currency = normalizeCurrency(qs.currency) ?? DEFAULT_CURRENCY;
 
   const [hotel, rates] = await Promise.all([
     getHotelDetails(hotelId),
@@ -53,7 +58,8 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
       hotelId,
       checkin,
       checkout,
-      adults
+      adults,
+      currency
     })
   ]);
 
@@ -95,7 +101,7 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
   return (
     <>
       {jsonLd ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} /> : null}
-      <HotelDetailExperience hotelId={hotelId} checkin={checkin} checkout={checkout} adults={adults} hotel={hotel} rates={rates} />
+      <HotelDetailExperience hotelId={hotelId} checkin={checkin} checkout={checkout} adults={adults} rooms={rooms} hotel={hotel} rates={rates} />
     </>
   );
 }

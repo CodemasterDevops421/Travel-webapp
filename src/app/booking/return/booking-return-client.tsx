@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
 
 type CheckoutSessionPayload = {
   clientReference: string;
@@ -24,31 +25,69 @@ function checkoutStorageKey(transactionId: string): string {
   return `booking:checkout:${transactionId}`;
 }
 
+function isCheckoutSessionPayload(value: unknown): value is CheckoutSessionPayload {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<CheckoutSessionPayload>;
+  if (typeof candidate.clientReference !== 'string') return false;
+  if (typeof candidate.sessionSignature !== 'string') return false;
+  if (typeof candidate.quoteSignature !== 'string') return false;
+  if (!candidate.holder || typeof candidate.holder !== 'object') return false;
+  if (!Array.isArray(candidate.guests) || candidate.guests.length < 1) return false;
+  return true;
+}
+
+function removeFromStorage(storage: Storage, key: string): void {
+  try {
+    storage.removeItem(key);
+  } catch {
+    // Ignore clear failures to avoid blocking booking finalization flow.
+  }
+}
+
 function readCheckoutSession(transactionId: string): CheckoutSessionPayload | null {
   const key = checkoutStorageKey(transactionId);
-  const raw = sessionStorage.getItem(key) ?? localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as CheckoutSessionPayload;
-  } catch {
-    return null;
+  const stores: Storage[] = [sessionStorage, localStorage];
+
+  for (const storage of stores) {
+    let raw: string | null = null;
+    try {
+      raw = storage.getItem(key);
+    } catch {
+      continue;
+    }
+    if (!raw) continue;
+
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (isCheckoutSessionPayload(parsed)) {
+        return parsed;
+      }
+      removeFromStorage(storage, key);
+    } catch {
+      removeFromStorage(storage, key);
+    }
   }
+
+  return null;
 }
 
 function clearCheckoutSession(transactionId: string): void {
   const key = checkoutStorageKey(transactionId);
-  sessionStorage.removeItem(key);
-  localStorage.removeItem(key);
+  removeFromStorage(sessionStorage, key);
+  removeFromStorage(localStorage, key);
 }
 
 export function BookingReturnClient() {
   const params = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState<'loading' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
   const [message, setMessage] = useState('Finalizing booking...');
+  const [fallbackBookingId, setFallbackBookingId] = useState<string | null>(null);
 
   const prebookId = params.get('prebookId') ?? '';
   const transactionId = params.get('transactionId') ?? '';
+  const language = normalizeLanguage(params.get('language'));
+  const currency = normalizeCurrency(params.get('currency'));
 
   const canFinalize = useMemo(() => Boolean(prebookId && transactionId), [prebookId, transactionId]);
 
@@ -93,8 +132,24 @@ export function BookingReturnClient() {
 
         clearCheckoutSession(transactionId);
         if (json.localBookingId && json.bookingViewToken) {
-          const bookingUrl = `/bookings/${encodeURIComponent(json.localBookingId)}?viewToken=${encodeURIComponent(json.bookingViewToken)}`;
+          const bookingParams = new URLSearchParams({
+            viewToken: String(json.bookingViewToken)
+          });
+          if (language) {
+            bookingParams.set('language', language);
+          }
+          if (currency) {
+            bookingParams.set('currency', currency);
+          }
+          const bookingUrl = `/bookings/${encodeURIComponent(json.localBookingId)}?${bookingParams.toString()}`;
           router.replace(bookingUrl as never);
+          return;
+        }
+        if (json.localBookingId) {
+          if (!active) return;
+          setStatus('success');
+          setFallbackBookingId(String(json.localBookingId));
+          setMessage('Booking completed. Keep this reference and contact support if confirmation view is unavailable.');
           return;
         }
         if (!active) return;
@@ -111,14 +166,15 @@ export function BookingReturnClient() {
     return () => {
       active = false;
     };
-  }, [canFinalize, prebookId, router, transactionId]);
+  }, [canFinalize, currency, language, prebookId, router, transactionId]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
       <section className="rounded-2xl border border-border bg-card/85 p-6 shadow-sm">
         <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Payment Return</p>
         <h1 className="mt-2 text-2xl font-semibold">Finalizing your booking</h1>
-        <p className={`mt-2 text-sm ${status === 'error' ? 'text-red-600' : 'text-muted-foreground'}`}>{message}</p>
+        <p className={`mt-2 text-sm ${status === 'error' ? 'text-red-600' : status === 'success' ? 'text-emerald-700' : 'text-muted-foreground'}`}>{message}</p>
+        {fallbackBookingId ? <p className="mt-2 text-sm font-medium">Booking reference: <span className="font-mono">{fallbackBookingId}</span></p> : null}
       </section>
     </main>
   );

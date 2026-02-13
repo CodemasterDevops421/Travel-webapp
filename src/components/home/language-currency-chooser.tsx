@@ -1,35 +1,63 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Coins, Globe2 } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
-
-const LANGUAGE_OPTIONS = [
-  { value: 'en', label: 'English' },
-  { value: 'fr', label: 'French' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'de', label: 'German' }
-];
-
-const CURRENCY_OPTIONS = ['USD', 'EUR', 'INR', 'GBP', 'AED'];
+import {
+  CURRENCY_OPTIONS,
+  DEFAULT_CURRENCY,
+  DEFAULT_LANGUAGE,
+  LANGUAGE_OPTIONS,
+  normalizeCurrency,
+  normalizeLanguage,
+  upsertPreferenceParams
+} from '@/shared/lib/preferences';
 
 export function LanguageCurrencyChooser() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const language = useSearchUIStore((state) => state.language);
   const currency = useSearchUIStore((state) => state.currency);
   const setLanguage = useSearchUIStore((state) => state.setLanguage);
   const setCurrency = useSearchUIStore((state) => state.setCurrency);
+  const hydratedRef = useRef(false);
 
   useEffect(() => {
-    const savedLanguage = window.localStorage.getItem('tf:language');
-    const savedCurrency = window.localStorage.getItem('tf:currency');
+    const queryLanguage = normalizeLanguage(searchParams.get('language'));
+    const queryCurrency = normalizeCurrency(searchParams.get('currency'));
+    const savedLanguage = normalizeLanguage(window.localStorage.getItem('tf:language'));
+    const savedCurrency = normalizeCurrency(window.localStorage.getItem('tf:currency'));
+    const nextLanguage = queryLanguage ?? savedLanguage ?? DEFAULT_LANGUAGE;
+    const nextCurrency = queryCurrency ?? savedCurrency ?? DEFAULT_CURRENCY;
 
-    if (savedLanguage && LANGUAGE_OPTIONS.some((item) => item.value === savedLanguage)) {
-      setLanguage(savedLanguage);
+    if (nextLanguage !== language) {
+      setLanguage(nextLanguage);
     }
-    if (savedCurrency && CURRENCY_OPTIONS.includes(savedCurrency)) {
-      setCurrency(savedCurrency);
+    if (nextCurrency !== currency) {
+      setCurrency(nextCurrency);
     }
-  }, [setLanguage, setCurrency]);
+    hydratedRef.current = true;
+  }, [currency, language, searchParams, setCurrency, setLanguage]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const normalizedLanguage = normalizeLanguage(language) ?? DEFAULT_LANGUAGE;
+    const normalizedCurrency = normalizeCurrency(currency) ?? DEFAULT_CURRENCY;
+    window.localStorage.setItem('tf:language', normalizedLanguage);
+    window.localStorage.setItem('tf:currency', normalizedCurrency);
+
+    const nextParams = upsertPreferenceParams(new URLSearchParams(searchParams.toString()), {
+      language: normalizedLanguage,
+      currency: normalizedCurrency
+    });
+    const current = searchParams.toString();
+    const next = nextParams.toString();
+    if (current !== next) {
+      router.replace((next ? `${pathname}?${next}` : pathname) as never, { scroll: false });
+    }
+  }, [currency, language, pathname, router, searchParams]);
 
   return (
     <div className="flex items-center gap-2">
@@ -40,9 +68,8 @@ export function LanguageCurrencyChooser() {
           className="bg-transparent text-xs outline-none"
           value={language}
           onChange={(event) => {
-            const value = event.target.value;
+            const value = normalizeLanguage(event.target.value) ?? DEFAULT_LANGUAGE;
             setLanguage(value);
-            window.localStorage.setItem('tf:language', value);
           }}
           aria-label="Language"
         >
@@ -60,9 +87,8 @@ export function LanguageCurrencyChooser() {
           className="bg-transparent text-xs outline-none"
           value={currency}
           onChange={(event) => {
-            const value = event.target.value;
+            const value = normalizeCurrency(event.target.value) ?? DEFAULT_CURRENCY;
             setCurrency(value);
-            window.localStorage.setItem('tf:currency', value);
           }}
           aria-label="Currency"
         >

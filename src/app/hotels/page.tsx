@@ -3,20 +3,22 @@ import { SearchResultsPage } from '@/features/search/components/search-results-p
 import { parseListingSearchParams } from '@/features/search/lib/listing-search-params';
 
 export const metadata: Metadata = {
-  title: 'Search Results | TravelForge',
-  description: 'Browse hotel listings with photos, ratings, and live prices.',
+  title: 'Hotels | TravelForge',
+  description: 'Browse hotels with live rates, ratings, and flexible stay filters.',
   alternates: {
-    canonical: '/search'
+    canonical: '/hotels'
   }
 };
 
-type SearchPageProps = {
+type HotelsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function SearchPage({ searchParams }: SearchPageProps) {
+export default async function HotelsPage({ searchParams }: HotelsPageProps) {
   const params = await searchParams;
-  const listingParams = parseListingSearchParams(params);
+  const listingParams = parseListingSearchParams(params, {
+    defaultQuery: 'Dubai'
+  });
 
   return (
     <SearchResultsPage

@@ -1,14 +1,15 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import type { HotelDetails, HotelRateOption } from '@/server/liteapi';
+import { PreferenceLink } from '@/components/navigation/preference-link';
 
 type HotelDetailExperienceProps = {
   hotelId: string;
   checkin: string;
   checkout: string;
   adults: number;
+  rooms: number;
   hotel: HotelDetails | null;
   rates: HotelRateOption[];
 };
@@ -35,7 +36,7 @@ function formatMoney(currency: string, amount: number | null, compact = false): 
   }
 }
 
-export function HotelDetailExperience({ hotelId, checkin, checkout, adults, hotel, rates }: HotelDetailExperienceProps) {
+export function HotelDetailExperience({ hotelId, checkin, checkout, adults, rooms, hotel, rates }: HotelDetailExperienceProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [question, setQuestion] = useState('');
@@ -51,6 +52,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, hote
   const address = hotel?.address ?? `${hotel?.city ?? 'Unknown city'}${hotel?.countryCode ? `, ${hotel.countryCode}` : ''}`;
   const reviewBreakdown = hotel?.reviewBreakdown ?? [];
   const reviews = hotel?.reviews ?? [];
+  const browseHotelsHref = `/hotels?q=${encodeURIComponent(hotel?.city ?? '')}&checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&adults=${adults}&rooms=${rooms}`;
 
   const mapUrl = useMemo(() => {
     if (hotel?.latitude && hotel?.longitude) {
@@ -86,9 +88,9 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, hote
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-7 md:py-9">
       <section className="space-y-3 rounded-3xl border border-border/80 bg-card/85 p-5 shadow-sm md:p-6">
-        <Link href="/" className="inline-flex text-sm font-semibold text-muted-foreground underline underline-offset-4">
+        <PreferenceLink href={browseHotelsHref} className="inline-flex text-sm font-semibold text-muted-foreground underline underline-offset-4">
           See all properties
-        </Link>
+        </PreferenceLink>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold md:text-4xl">{hotel?.name ?? 'Hotel'}</h1>
@@ -196,7 +198,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, hote
           <section id="rooms" className="space-y-3 rounded-2xl border border-border bg-card/85 p-5" onMouseEnter={() => setActiveTab('rooms')}>
             <h2 className="text-xl font-semibold">Choose your room</h2>
             <p className="text-sm text-muted-foreground">
-              {checkin} to {checkout} · {adults} adults
+              {checkin} to {checkout} · {adults} adults · {rooms} room{rooms > 1 ? 's' : ''}
             </p>
             {rates.length === 0 ? (
               <p className="rounded-xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
@@ -209,7 +211,9 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, hote
                   amount: String(rate.amount),
                   currency: rate.currency,
                   checkIn: checkin,
-                  checkOut: checkout
+                  checkOut: checkout,
+                  adults: String(adults),
+                  rooms: String(rooms)
                 });
                 return (
                   <article key={`${rate.offerId}-${rate.roomId}`} className="rounded-xl border border-border bg-background/70 p-4">
@@ -230,12 +234,12 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, hote
                       </div>
                     </div>
                     <div className="mt-3 flex justify-end">
-                      <Link
+                      <PreferenceLink
                         href={`/booking?${bookingQuery.toString()}`}
                         className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
                       >
                         Select room
-                      </Link>
+                      </PreferenceLink>
                     </div>
                   </article>
                 );
@@ -339,7 +343,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, hote
             <p className="text-xs text-muted-foreground">/ night</p>
             <div className="mt-3 space-y-2 rounded-xl border border-border bg-background/70 p-3 text-sm">
               <p>{checkin} to {checkout}</p>
-              <p>{adults} adults · 1 room</p>
+              <p>{adults} adults · {rooms} room{rooms > 1 ? 's' : ''}</p>
             </div>
             <a href="#rooms" className="mt-3 inline-flex w-full justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
               Choose your room

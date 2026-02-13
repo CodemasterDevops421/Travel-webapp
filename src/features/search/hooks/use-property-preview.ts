@@ -18,6 +18,7 @@ export type PropertyPreview = {
 
 async function fetchPropertyPreview(
   query: string,
+  language: string,
   currency: string,
   checkin: string,
   checkout: string,
@@ -25,7 +26,7 @@ async function fetchPropertyPreview(
   rooms: number
 ): Promise<PropertyPreview[]> {
   const response = await fetch(
-    `/api/property-preview?q=${encodeURIComponent(query)}&currency=${encodeURIComponent(currency)}&checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&adults=${adults}&rooms=${rooms}`
+    `/api/property-preview?q=${encodeURIComponent(query)}&language=${encodeURIComponent(language)}&currency=${encodeURIComponent(currency)}&checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&adults=${adults}&rooms=${rooms}`
   );
   if (!response.ok) throw new Error('Property preview failed');
   return response.json();
@@ -33,6 +34,7 @@ async function fetchPropertyPreview(
 
 export function usePropertyPreview(
   query: string,
+  language: string,
   currency: string,
   checkin: string,
   checkout: string,
@@ -40,8 +42,8 @@ export function usePropertyPreview(
   rooms: number
 ) {
   return useQuery({
-    queryKey: ['property-preview', query, currency, checkin, checkout, adults, rooms],
-    queryFn: () => fetchPropertyPreview(query, currency, checkin, checkout, adults, rooms),
+    queryKey: ['property-preview', query, language, currency, checkin, checkout, adults, rooms],
+    queryFn: () => fetchPropertyPreview(query, language, currency, checkin, checkout, adults, rooms),
     enabled: query.length > 2,
     staleTime: CACHE_STALE_TIME_MS.propertyPreview
   });

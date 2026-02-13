@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getBookingById } from '@/server/booking/repository';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
+import { PreferenceLink } from '@/components/navigation/preference-link';
 
 type BookingConfirmationPageProps = {
   params: Promise<{
@@ -77,9 +77,9 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
         </div>
       </article>
 
-      <Link href="/" className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+      <PreferenceLink href="/" className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
         Back to search
-      </Link>
+      </PreferenceLink>
     </main>
   );
 }

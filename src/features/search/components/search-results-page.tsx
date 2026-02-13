@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Map, SlidersHorizontal } from 'lucide-react';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
+import { PreferenceLink } from '@/components/navigation/preference-link';
 
 type SearchResultsPageProps = {
   query: string;
@@ -11,6 +11,7 @@ type SearchResultsPageProps = {
   checkout: string;
   adults: number;
   rooms: number;
+  language: string;
   currency: string;
 };
 
@@ -23,8 +24,8 @@ function formatMoney(currency: string, amount: number | null): string {
   }
 }
 
-export function SearchResultsPage({ query, checkin, checkout, adults, rooms, currency }: SearchResultsPageProps) {
-  const { data, isFetching } = usePropertyPreview(query, currency, checkin, checkout, adults, rooms);
+export function SearchResultsPage({ query, checkin, checkout, adults, rooms, language, currency }: SearchResultsPageProps) {
+  const { data, isFetching } = usePropertyPreview(query, language, currency, checkin, checkout, adults, rooms);
   const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating-desc'>('recommended');
   const [minRating, setMinRating] = useState(0);
   const [minStars, setMinStars] = useState(0);
@@ -130,9 +131,9 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, cur
         <section className={`grid gap-3 ${mapMode === 'split' ? 'lg:grid-cols-[1.3fr,0.9fr]' : ''}`}>
           <div className="space-y-3">
             {listings.map((hotel) => (
-              <Link
+              <PreferenceLink
                 key={hotel.hotelId}
-                href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&adults=${adults}`}
+                href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&adults=${adults}&rooms=${rooms}&currency=${encodeURIComponent(currency)}`}
                 className="grid gap-3 rounded-2xl border border-border/80 bg-card/80 p-3 shadow-sm transition-all duration-200 hover:border-primary/40 hover:shadow-md md:grid-cols-[260px,1fr,180px]"
               >
                 {hotel.imageUrl ? (
@@ -161,7 +162,7 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, cur
                   </div>
                   <span className="inline-flex rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold">View details</span>
                 </div>
-              </Link>
+              </PreferenceLink>
             ))}
             {listings.length === 0 && (
               <p className="rounded-xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
