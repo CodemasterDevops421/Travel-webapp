@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         prebookId: payload.prebookId
       }
     });
-    if (!localBookingId && env.NODE_ENV === 'production') {
+    if (!localBookingId && env.NODE_ENV === 'production' && env.STRICT_PERSISTENCE_MODE) {
       throw new HttpError(503, 'Booking persistence unavailable');
     }
     const bookingViewToken = localBookingId ? signBookingViewToken({ bookingId: localBookingId }) : null;

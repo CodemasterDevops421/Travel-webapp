@@ -7,7 +7,6 @@ import { savePrebookSession } from '@/server/booking-store';
 import { toHttpError } from '@/server/errors';
 import { persistQuote } from '@/server/booking/repository';
 import { signCheckoutSession } from '@/server/booking-session';
-import { env } from '@/server/env';
 import { logger } from '@/server/logger';
 import { getClientIp, getCorrelationId } from '@/server/request';
 
@@ -61,8 +60,8 @@ export async function POST(request: NextRequest) {
       checkOut: payload.checkOut,
       guests: payload.guests
     });
-    if (!quoteId && env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'Booking quote persistence unavailable' }, { status: 503 });
+    if (!quoteId) {
+      logger.warn({ correlationId }, 'Booking quote persistence unavailable; continuing with signed session only.');
     }
 
     await savePrebookSession({

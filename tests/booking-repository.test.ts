@@ -168,6 +168,7 @@ describe('booking repository fallback mode', () => {
 
   it('fails closed in production when Supabase booking persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
 
     const loggerWarn = vi.fn();
     const loggerError = vi.fn();

@@ -6,7 +6,7 @@ import type { PriceQuote } from '@/server/pricing';
 const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
   ? Redis.fromEnv()
   : null;
-const failClosed = env.NODE_ENV === 'production';
+const failClosed = env.NODE_ENV === 'production' && env.STRICT_PERSISTENCE_MODE;
 
 type PrebookSession = {
   prebookId: string;

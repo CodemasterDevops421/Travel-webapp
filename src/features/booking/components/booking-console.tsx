@@ -141,6 +141,9 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
     }
   });
   const liveValues = form.watch();
+  const hasSelectedRate = Boolean(
+    liveValues.hotelId && liveValues.roomId && liveValues.offerId && liveValues.checkIn && liveValues.checkOut
+  );
   const baseAmount = Number(liveValues.amount || 0);
   const currency = (liveValues.currency || 'USD').toUpperCase();
   const totalAmount = prebook?.quote.totalAmount ?? baseAmount;
@@ -248,13 +251,40 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
 
       <div className="grid gap-4 lg:grid-cols-[1.35fr,0.9fr]">
         <form className="grid gap-3 md:grid-cols-2" onSubmit={onSubmit}>
-          <Input aria-label="Hotel ID" placeholder="Hotel ID" {...form.register('hotelId')} />
-          <Input aria-label="Room ID" placeholder="Room ID" {...form.register('roomId')} />
-          <Input aria-label="Offer ID" placeholder="Offer ID" {...form.register('offerId')} />
-          <Input aria-label="Amount" placeholder="Amount" type="number" step="1" {...form.register('amount')} />
-          <Input aria-label="Currency" placeholder="Currency (USD)" {...form.register('currency')} />
-          <Input aria-label="Check-in date" placeholder="Check-in YYYY-MM-DD" {...form.register('checkIn')} />
-          <Input aria-label="Check-out date" placeholder="Check-out YYYY-MM-DD" {...form.register('checkOut')} />
+          {hasSelectedRate ? (
+            <div className="md:col-span-2 rounded-2xl border border-border bg-background/70 p-3 text-sm">
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Selected stay</p>
+              <p className="mt-1 font-medium">
+                Check-in {liveValues.checkIn} · Check-out {liveValues.checkOut}
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Rate token confirmed. Technical supplier IDs are hidden for cleaner checkout.
+              </p>
+            </div>
+          ) : (
+            <>
+              <Input aria-label="Hotel ID" placeholder="Hotel ID" {...form.register('hotelId')} />
+              <Input aria-label="Room ID" placeholder="Room ID" {...form.register('roomId')} />
+              <Input aria-label="Offer ID" placeholder="Offer ID" {...form.register('offerId')} />
+              <Input aria-label="Amount" placeholder="Amount" type="number" step="1" {...form.register('amount')} />
+              <Input aria-label="Currency" placeholder="Currency (USD)" {...form.register('currency')} />
+              <Input aria-label="Check-in date" placeholder="Check-in YYYY-MM-DD" {...form.register('checkIn')} />
+              <Input aria-label="Check-out date" placeholder="Check-out YYYY-MM-DD" {...form.register('checkOut')} />
+            </>
+          )}
+
+          {hasSelectedRate && (
+            <>
+              <input type="hidden" {...form.register('hotelId')} />
+              <input type="hidden" {...form.register('roomId')} />
+              <input type="hidden" {...form.register('offerId')} />
+              <input type="hidden" {...form.register('amount')} />
+              <input type="hidden" {...form.register('currency')} />
+              <input type="hidden" {...form.register('checkIn')} />
+              <input type="hidden" {...form.register('checkOut')} />
+            </>
+          )}
+
           <Input aria-label="First name" placeholder="First name" {...form.register('firstName')} />
           <Input aria-label="Last name" placeholder="Last name" {...form.register('lastName')} />
           <Input aria-label="Email" placeholder="Email" type="email" {...form.register('email')} />

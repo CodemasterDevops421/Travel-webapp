@@ -80,9 +80,10 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
       validFrom: new Date().toISOString()
     } : undefined
   } : null;
+  const displayedLowestRate = lowestRate !== null ? `${rates[0]?.currency ?? 'USD'} ${lowestRate}` : 'Unavailable';
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+    <main className="mx-auto max-w-6xl space-y-8 px-4 py-8">
       {jsonLd ? (
         <script
           type="application/ld+json"
@@ -91,12 +92,20 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
       ) : null}
       <section className="rounded-3xl border border-border/80 bg-card/75 p-5 shadow-sm md:p-6">
         <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Hotel Detail + Rates</p>
-        <h1 className="mt-2 text-3xl font-bold md:text-4xl">{hotel?.name ?? 'Hotel'}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {hotel?.city ?? 'Unknown city'}
-          {hotel?.countryCode ? `, ${hotel.countryCode}` : ''}
-          {hotel?.starRating ? ` · ${hotel.starRating}★` : ''}
-        </p>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold md:text-4xl">{hotel?.name ?? 'Hotel'}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {hotel?.city ?? 'Unknown city'}
+              {hotel?.countryCode ? `, ${hotel.countryCode}` : ''}
+              {hotel?.starRating ? ` · ${hotel.starRating}★` : ''}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-right">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Rates from</p>
+            <p className="text-xl font-bold text-primary">{displayedLowestRate}</p>
+          </div>
+        </div>
         <div className="mt-4 flex flex-wrap gap-2 text-xs">
           <span className="rounded-full border border-border bg-background px-3 py-1">Total price first</span>
           <span className="rounded-full border border-border bg-background px-3 py-1">Clear cancellation policy</span>
@@ -146,7 +155,7 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
         {rates.length === 0 ? (
           <p className="rounded-xl border border-border bg-card p-4 text-sm">No rates found for selected dates.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-2">
             {rates.map((rate, idx) => {
               const bookingQuery = new URLSearchParams({
                 hotelId,
@@ -164,13 +173,16 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
                   className="animate-soft-rise rounded-2xl border border-border/80 bg-card/85 p-4 shadow-sm transition-all duration-200 hover:border-primary/40 hover:shadow-md"
                   style={{ animationDelay: `${idx * 50}ms` }}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold">{rate.roomName}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {rate.boardName} · {rate.refundableTag}
-                        {rate.cancelTime ? ` · Cancel until ${rate.cancelTime}` : ''}
-                      </p>
+                      <h3 className="text-lg font-semibold leading-tight">{rate.roomName}</h3>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full border border-border bg-background px-2 py-1">{rate.boardName}</span>
+                        <span className="rounded-full border border-border bg-background px-2 py-1">{rate.refundableTag}</span>
+                        {rate.cancelTime ? (
+                          <span className="rounded-full border border-border bg-background px-2 py-1">Cancel until {rate.cancelTime}</span>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-primary">
@@ -179,8 +191,7 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
                       <p className="text-xs text-muted-foreground">Includes taxes/fees provided by supplier.</p>
                     </div>
                   </div>
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs text-muted-foreground">Rate ID: {rate.offerId}</p>
+                  <div className="mt-4 flex justify-end">
                     <Link
                       href={`/booking?${bookingQuery.toString()}`}
                       className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"

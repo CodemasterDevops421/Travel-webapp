@@ -48,6 +48,7 @@ describe('booking prebook session fallback store', () => {
 
   it('fails closed in production when Redis session persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
     process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
     process.env.LITEAPI_API_KEY = 'test';
     process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';

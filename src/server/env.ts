@@ -26,6 +26,7 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: emptyStringToUndefined(z.string().min(1).default('supabase-service-role-placeholder')),
   UPSTASH_REDIS_REST_URL: emptyStringToUndefined(z.string().url().optional()),
   UPSTASH_REDIS_REST_TOKEN: emptyStringToUndefined(z.string().optional()),
+  STRICT_PERSISTENCE_MODE: z.coerce.boolean().default(false),
   SENTRY_DSN: emptyStringToUndefined(z.string().optional()),
   PRICE_MARKUP_PERCENT: z.coerce.number().min(0).max(40).default(12),
   DEFAULT_CURRENCY: z.string().length(3).default('USD'),

@@ -72,7 +72,7 @@ describe('booking route handlers', () => {
     expect(persistQuote).toHaveBeenCalledOnce();
   });
 
-  it('prebook route fails closed in production when quote persistence is unavailable', async () => {
+  it('prebook route continues when quote persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     const savePrebookSession = vi.fn().mockResolvedValue(undefined);
     const persistQuote = vi.fn().mockResolvedValue(null);
@@ -122,9 +122,9 @@ describe('booking route handlers', () => {
     const res = await POST(req as never);
     const body = await res.json();
 
-    expect(res.status).toBe(503);
-    expect(body.error).toMatch(/persistence unavailable/i);
-    expect(savePrebookSession).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(body.prebookId).toBe('pb-1');
+    expect(savePrebookSession).toHaveBeenCalledOnce();
   });
 
   it('book route rejects invalid fallback session signatures', async () => {
@@ -234,6 +234,7 @@ describe('booking route handlers', () => {
 
   it('book route fails closed in production when booking persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
     const persistBooking = vi.fn().mockResolvedValue(null);
 
     vi.doMock('@/server/ratelimit', () => ({

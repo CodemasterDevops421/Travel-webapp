@@ -33,7 +33,7 @@ type FallbackQuoteRecord = {
 
 const fallbackQuotes = new Map<string, FallbackQuoteRecord>();
 let supabaseSchemaUnavailable = false;
-const failClosed = env.NODE_ENV === 'production';
+const failClosed = env.NODE_ENV === 'production' && env.STRICT_PERSISTENCE_MODE;
 
 function isSchemaMissingError(error: unknown): boolean {
   const code = (error as { code?: string } | null | undefined)?.code;
