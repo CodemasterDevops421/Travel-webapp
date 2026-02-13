@@ -12,8 +12,18 @@ import { Input } from '@/components/ui/input';
 import { trackFunnelEvent } from '@/shared/lib/analytics';
 
 export function HeroSearch() {
+  const today = new Date();
+  const defaultCheckIn = new Date(today);
+  defaultCheckIn.setDate(defaultCheckIn.getDate() + 14);
+  const defaultCheckOut = new Date(defaultCheckIn);
+  defaultCheckOut.setDate(defaultCheckOut.getDate() + 2);
+
   const [query, setQuery] = useState('');
   const [activeQuery, setActiveQuery] = useState('');
+  const [checkIn, setCheckIn] = useState(defaultCheckIn.toISOString().slice(0, 10));
+  const [checkOut, setCheckOut] = useState(defaultCheckOut.toISOString().slice(0, 10));
+  const [adults, setAdults] = useState(2);
+  const [rooms, setRooms] = useState(1);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const currency = useSearchUIStore((state) => state.currency);
@@ -25,7 +35,14 @@ export function HeroSearch() {
   const {
     data: propertyPreview,
     isFetching: isPreviewLoading
-  } = usePropertyPreview(activeQuery, currency);
+  } = usePropertyPreview(activeQuery, currency, checkIn, checkOut, adults, rooms);
+  const selectedNights = (() => {
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+    const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  })();
 
   useEffect(() => {
     setHighlightedIndex(-1);
@@ -197,16 +214,60 @@ export function HeroSearch() {
         </div>
         <label className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background/70 px-3">
           <Calendar className="h-4 w-4" />
-          <span className="text-sm">Dates</span>
+          <div className="flex items-center gap-2 text-sm">
+            <input
+              type="date"
+              className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+              value={checkIn}
+              onChange={(event) => setCheckIn(event.target.value)}
+              aria-label="Check-in date"
+            />
+            <span>to</span>
+            <input
+              type="date"
+              className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+              value={checkOut}
+              onChange={(event) => setCheckOut(event.target.value)}
+              aria-label="Check-out date"
+            />
+          </div>
         </label>
         <label className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background/70 px-3">
           <Users className="h-4 w-4" />
-          <span className="text-sm">2 adults · 1 room</span>
+          <div className="flex items-center gap-2 text-sm">
+            <select
+              className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+              value={adults}
+              onChange={(event) => setAdults(Number(event.target.value))}
+              aria-label="Adults"
+            >
+              {[1, 2, 3, 4, 5, 6].map((count) => (
+                <option key={count} value={count}>
+                  {count} adults
+                </option>
+              ))}
+            </select>
+            <select
+              className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+              value={rooms}
+              onChange={(event) => setRooms(Number(event.target.value))}
+              aria-label="Rooms"
+            >
+              {[1, 2, 3, 4].map((count) => (
+                <option key={count} value={count}>
+                  {count} room{count > 1 ? 's' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
         </label>
       </div>
       <div className="mt-4 flex justify-end">
         <Button size="lg" onClick={onSearch}>Search stays</Button>
       </div>
+      <p className="mt-2 text-right text-xs text-muted-foreground">
+        {selectedNights > 0 ? `${selectedNights} night${selectedNights > 1 ? 's' : ''} · ${adults} adult${adults > 1 ? 's' : ''} · ${rooms} room${rooms > 1 ? 's' : ''}` : 'Select valid dates'}
+      </p>
 
       {activeQuery && (
         <section className="mt-6 space-y-3">
@@ -218,7 +279,7 @@ export function HeroSearch() {
               {(propertyPreview ?? []).map((hotel, idx) => (
                 <Link
                   key={hotel.hotelId}
-                  href={`/hotels/${hotel.hotelId}`}
+                  href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkIn)}&checkout=${encodeURIComponent(checkOut)}&adults=${adults}`}
                   className="animate-soft-rise overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
                   style={{ animationDelay: `${idx * 45}ms` }}
                   onClick={() =>
