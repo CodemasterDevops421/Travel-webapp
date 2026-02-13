@@ -16,7 +16,8 @@ export function MoodDiscovery() {
           <button
             type="button"
             key={mood}
-            onClick={() => setActiveMood(mood)}
+            aria-pressed={activeMood === mood}
+            onClick={() => setActiveMood(activeMood === mood ? null : mood)}
             className={`cursor-pointer rounded-full px-4 py-2 text-sm transition ${
               activeMood === mood
                 ? 'bg-primary text-primary-foreground shadow-sm'

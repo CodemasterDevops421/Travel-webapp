@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Calendar, Search, Shield, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -8,27 +8,97 @@ import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { trackFunnelEvent } from '@/shared/lib/analytics';
 
 export function HeroSearch() {
   const [query, setQuery] = useState('');
   const [activeQuery, setActiveQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const hasTrackedSearchInput = useRef(false);
+  const suggestionsListId = useId();
   const { data, isFetching } = useAutocomplete(query);
+  const suggestions = data ?? [];
+  const isSuggestionsOpen = query.length > 2 && showSuggestions;
   const {
     data: propertyPreview,
     isFetching: isPreviewLoading
   } = usePropertyPreview(activeQuery);
 
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [query, suggestions.length, showSuggestions]);
+
   const onSearch = () => {
     if (query.trim().length < 3) return;
-    setActiveQuery(query.trim());
+    const nextQuery = query.trim();
+    setActiveQuery(nextQuery);
     setShowSuggestions(false);
+    trackFunnelEvent({
+      name: 'search_submitted',
+      step: 'search',
+      properties: {
+        queryLength: nextQuery.length
+      }
+    });
   };
 
   const onPickSuggestion = (name: string) => {
     setQuery(name);
     setActiveQuery(name);
     setShowSuggestions(false);
+    trackFunnelEvent({
+      name: 'autocomplete_suggestion_selected',
+      step: 'search',
+      properties: {
+        suggestionLength: name.length
+      }
+    });
+  };
+
+  const onAutocompleteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      setShowSuggestions(false);
+      setHighlightedIndex(-1);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (!isSuggestionsOpen || suggestions.length === 0) {
+        setShowSuggestions(true);
+        return;
+      }
+
+      setHighlightedIndex((currentIndex) => {
+        if (currentIndex < 0) return 0;
+        return Math.min(currentIndex + 1, suggestions.length - 1);
+      });
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      if (!isSuggestionsOpen || suggestions.length === 0) return;
+      event.preventDefault();
+      setHighlightedIndex((currentIndex) => {
+        if (currentIndex <= 0) return 0;
+        return currentIndex - 1;
+      });
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (isSuggestionsOpen && highlightedIndex >= 0 && suggestions[highlightedIndex]) {
+        onPickSuggestion(suggestions[highlightedIndex].name);
+        return;
+      }
+      onSearch();
+    }
+
+    if (event.key === 'Tab') {
+      setShowSuggestions(false);
+    }
   };
 
   return (
@@ -50,35 +120,66 @@ export function HeroSearch() {
         <div className="relative md:col-span-2">
           <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
           <Input
+            role="combobox"
             aria-label="Search destination"
+            aria-autocomplete="list"
+            aria-expanded={isSuggestionsOpen}
+            aria-controls={suggestionsListId}
+            aria-activedescendant={
+              highlightedIndex >= 0 ? `${suggestionsListId}-option-${highlightedIndex}` : undefined
+            }
             placeholder="Where to? city, hotel, landmark"
             className="h-12 pl-10"
             value={query}
             onChange={(event) => {
-              setQuery(event.target.value);
+              const nextValue = event.target.value;
+              if (!hasTrackedSearchInput.current && nextValue.trim().length > 0) {
+                hasTrackedSearchInput.current = true;
+                trackFunnelEvent({
+                  name: 'search_input_started',
+                  step: 'discovery'
+                });
+              }
+              setQuery(nextValue);
+              setHighlightedIndex(-1);
               setShowSuggestions(true);
             }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                onSearch();
-              }
-            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setShowSuggestions(false)}
+            onKeyDown={onAutocompleteKeyDown}
           />
-          {query.length > 2 && showSuggestions && (
+          {isSuggestionsOpen && (
             <div className="absolute z-20 mt-2 w-full rounded-xl border border-border bg-card p-2 shadow-xl">
               {isFetching ? (
                 <p className="p-2 text-sm text-muted-foreground">Fetching destinations...</p>
               ) : (
-                <ul className="space-y-1" role="listbox" aria-label="Autocomplete suggestions">
-                  {(data ?? []).length === 0 ? (
-                    <li className="rounded-lg px-2 py-2 text-sm text-muted-foreground">No destinations found.</li>
+                <ul
+                  id={suggestionsListId}
+                  className="space-y-1"
+                  role="listbox"
+                  aria-label="Autocomplete suggestions"
+                >
+                  {suggestions.length === 0 ? (
+                    <li
+                      role="status"
+                      aria-live="polite"
+                      className="rounded-lg px-2 py-2 text-sm text-muted-foreground"
+                    >
+                      No destinations found.
+                    </li>
                   ) : (
-                    (data ?? []).map((item) => (
-                      <li key={item.id}>
+                    suggestions.map((item, idx) => (
+                      <li
+                        key={item.id}
+                        id={`${suggestionsListId}-option-${idx}`}
+                        role="option"
+                        aria-selected={highlightedIndex === idx}
+                        onMouseEnter={() => setHighlightedIndex(idx)}
+                      >
                         <button
                           type="button"
                           className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
+                          onMouseDown={(event) => event.preventDefault()}
                           onClick={() => onPickSuggestion(item.name)}
                         >
                           <span className="font-medium">{item.name}</span>
@@ -130,6 +231,15 @@ export function HeroSearch() {
                   <Link
                     href={`/hotels/${hotel.hotelId}`}
                     className="mt-2 inline-flex text-xs font-semibold underline underline-offset-4"
+                    onClick={() =>
+                      trackFunnelEvent({
+                        name: 'preview_card_opened',
+                        step: 'consideration',
+                        properties: {
+                          hotelId: hotel.hotelId
+                        }
+                      })
+                    }
                   >
                     View details and rates
                   </Link>

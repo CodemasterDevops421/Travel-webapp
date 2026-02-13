@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('server-only', () => ({}), { virtual: true });
-
 type BookingInput = {
   quoteId: string | null;
   liteApiBookingId: string | null;
@@ -23,6 +21,9 @@ describe('booking repository fallback mode', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    vi.stubEnv('NODE_ENV', 'test');
+    process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';
   });
 
   it('enables fallback mode on PGRST205 and avoids repeated Supabase writes', async () => {
@@ -89,7 +90,7 @@ describe('booking repository fallback mode', () => {
     const updated = await repo.updateBookingStatusByLiteApiId(
       'lite-booking-1',
       'confirmed',
-      { transactionId: 'txn-1', source: 'webhook' }
+      { source: 'webhook' }
     );
     const booking = await repo.getBookingById(id as string);
 
@@ -160,6 +161,39 @@ describe('booking repository fallback mode', () => {
 
     expect(id1).toBeTypeOf('string');
     expect(id2).toBeTypeOf('string');
+    expect(createAdminClient).toHaveBeenCalledTimes(1);
+    expect(loggerWarn).toHaveBeenCalledTimes(1);
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('fails closed in production when Supabase booking persistence is unavailable', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const loggerWarn = vi.fn();
+    const loggerError = vi.fn();
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST205', message: 'relation \"bookings\" does not exist' }
+    });
+    const createAdminClient = vi.fn(() => ({
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single
+          }))
+        }))
+      }))
+    }));
+
+    vi.doMock('@/server/supabase/admin', () => ({ createAdminClient }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { warn: loggerWarn, error: loggerError }
+    }));
+
+    const repo = await import('@/server/booking/repository');
+    const id = await repo.persistBooking(buildBookingInput());
+
+    expect(id).toBeNull();
     expect(createAdminClient).toHaveBeenCalledTimes(1);
     expect(loggerWarn).toHaveBeenCalledTimes(1);
     expect(loggerError).not.toHaveBeenCalled();

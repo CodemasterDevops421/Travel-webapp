@@ -6,6 +6,8 @@ import { getOrSetRedisCache } from '@/server/cache';
 import { toHttpError } from '@/server/errors';
 import { env } from '@/server/env';
 import { logger } from '@/server/logger';
+import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
+import { getClientIp } from '@/server/request';
 
 const querySchema = z.object({
   q: z.string().trim().min(2).max(120)
@@ -54,10 +56,10 @@ export async function GET(request: NextRequest) {
     }
 
     const q = parsed.data.q;
-    const clientIp = request.headers.get('x-forwarded-for') ?? 'anonymous';
+    const clientIp = getClientIp(request);
     await assertRateLimit(`autocomplete:${clientIp}`);
 
-    const payload = await getOrSetRedisCache(`autocomplete:${q.toLowerCase()}`, 90, async () => {
+    const payload = await getOrSetRedisCache(`autocomplete:${q.toLowerCase()}`, CACHE_TTL_SECONDS.autocomplete, async () => {
       const liteResults = await autocomplete(q);
       if (liteResults.length > 0) {
         return liteResults.map((item) => ({ ...item, source: 'liteapi' as const }));

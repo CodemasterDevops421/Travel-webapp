@@ -7,7 +7,7 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
   {
     key: 'Content-Security-Policy',
-    value: "default-src 'self'; img-src 'self' https: data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:"
+    value: "default-src 'self'; img-src 'self' https: data:; script-src 'self' 'unsafe-inline' https://payment-wrapper.liteapi.travel; style-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-src 'self' https://payment-wrapper.liteapi.travel https://js.stripe.com https://hooks.stripe.com;"
   }
 ];
 

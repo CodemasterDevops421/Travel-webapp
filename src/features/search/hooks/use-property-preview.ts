@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { CACHE_STALE_TIME_MS } from '@/shared/lib/cache-ttl';
 
 export type PropertyPreview = {
   hotelId: string;
@@ -23,6 +24,6 @@ export function usePropertyPreview(query: string) {
     queryKey: ['property-preview', query],
     queryFn: () => fetchPropertyPreview(query),
     enabled: query.length > 2,
-    staleTime: 120_000
+    staleTime: CACHE_STALE_TIME_MS.propertyPreview
   });
 }

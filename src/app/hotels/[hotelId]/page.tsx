@@ -15,6 +15,13 @@ export async function generateMetadata({ params }: Pick<PageProps, 'params'>): P
   const { hotelId } = await params;
   return {
     title: `Hotel Details | ${hotelId} | TravelForge`,
+    description: `Compare rates, cancellation policy, and total price for hotel ${hotelId} on TravelForge.`,
+    openGraph: {
+      title: `Hotel Details | ${hotelId} | TravelForge`,
+      description: `Compare rates, cancellation policy, and total price for hotel ${hotelId} on TravelForge.`,
+      url: `/hotels/${hotelId}`,
+      type: 'website'
+    },
     alternates: {
       canonical: `/hotels/${hotelId}`
     }

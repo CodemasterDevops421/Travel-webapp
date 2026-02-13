@@ -46,12 +46,10 @@ type BookingConsoleProps = {
 };
 
 type CheckoutSessionPayload = {
-  prebookId: string;
-  transactionId: string;
   clientReference: string;
   quoteId: string | null;
   sessionSignature: string;
-  quote: PrebookResult['quote'];
+  quoteSignature: string;
   holder: {
     firstName: string;
     lastName: string;
@@ -65,9 +63,15 @@ type CheckoutSessionPayload = {
 };
 
 const PAYMENT_SCRIPT_URL = 'https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v=a1';
+const PAYMENT_SCRIPT_ID = 'liteapi-payment-sdk';
 
 function checkoutStorageKey(transactionId: string): string {
   return `booking:checkout:${transactionId}`;
+}
+
+function saveCheckoutSession(transactionId: string, payload: CheckoutSessionPayload): void {
+  const encoded = JSON.stringify(payload);
+  sessionStorage.setItem(checkoutStorageKey(transactionId), encoded);
 }
 
 async function ensurePaymentScriptLoaded(): Promise<void> {
@@ -76,18 +80,36 @@ async function ensurePaymentScriptLoaded(): Promise<void> {
   }
 
   await new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${PAYMENT_SCRIPT_URL}"]`);
+    const existingById = document.getElementById(PAYMENT_SCRIPT_ID) as HTMLScriptElement | null;
+    const existingBySrc = document.querySelector<HTMLScriptElement>(`script[src="${PAYMENT_SCRIPT_URL}"]`);
+    const existing = existingById ?? existingBySrc;
     if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error('Failed to load payment SDK')), { once: true });
-      return;
+      if (window.LiteAPIPayment) {
+        resolve();
+        return;
+      }
+      if (existing.dataset.loadState === 'error') {
+        existing.remove();
+      } else {
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error('Failed to load payment SDK')), { once: true });
+        return;
+      }
     }
 
     const script = document.createElement('script');
+    script.id = PAYMENT_SCRIPT_ID;
     script.src = PAYMENT_SCRIPT_URL;
     script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load payment SDK'));
+    script.dataset.loadState = 'loading';
+    script.onload = () => {
+      script.dataset.loadState = 'loaded';
+      resolve();
+    };
+    script.onerror = () => {
+      script.dataset.loadState = 'error';
+      reject(new Error('Failed to load payment SDK'));
+    };
     document.head.appendChild(script);
   });
 }
@@ -163,12 +185,10 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
     setPaymentError(null);
 
     const checkoutSession: CheckoutSessionPayload = {
-      prebookId: prebook.prebookId,
-      transactionId: prebook.transactionId,
       clientReference: prebook.clientReference,
       quoteId: prebook.quoteId,
       sessionSignature: prebook.sessionSignature,
-      quote: prebook.quote,
+      quoteSignature: prebook.quote.signature,
       holder: {
         firstName: values.firstName,
         lastName: values.lastName,
@@ -183,7 +203,7 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
       ]
     };
 
-    localStorage.setItem(checkoutStorageKey(prebook.transactionId), JSON.stringify(checkoutSession));
+    saveCheckoutSession(prebook.transactionId, checkoutSession);
     await ensurePaymentScriptLoaded();
     if (!window.LiteAPIPayment) {
       throw new Error('LiteAPI payment SDK unavailable');

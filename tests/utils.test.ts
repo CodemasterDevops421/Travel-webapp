@@ -6,6 +6,7 @@ let buildPriceQuote: typeof import('@/server/pricing').buildPriceQuote;
 beforeAll(async () => {
   process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
   process.env.LITEAPI_API_KEY = 'test';
+  process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';

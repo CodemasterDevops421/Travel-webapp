@@ -2,23 +2,40 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getBookingById } from '@/server/booking/repository';
+import { verifyBookingViewToken } from '@/server/booking-view-token';
 
 type BookingConfirmationPageProps = {
   params: Promise<{
     bookingId: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export const metadata: Metadata = {
   title: 'Booking Confirmation | TravelForge',
+  description: 'View your confirmed booking details securely.',
   robots: {
     index: false,
     follow: false
   }
 };
 
-export default async function BookingConfirmationPage({ params }: BookingConfirmationPageProps) {
+function pickParam(params: Record<string, string | string[] | undefined>, key: string): string | undefined {
+  const value = params[key];
+  if (typeof value === 'string') {
+    return value;
+  }
+  return Array.isArray(value) ? value[0] : undefined;
+}
+
+export default async function BookingConfirmationPage({ params, searchParams }: BookingConfirmationPageProps) {
   const { bookingId } = await params;
+  const qs = await searchParams;
+  const viewToken = pickParam(qs, 'viewToken');
+  if (!viewToken || !verifyBookingViewToken({ bookingId, token: viewToken })) {
+    notFound();
+  }
+
   const booking = await getBookingById(bookingId);
 
   if (!booking) {

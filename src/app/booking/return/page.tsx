@@ -4,6 +4,10 @@ import { BookingReturnClient } from '@/app/booking/return/booking-return-client'
 
 export const metadata: Metadata = {
   title: 'Payment Return | TravelForge',
+  description: 'Finalizing your payment and confirming your TravelForge booking.',
+  alternates: {
+    canonical: '/booking/return'
+  },
   robots: {
     index: false,
     follow: false

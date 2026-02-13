@@ -10,6 +10,7 @@ import {
   updateBookingStatusByLiteApiId,
   updateBookingStatusByTransactionId
 } from '@/server/booking/repository';
+import { getClientIp, getCorrelationId } from '@/server/request';
 
 function readSignatureHeader(request: NextRequest): string {
   return (
@@ -78,7 +79,7 @@ function verifySignature(rawBody: string, signature: string, rawTimestamp: strin
 
 export async function POST(request: NextRequest) {
   try {
-    const clientIp = request.headers.get('x-forwarded-for') ?? 'anonymous';
+    const clientIp = getClientIp(request);
     await assertRateLimit(`webhook-liteapi:${clientIp}`);
 
     const rawBody = await request.text();
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? 'unknown';
+    const correlationId = getCorrelationId(request);
     const eventId = String(event.id ?? createHash('sha256').update(rawBody).digest('hex'));
     const firstSeen = await markWebhookEventProcessed(eventId);
     if (!firstSeen) {

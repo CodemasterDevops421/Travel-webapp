@@ -7,6 +7,9 @@ import { savePrebookSession } from '@/server/booking-store';
 import { toHttpError } from '@/server/errors';
 import { persistQuote } from '@/server/booking/repository';
 import { signCheckoutSession } from '@/server/booking-session';
+import { env } from '@/server/env';
+import { logger } from '@/server/logger';
+import { getClientIp, getCorrelationId } from '@/server/request';
 
 const requestSchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -31,7 +34,8 @@ function createClientReference(input: { hotelId: string; roomId: string; offerId
 
 export async function POST(request: NextRequest) {
   try {
-    const clientIp = request.headers.get('x-forwarded-for') ?? 'anonymous';
+    const clientIp = getClientIp(request);
+    const correlationId = getCorrelationId(request);
     await assertRateLimit(`booking-prebook:${clientIp}`);
 
     const raw = await request.json();
@@ -57,6 +61,9 @@ export async function POST(request: NextRequest) {
       checkOut: payload.checkOut,
       guests: payload.guests
     });
+    if (!quoteId && env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Booking quote persistence unavailable' }, { status: 503 });
+    }
 
     await savePrebookSession({
       prebookId: prebook.prebookId,
@@ -74,6 +81,16 @@ export async function POST(request: NextRequest) {
       quoteSignature: quote.signature
     });
 
+    logger.info(
+      {
+        correlationId,
+        prebookId: prebook.prebookId,
+        transactionId: prebook.transactionId,
+        quoteId
+      },
+      'Prebook session created'
+    );
+
     return NextResponse.json({
       prebookId: prebook.prebookId,
       transactionId: prebook.transactionId,
@@ -85,6 +102,7 @@ export async function POST(request: NextRequest) {
       quote
     });
   } catch (error) {
+    logger.warn({ error, route: 'booking-prebook' }, 'Prebook request failed');
     const httpError = toHttpError(error);
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   }

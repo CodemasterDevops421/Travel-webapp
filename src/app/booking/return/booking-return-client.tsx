@@ -4,19 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 type CheckoutSessionPayload = {
-  prebookId: string;
-  transactionId: string;
   clientReference: string;
   quoteId: string | null;
   sessionSignature: string;
-  quote: {
-    hotelId: string;
-    roomId: string;
-    baseAmount: number;
-    totalAmount: number;
-    currency: string;
-    signature: string;
-  };
+  quoteSignature: string;
   holder: {
     firstName: string;
     lastName: string;
@@ -31,6 +22,23 @@ type CheckoutSessionPayload = {
 
 function checkoutStorageKey(transactionId: string): string {
   return `booking:checkout:${transactionId}`;
+}
+
+function readCheckoutSession(transactionId: string): CheckoutSessionPayload | null {
+  const key = checkoutStorageKey(transactionId);
+  const raw = sessionStorage.getItem(key) ?? localStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as CheckoutSessionPayload;
+  } catch {
+    return null;
+  }
+}
+
+function clearCheckoutSession(transactionId: string): void {
+  const key = checkoutStorageKey(transactionId);
+  sessionStorage.removeItem(key);
+  localStorage.removeItem(key);
 }
 
 export function BookingReturnClient() {
@@ -55,21 +63,11 @@ export function BookingReturnClient() {
         return;
       }
 
-      const stored = localStorage.getItem(checkoutStorageKey(transactionId));
-      if (!stored) {
+      const session = readCheckoutSession(transactionId);
+      if (!session) {
         if (!active) return;
         setStatus('error');
         setMessage('Checkout session not found. Please restart booking.');
-        return;
-      }
-
-      let session: CheckoutSessionPayload;
-      try {
-        session = JSON.parse(stored) as CheckoutSessionPayload;
-      } catch {
-        if (!active) return;
-        setStatus('error');
-        setMessage('Invalid checkout session data.');
         return;
       }
 
@@ -83,7 +81,7 @@ export function BookingReturnClient() {
             clientReference: session.clientReference,
             quoteId: session.quoteId,
             sessionSignature: session.sessionSignature,
-            quote: session.quote,
+            quoteSignature: session.quoteSignature,
             holder: session.holder,
             guests: session.guests
           })
@@ -93,14 +91,15 @@ export function BookingReturnClient() {
           throw new Error(json.error ?? 'Failed to finalize booking');
         }
 
-        localStorage.removeItem(checkoutStorageKey(transactionId));
-        if (json.localBookingId) {
-          router.replace(`/bookings/${json.localBookingId}`);
+        clearCheckoutSession(transactionId);
+        if (json.localBookingId && json.bookingViewToken) {
+          const bookingUrl = `/bookings/${encodeURIComponent(json.localBookingId)}?viewToken=${encodeURIComponent(json.bookingViewToken)}`;
+          router.replace(bookingUrl as never);
           return;
         }
         if (!active) return;
         setStatus('error');
-        setMessage('Booking finalized but local record missing. Check logs.');
+        setMessage('Booking finalized but secure view token missing. Please restart checkout.');
       } catch (error) {
         if (!active) return;
         setStatus('error');

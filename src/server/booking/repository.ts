@@ -1,6 +1,7 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { createAdminClient } from '@/server/supabase/admin';
+import { env } from '@/server/env';
 import type { PriceQuote } from '@/server/pricing';
 import { logger } from '@/server/logger';
 
@@ -32,10 +33,21 @@ type FallbackQuoteRecord = {
 
 const fallbackQuotes = new Map<string, FallbackQuoteRecord>();
 let supabaseSchemaUnavailable = false;
+const failClosed = env.NODE_ENV === 'production';
 
 function isSchemaMissingError(error: unknown): boolean {
   const code = (error as { code?: string } | null | undefined)?.code;
   return code === 'PGRST205';
+}
+
+function mergeMetadata(
+  existing: Record<string, unknown> | null | undefined,
+  incoming: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    ...(existing ?? {}),
+    ...incoming
+  };
 }
 
 export async function persistQuote(input: PersistQuoteInput): Promise<string | null> {
@@ -55,6 +67,10 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
   };
 
   if (supabaseSchemaUnavailable) {
+    if (failClosed) {
+      logger.error('Supabase booking quote persistence unavailable in production.');
+      return null;
+    }
     fallbackQuotes.set(fallbackId, fallbackRecord);
     return fallbackId;
   }
@@ -83,6 +99,9 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
       logger.warn({ error }, 'Supabase booking schema missing. Using fallback booking quote storage.');
     } else {
       logger.error({ error }, 'Failed to persist booking quote');
+    }
+    if (failClosed) {
+      return null;
     }
     fallbackQuotes.set(fallbackId, fallbackRecord);
     return fallbackId;
@@ -113,6 +132,10 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
   };
 
   if (supabaseSchemaUnavailable) {
+    if (failClosed) {
+      logger.error('Supabase booking persistence unavailable in production.');
+      return null;
+    }
     fallbackBookings.set(fallbackId, fallbackRecord);
     return fallbackId;
   }
@@ -137,6 +160,9 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
     } else {
       logger.error({ error }, 'Failed to persist booking');
     }
+    if (failClosed) {
+      return null;
+    }
     fallbackBookings.set(fallbackId, fallbackRecord);
     return fallbackId;
   }
@@ -155,6 +181,9 @@ export type BookingRecord = {
 
 export async function getBookingById(id: string): Promise<BookingRecord | null> {
   if (supabaseSchemaUnavailable) {
+    if (failClosed) {
+      return null;
+    }
     return fallbackBookings.get(id) ?? null;
   }
 
@@ -172,6 +201,9 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
     } else {
       logger.warn({ error, id }, 'Booking lookup by id failed');
     }
+    if (failClosed) {
+      return null;
+    }
     return fallbackBookings.get(id) ?? null;
   }
 
@@ -188,7 +220,7 @@ export async function updateBookingStatusByLiteApiId(
       fallbackBookings.set(id, {
         ...booking,
         status,
-        metadata
+        metadata: mergeMetadata(booking.metadata, metadata)
       });
       return true;
     }
@@ -199,13 +231,34 @@ export async function updateBookingStatusByLiteApiId(
   }
 
   const supabase = createAdminClient();
+  const { data, error: lookupError } = await supabase
+    .from('bookings')
+    .select('id, metadata')
+    .eq('liteapi_booking_id', liteApiBookingId)
+    .limit(1)
+    .single();
+
+  if (lookupError || !data?.id) {
+    if (isSchemaMissingError(lookupError)) {
+      supabaseSchemaUnavailable = true;
+      logger.warn({ error: lookupError, liteApiBookingId }, 'Supabase booking schema missing during lookup by liteapi id.');
+    } else {
+      logger.warn({ error: lookupError, liteApiBookingId }, 'Booking lookup by liteapi booking id failed');
+    }
+    return false;
+  }
+
+  const mergedMetadata = mergeMetadata(
+    data.metadata as Record<string, unknown> | null | undefined,
+    metadata
+  );
   const { error } = await supabase
     .from('bookings')
     .update({
       status,
-      metadata
+      metadata: mergedMetadata
     })
-    .eq('liteapi_booking_id', liteApiBookingId);
+    .eq('id', data.id);
 
   if (error) {
     if (isSchemaMissingError(error)) {
@@ -233,7 +286,7 @@ export async function updateBookingStatusByTransactionId(
       fallbackBookings.set(id, {
         ...booking,
         status,
-        metadata
+        metadata: mergeMetadata(booking.metadata, metadata)
       });
       return true;
     }
@@ -261,11 +314,15 @@ export async function updateBookingStatusByTransactionId(
     return false;
   }
 
+  const mergedMetadata = mergeMetadata(
+    data.metadata as Record<string, unknown> | null | undefined,
+    metadata
+  );
   const { error: updateError } = await supabase
     .from('bookings')
     .update({
       status,
-      metadata
+      metadata: mergedMetadata
     })
     .eq('id', data.id);
 

@@ -3,6 +3,16 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Secure Checkout | TravelForge',
+  description: 'Securely complete your hotel booking with signed quote integrity and LiteAPI payment SDK.',
+  alternates: {
+    canonical: '/booking'
+  },
+  openGraph: {
+    title: 'Secure Checkout | TravelForge',
+    description: 'Securely complete your hotel booking with signed quote integrity and LiteAPI payment SDK.',
+    url: '/booking',
+    type: 'website'
+  },
   robots: {
     index: false,
     follow: false

@@ -1,10 +1,19 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { LockKeyhole, Moon, ShieldCheck, Sparkles, Sun, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { HeroSearch } from '@/features/search/components/hero-search';
 import { SearchSkeleton } from '@/features/search/components/search-skeleton';
 import { TrendingDestinations } from '@/components/home/trending-destinations';
 import { MoodDiscovery } from '@/components/home/mood-discovery';
+
+export const metadata: Metadata = {
+  title: 'TravelForge | Luxury Hotel Search & Booking',
+  description: 'Discover premium hotels with transparent total pricing and secure checkout.',
+  alternates: {
+    canonical: '/'
+  }
+};
 
 export default function HomePage() {
   return (
