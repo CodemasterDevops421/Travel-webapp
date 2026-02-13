@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Calendar, Search, Shield, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
 import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
@@ -26,6 +27,7 @@ export function HeroSearch() {
   const [rooms, setRooms] = useState(1);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const router = useRouter();
   const currency = useSearchUIStore((state) => state.currency);
   const hasTrackedSearchInput = useRef(false);
   const suggestionsListId = useId();
@@ -60,6 +62,15 @@ export function HeroSearch() {
         queryLength: nextQuery.length
       }
     });
+    const params = new URLSearchParams({
+      q: nextQuery,
+      checkin: checkIn,
+      checkout: checkOut,
+      adults: String(adults),
+      rooms: String(rooms),
+      currency
+    });
+    router.push(`/search?${params.toString()}`);
   };
 
   const onPickSuggestion = (name: string) => {
