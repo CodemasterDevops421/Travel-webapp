@@ -11,8 +11,6 @@ const requestSchema = z.object({
   hotelId: z.string().trim().min(1),
   roomId: z.string().trim().min(1),
   offerId: z.string().trim().min(1),
-  amount: z.number().positive(),
-  currency: z.string().trim().length(3),
   checkIn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkOut: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   guests: z.array(
@@ -40,14 +38,13 @@ export async function POST(request: NextRequest) {
     if (new Date(payload.checkOut) <= new Date(payload.checkIn)) {
       return NextResponse.json({ error: 'checkOut must be after checkIn' }, { status: 400 });
     }
+    const prebook = await prebookRate(payload.offerId);
     const quote = buildPriceQuote({
       hotelId: payload.hotelId,
       roomId: payload.roomId,
-      amount: payload.amount,
-      currency: payload.currency.toUpperCase()
+      amount: prebook.price,
+      currency: prebook.currency.toUpperCase()
     });
-
-    const prebook = await prebookRate(payload.offerId);
     const clientReference = createClientReference({
       hotelId: payload.hotelId,
       roomId: payload.roomId,

@@ -1,4 +1,13 @@
 import { BookingConsole } from '@/features/booking/components/booking-console';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Secure Checkout | TravelForge',
+  robots: {
+    index: false,
+    follow: false
+  }
+};
 
 type BookingPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

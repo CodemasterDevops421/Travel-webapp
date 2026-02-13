@@ -1,5 +1,14 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { BookingReturnClient } from '@/app/booking/return/booking-return-client';
+
+export const metadata: Metadata = {
+  title: 'Payment Return | TravelForge',
+  robots: {
+    index: false,
+    follow: false
+  }
+};
 
 export default function BookingReturnPage() {
   return (

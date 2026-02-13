@@ -17,8 +17,19 @@ const bodyFont = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
+  metadataBase: (() => {
+    const raw = process.env.NEXT_PUBLIC_APP_URL?.trim();
+    try {
+      return new URL(raw && raw.length > 0 ? raw : 'http://localhost:3000');
+    } catch {
+      return new URL('http://localhost:3000');
+    }
+  })(),
   title: 'TravelForge OTA',
-  description: 'Fast, transparent hotel booking powered by LiteAPI.'
+  description: 'Fast, transparent hotel booking powered by LiteAPI.',
+  alternates: {
+    canonical: '/'
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

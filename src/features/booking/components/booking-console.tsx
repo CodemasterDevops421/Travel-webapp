@@ -138,8 +138,6 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
           hotelId: values.hotelId,
           roomId: values.roomId,
           offerId: values.offerId,
-          amount: values.amount,
-          currency: values.currency.toUpperCase(),
           checkIn: values.checkIn,
           checkOut: values.checkOut,
           guests: [{ adults: 2 }]

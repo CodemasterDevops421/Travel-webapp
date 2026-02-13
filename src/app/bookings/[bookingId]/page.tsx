@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getBookingById } from '@/server/booking/repository';
 
@@ -6,6 +7,14 @@ type BookingConfirmationPageProps = {
   params: Promise<{
     bookingId: string;
   }>;
+};
+
+export const metadata: Metadata = {
+  title: 'Booking Confirmation | TravelForge',
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export default async function BookingConfirmationPage({ params }: BookingConfirmationPageProps) {

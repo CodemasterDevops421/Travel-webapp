@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getHotelDetails, getHotelRates } from '@/server/liteapi';
 
@@ -9,6 +10,16 @@ type PageProps = {
     adults?: string;
   }>;
 };
+
+export async function generateMetadata({ params }: Pick<PageProps, 'params'>): Promise<Metadata> {
+  const { hotelId } = await params;
+  return {
+    title: `Hotel Details | ${hotelId} | TravelForge`,
+    alternates: {
+      canonical: `/hotels/${hotelId}`
+    }
+  };
+}
 
 function defaultDates() {
   const checkinDate = new Date();
@@ -38,9 +49,39 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
       adults
     })
   ]);
+  const lowestRate = rates.reduce<number | null>((min, rate) => {
+    if (min === null || rate.amount < min) {
+      return rate.amount;
+    }
+    return min;
+  }, null);
+  const jsonLd = hotel ? {
+    '@context': 'https://schema.org',
+    '@type': 'Hotel',
+    name: hotel.name,
+    address: hotel.address ?? `${hotel.city}${hotel.countryCode ? `, ${hotel.countryCode}` : ''}`,
+    image: hotel.mainPhoto ? [hotel.mainPhoto] : undefined,
+    starRating: hotel.starRating ? {
+      '@type': 'Rating',
+      ratingValue: hotel.starRating
+    } : undefined,
+    offers: lowestRate !== null ? {
+      '@type': 'Offer',
+      price: lowestRate,
+      priceCurrency: rates[0]?.currency ?? 'USD',
+      availability: 'https://schema.org/InStock',
+      validFrom: new Date().toISOString()
+    } : undefined
+  } : null;
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+      {jsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      ) : null}
       <section className="rounded-3xl border border-border/80 bg-card/75 p-5 shadow-sm md:p-6">
         <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Hotel Detail + Rates</p>
         <h1 className="mt-2 text-3xl font-bold md:text-4xl">{hotel?.name ?? 'Hotel'}</h1>

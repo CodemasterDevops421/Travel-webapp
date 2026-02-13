@@ -134,6 +134,12 @@ describe('booking route handlers', () => {
     const updateByLiteApiId = vi.fn().mockResolvedValue(true);
     const loggerInfo = vi.fn();
 
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/webhook-idempotency', () => ({
+      markWebhookEventProcessed: vi.fn().mockResolvedValue(true)
+    }));
     vi.doMock('@/server/booking/repository', () => ({
       updateBookingStatusByLiteApiId: updateByLiteApiId,
       updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
@@ -151,12 +157,14 @@ describe('booking route handlers', () => {
         status: 'confirmed'
       }
     });
-    const signature = createHmac('sha256', process.env.LITEAPI_WEBHOOK_SECRET).update(raw).digest('hex');
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac('sha256', process.env.LITEAPI_WEBHOOK_SECRET).update(`${timestamp}.${raw}`).digest('hex');
 
     const { POST } = await import('@/app/api/webhooks/liteapi/route');
     const req = {
       headers: new Headers({
         'x-liteapi-signature': signature,
+        'x-liteapi-timestamp': timestamp,
         'x-request-id': 'rid-1'
       }),
       text: async () => raw
@@ -172,6 +180,63 @@ describe('booking route handlers', () => {
       'confirmed',
       expect.objectContaining({ bookingId: 'lite-booking-1' })
     );
+    expect(loggerInfo).toHaveBeenCalled();
+  });
+
+  it('webhook route ignores duplicate events', async () => {
+    process.env.LITEAPI_WEBHOOK_SECRET = 'test-webhook-secret';
+    process.env.QUOTE_SIGNING_SECRET = 'replace-with-strong-quote-signing-secret';
+    process.env.LITEAPI_API_KEY = 'test';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
+
+    const loggerInfo = vi.fn();
+    const updateByLiteApiId = vi.fn();
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/webhook-idempotency', () => ({
+      markWebhookEventProcessed: vi.fn().mockResolvedValue(false)
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      updateBookingStatusByLiteApiId: updateByLiteApiId,
+      updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
+      persistBooking: vi.fn().mockResolvedValue(null)
+    }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: loggerInfo }
+    }));
+
+    const raw = JSON.stringify({
+      id: 'evt-duplicate',
+      type: 'booking_confirmed',
+      data: {
+        bookingId: 'lite-booking-dup',
+        status: 'confirmed'
+      }
+    });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac('sha256', process.env.LITEAPI_WEBHOOK_SECRET).update(`${timestamp}.${raw}`).digest('hex');
+
+    const { POST } = await import('@/app/api/webhooks/liteapi/route');
+    const req = {
+      headers: new Headers({
+        'x-liteapi-signature': signature,
+        'x-liteapi-timestamp': timestamp,
+        'x-request-id': 'rid-dup'
+      }),
+      text: async () => raw
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.duplicate).toBe(true);
+    expect(updateByLiteApiId).not.toHaveBeenCalled();
     expect(loggerInfo).toHaveBeenCalled();
   });
 });
