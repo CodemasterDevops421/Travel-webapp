@@ -3,13 +3,13 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Secure Checkout | TravelForge',
-  description: 'Securely complete your hotel booking with signed quote integrity and LiteAPI payment SDK.',
+  description: 'Securely complete your hotel booking with signed quote integrity and secure payment.',
   alternates: {
     canonical: '/booking'
   },
   openGraph: {
     title: 'Secure Checkout | TravelForge',
-    description: 'Securely complete your hotel booking with signed quote integrity and LiteAPI payment SDK.',
+    description: 'Securely complete your hotel booking with signed quote integrity and secure payment.',
     url: '/booking',
     type: 'website'
   },
@@ -43,7 +43,7 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
         <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Checkout</p>
         <h1 className="mt-2 text-3xl font-semibold">Complete your secure booking</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          We lock your selected rate, collect payment in LiteAPI secure widget, and confirm booking with signed quote integrity.
+          We lock your selected rate, collect payment in a secure widget, and confirm booking with signed quote integrity.
         </p>
       </section>
       <BookingConsole

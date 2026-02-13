@@ -13,7 +13,7 @@ const querySchema = z.object({
   q: z.string().trim().min(2).max(120)
 });
 
-async function googlePlacesFallback(query: string): Promise<Array<{ id: string; name: string; type: 'landmark'; source: 'google' }>> {
+async function googlePlacesFallback(query: string): Promise<Array<{ id: string; name: string; type: 'landmark'; source: 'maps' }>> {
   if (!env.GOOGLE_PLACES_API_KEY) {
     return [];
   }
@@ -38,7 +38,7 @@ async function googlePlacesFallback(query: string): Promise<Array<{ id: string; 
       id: item.place_id ?? `google-${query}-${index}`,
       name: item.description ?? query,
       type: 'landmark' as const,
-      source: 'google' as const
+      source: 'maps' as const
     }));
   } catch (error) {
     logger.warn({ error }, 'Google autocomplete fallback failed');
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     const payload = await getOrSetRedisCache(`autocomplete:${q.toLowerCase()}`, CACHE_TTL_SECONDS.autocomplete, async () => {
       const liteResults = await autocomplete(q);
       if (liteResults.length > 0) {
-        return liteResults.map((item) => ({ ...item, source: 'liteapi' as const }));
+        return liteResults.map((item) => ({ ...item, source: 'inventory' as const }));
       }
 
       const shouldFallbackToGoogle = true;

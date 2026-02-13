@@ -210,7 +210,7 @@ export function BookingConsole({ initialValues }: BookingConsoleProps) {
     saveCheckoutSession(activePrebook.transactionId, checkoutSession);
     await ensurePaymentScriptLoaded();
     if (!window.LiteAPIPayment) {
-      throw new Error('LiteAPI payment SDK unavailable');
+      throw new Error('Secure payment widget unavailable');
     }
     if (!publicEnv.NEXT_PUBLIC_LITEAPI_ENV) {
       throw new Error('Payment environment is not configured');

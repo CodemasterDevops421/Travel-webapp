@@ -114,7 +114,7 @@ export function HeroSearch() {
         <h2 className="text-xl font-semibold">Find your next signature stay</h2>
         <p className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground">
           <Shield className="h-3.5 w-3.5 text-primary" />
-          Secure checkout with LiteAPI payment SDK
+          Secure checkout with trusted payment protection
         </p>
       </div>
 
@@ -185,7 +185,7 @@ export function HeroSearch() {
                           onClick={() => onPickSuggestion(item.name)}
                         >
                           <span className="font-medium">{item.name}</span>
-                          <span className="text-muted-foreground">{item.source}</span>
+                          <span className="text-muted-foreground">{item.source === 'maps' ? 'maps' : 'inventory'}</span>
                         </button>
                       </li>
                     ))

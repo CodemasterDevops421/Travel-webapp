@@ -9,7 +9,7 @@ export type AutocompleteItem = {
   name: string;
   type: 'city' | 'hotel' | 'landmark';
   countryCode?: string;
-  source: 'liteapi' | 'google';
+  source: 'inventory' | 'maps';
 };
 
 async function fetchAutocomplete(query: string): Promise<AutocompleteItem[]> {

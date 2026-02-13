@@ -26,17 +26,17 @@ export const metadata: Metadata = {
     }
   })(),
   title: 'TravelForge OTA',
-  description: 'Fast, transparent hotel booking powered by LiteAPI.',
+  description: 'Fast, transparent hotel booking with secure checkout.',
   openGraph: {
     title: 'TravelForge OTA',
-    description: 'Fast, transparent hotel booking powered by LiteAPI.',
+    description: 'Fast, transparent hotel booking with secure checkout.',
     type: 'website',
     url: '/'
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TravelForge OTA',
-    description: 'Fast, transparent hotel booking powered by LiteAPI.'
+    description: 'Fast, transparent hotel booking with secure checkout.'
   },
   alternates: {
     canonical: '/'

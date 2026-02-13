@@ -63,7 +63,7 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
             <p className="font-semibold">{booking.status}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">LiteAPI Booking ID</p>
+            <p className="text-sm text-muted-foreground">Supplier Booking ID</p>
             <p>{booking.liteapi_booking_id ?? 'Pending'}</p>
           </div>
           <div>

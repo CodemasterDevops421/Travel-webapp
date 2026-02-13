@@ -50,6 +50,9 @@ export type HotelDetails = {
   countryCode?: string;
   address?: string;
   mainPhoto?: string;
+  photos?: string[];
+  facilities?: string[];
+  description?: string;
   starRating?: number | null;
   reviewScore?: number | null;
   reviewCount?: number | null;
@@ -170,6 +173,60 @@ function pickImageUrl(hotel: Record<string, unknown>): string | undefined {
   }
 
   return undefined;
+}
+
+function pickImageUrls(hotel: Record<string, unknown>): string[] {
+  const picked = new Set<string>();
+  const first = pickImageUrl(hotel);
+  if (first) picked.add(first);
+
+  const collectionKeys = [hotel.images, hotel.photos, hotel.gallery];
+  for (const collection of collectionKeys) {
+    if (!Array.isArray(collection)) continue;
+    for (const item of collection) {
+      if (typeof item === 'string' && item.length > 0) {
+        picked.add(item);
+        continue;
+      }
+      if (item && typeof item === 'object') {
+        const obj = item as Record<string, unknown>;
+        const values = [obj.url, obj.image, obj.imageUrl, obj.src];
+        for (const value of values) {
+          if (typeof value === 'string' && value.length > 0) {
+            picked.add(value);
+            break;
+          }
+        }
+      }
+      if (picked.size >= 6) break;
+    }
+    if (picked.size >= 6) break;
+  }
+
+  return Array.from(picked);
+}
+
+function pickFacilities(data: Record<string, unknown>): string[] {
+  const options = [data.facilities, data.amenities, data.popularFacilities, data.propertyFacilities];
+  for (const option of options) {
+    if (!Array.isArray(option)) continue;
+    const names = option
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (item && typeof item === 'object') {
+          const obj = item as Record<string, unknown>;
+          if (typeof obj.name === 'string') return obj.name.trim();
+          if (typeof obj.label === 'string') return obj.label.trim();
+          if (typeof obj.title === 'string') return obj.title.trim();
+        }
+        return '';
+      })
+      .filter(Boolean);
+    if (names.length > 0) {
+      return names.slice(0, 20);
+    }
+  }
+  return [];
 }
 
 function mapRatesResponse(
@@ -548,13 +605,23 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
 
     const json = (await response.json()) as { data?: Record<string, unknown> };
     const data = json.data ?? {};
+    const photos = pickImageUrls(data);
+    const mainPhoto = typeof data.main_photo === 'string' ? data.main_photo : photos[0];
     return {
       id: String(data.id ?? hotelId),
       name: String(data.name ?? 'Hotel'),
       city: String(data.city ?? ''),
       countryCode: typeof data.countryCode === 'string' ? data.countryCode : undefined,
       address: typeof data.address === 'string' ? data.address : undefined,
-      mainPhoto: typeof data.main_photo === 'string' ? data.main_photo : undefined,
+      mainPhoto,
+      photos,
+      facilities: pickFacilities(data),
+      description:
+        typeof data.description === 'string'
+          ? data.description
+          : typeof data.overview === 'string'
+            ? data.overview
+            : undefined,
       starRating: parseNumber(data.starRating),
       reviewScore:
         parseNumber(data.reviewScore) ??
