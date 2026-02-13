@@ -28,6 +28,9 @@ export type PropertyPreview = {
   city: string;
   countryCode?: string;
   starRating: number | null;
+  reviewScore?: number | null;
+  reviewCount?: number | null;
+  imageUrl?: string;
   price: number | null;
   currency: string;
 };
@@ -128,6 +131,45 @@ function parseRateAmount(rate: Record<string, unknown>): { amount: number | null
   };
 }
 
+function parseNumber(value: unknown): number | null {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function pickImageUrl(hotel: Record<string, unknown>): string | undefined {
+  const directKeys = [
+    hotel.main_photo,
+    hotel.mainPhoto,
+    hotel.thumbnail,
+    hotel.image,
+    hotel.imageUrl,
+    hotel.photo
+  ];
+  for (const key of directKeys) {
+    if (typeof key === 'string' && key.length > 0) {
+      return key;
+    }
+  }
+
+  const collectionKeys = [hotel.images, hotel.photos, hotel.gallery];
+  for (const collection of collectionKeys) {
+    if (!Array.isArray(collection) || collection.length === 0) continue;
+    const first = collection[0];
+    if (typeof first === 'string' && first.length > 0) return first;
+    if (first && typeof first === 'object') {
+      const obj = first as Record<string, unknown>;
+      const nested = [obj.url, obj.image, obj.imageUrl, obj.src];
+      for (const candidate of nested) {
+        if (typeof candidate === 'string' && candidate.length > 0) {
+          return candidate;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
 function mapRatesResponse(
   response: LiteApiResponse<Array<Record<string, unknown>>>,
   fallbackCity: string
@@ -154,6 +196,16 @@ function mapRatesResponse(
 
     const starRaw = hotel.starRating;
     const parsedStar = typeof starRaw === 'number' ? starRaw : Number(starRaw);
+    const reviewScore =
+      parseNumber(hotel.reviewScore) ??
+      parseNumber(hotel.review_rating) ??
+      parseNumber(hotel.guestRating) ??
+      parseNumber(hotel.rating);
+    const reviewCount =
+      parseNumber(hotel.reviewCount) ??
+      parseNumber(hotel.reviewsCount) ??
+      parseNumber(hotel.numReviews) ??
+      parseNumber(hotel.totalReviews);
 
     return {
       hotelId: hotelId || String(hotel.id ?? `hotel-${Math.random().toString(16).slice(2, 8)}`),
@@ -161,6 +213,9 @@ function mapRatesResponse(
       city: String(hotel.city ?? fallbackCity),
       countryCode: typeof hotel.countryCode === 'string' ? hotel.countryCode : undefined,
       starRating: Number.isFinite(parsedStar) ? parsedStar : null,
+      reviewScore,
+      reviewCount,
+      imageUrl: pickImageUrl(hotel),
       price: amountInfo.amount,
       currency: amountInfo.currency ?? env.DEFAULT_CURRENCY
     } satisfies PropertyPreview;

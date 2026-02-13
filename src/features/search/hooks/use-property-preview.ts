@@ -9,6 +9,9 @@ export type PropertyPreview = {
   city: string;
   countryCode?: string;
   starRating: number | null;
+  reviewScore?: number | null;
+  reviewCount?: number | null;
+  imageUrl?: string;
   price: number | null;
   currency: string;
 };

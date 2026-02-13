@@ -216,33 +216,54 @@ export function HeroSearch() {
               {(propertyPreview ?? []).map((hotel, idx) => (
                 <article
                   key={hotel.hotelId}
-                  className="animate-soft-rise rounded-xl border border-border bg-background/80 p-4 shadow-sm"
+                  className="animate-soft-rise overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
                   style={{ animationDelay: `${idx * 45}ms` }}
                 >
-                  <h4 className="text-base font-semibold">{hotel.name}</h4>
-                  <p className="text-xs text-muted-foreground">
-                    {hotel.city}
-                    {hotel.countryCode ? `, ${hotel.countryCode}` : ''}
-                    {hotel.starRating ? ` · ${hotel.starRating}★` : ''}
-                  </p>
-                  <p className="mt-3 text-base font-semibold text-primary">
-                    {hotel.price ? `${hotel.currency} ${hotel.price} total/night` : 'Price on request'}
-                  </p>
-                  <Link
-                    href={`/hotels/${hotel.hotelId}`}
-                    className="mt-2 inline-flex text-xs font-semibold underline underline-offset-4"
-                    onClick={() =>
-                      trackFunnelEvent({
-                        name: 'preview_card_opened',
-                        step: 'consideration',
-                        properties: {
-                          hotelId: hotel.hotelId
-                        }
-                      })
-                    }
-                  >
-                    View details and rates
-                  </Link>
+                  {hotel.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={hotel.imageUrl}
+                      alt={hotel.name}
+                      className="h-40 w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="h-40 w-full bg-[linear-gradient(120deg,hsl(var(--muted))_0%,hsl(var(--card))_55%,hsl(var(--muted))_100%)]" />
+                  )}
+                  <div className="space-y-2 p-4">
+                    <h4 className="line-clamp-2 text-base font-semibold">{hotel.name}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      {hotel.city}
+                      {hotel.countryCode ? `, ${hotel.countryCode}` : ''}
+                      {hotel.starRating ? ` · ${hotel.starRating}★` : ''}
+                    </p>
+                    {hotel.reviewScore ? (
+                      <p className="text-xs font-medium text-foreground/90">
+                        {hotel.reviewScore.toFixed(1)} / 10 guest rating
+                        {hotel.reviewCount ? ` · ${Math.round(hotel.reviewCount)} reviews` : ''}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Guest reviews available on details page</p>
+                    )}
+                    <p className="text-base font-semibold text-primary">
+                      {hotel.price ? `${hotel.currency} ${hotel.price} total/night` : 'Price on request'}
+                    </p>
+                    <Link
+                      href={`/hotels/${hotel.hotelId}`}
+                      className="inline-flex text-xs font-semibold underline underline-offset-4"
+                      onClick={() =>
+                        trackFunnelEvent({
+                          name: 'preview_card_opened',
+                          step: 'consideration',
+                          properties: {
+                            hotelId: hotel.hotelId
+                          }
+                        })
+                      }
+                    >
+                      View details and rates
+                    </Link>
+                  </div>
                 </article>
               ))}
             </div>
