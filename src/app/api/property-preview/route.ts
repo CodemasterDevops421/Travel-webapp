@@ -8,27 +8,30 @@ import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
 import { getClientIp } from '@/server/request';
 
 const querySchema = z.object({
-  q: z.string().trim().min(2).max(120)
+  q: z.string().trim().min(2).max(120),
+  currency: z.string().trim().toUpperCase().length(3).optional()
 });
 
 export async function GET(request: NextRequest) {
   try {
     const parsed = querySchema.safeParse({
-      q: request.nextUrl.searchParams.get('q')
+      q: request.nextUrl.searchParams.get('q'),
+      currency: request.nextUrl.searchParams.get('currency') ?? undefined
     });
     if (!parsed.success) {
       return NextResponse.json([], { status: 200 });
     }
 
     const q = parsed.data.q;
+    const currency = parsed.data.currency;
     const clientIp = getClientIp(request);
     await assertRateLimit(`property-preview:${clientIp}`);
 
     const payload = await getOrSetRedisCache(
-      `property-preview:${q.toLowerCase()}`,
+      `property-preview:${q.toLowerCase()}:${currency ?? 'default'}`,
       CACHE_TTL_SECONDS.propertyPreview,
       async () => {
-      return searchPropertyPreviews(q);
+      return searchPropertyPreviews(q, currency);
       }
     );
 

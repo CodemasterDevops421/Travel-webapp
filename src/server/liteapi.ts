@@ -348,7 +348,7 @@ function hasConfiguredLiteApiKey(): boolean {
   return Boolean(env.LITEAPI_API_KEY && env.LITEAPI_API_KEY !== 'liteapi-placeholder-key');
 }
 
-export async function searchPropertyPreviews(query: string): Promise<PropertyPreview[]> {
+export async function searchPropertyPreviews(query: string, currency?: string): Promise<PropertyPreview[]> {
   if (!hasConfiguredLiteApiKey()) {
     return fallbackProperties;
   }
@@ -366,12 +366,13 @@ export async function searchPropertyPreviews(query: string): Promise<PropertyPre
     );
     const firstPlaceId = String(placeResponse?.data?.[0]?.placeId ?? placeResponse?.data?.[0]?.id ?? '');
     const { checkin, checkout } = nextStayWindow();
+    const selectedCurrency = currency ?? env.DEFAULT_CURRENCY;
     const basePayload: Omit<RatesSearchPayload, 'placeId' | 'cityName' | 'aiSearch'> = {
       checkin,
       checkout,
       occupancies: [{ adults: 2 }],
       guestNationality: env.DEFAULT_GUEST_NATIONALITY,
-      currency: env.DEFAULT_CURRENCY,
+      currency: selectedCurrency,
       roomMapping: true,
       includeHotelData: true,
       maxRatesPerHotel: 1,
@@ -433,7 +434,7 @@ export async function searchPropertyPreviews(query: string): Promise<PropertyPre
         checkout,
         occupancies: [{ adults: 2 }],
         guestNationality: env.DEFAULT_GUEST_NATIONALITY,
-        currency: env.DEFAULT_CURRENCY,
+        currency: selectedCurrency,
         limit: 8
       }),
       cache: 'no-store'

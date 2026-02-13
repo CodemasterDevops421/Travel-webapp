@@ -16,16 +16,18 @@ export type PropertyPreview = {
   currency: string;
 };
 
-async function fetchPropertyPreview(query: string): Promise<PropertyPreview[]> {
-  const response = await fetch(`/api/property-preview?q=${encodeURIComponent(query)}`);
+async function fetchPropertyPreview(query: string, currency: string): Promise<PropertyPreview[]> {
+  const response = await fetch(
+    `/api/property-preview?q=${encodeURIComponent(query)}&currency=${encodeURIComponent(currency)}`
+  );
   if (!response.ok) throw new Error('Property preview failed');
   return response.json();
 }
 
-export function usePropertyPreview(query: string) {
+export function usePropertyPreview(query: string, currency: string) {
   return useQuery({
-    queryKey: ['property-preview', query],
-    queryFn: () => fetchPropertyPreview(query),
+    queryKey: ['property-preview', query, currency],
+    queryFn: () => fetchPropertyPreview(query, currency),
     enabled: query.length > 2,
     staleTime: CACHE_STALE_TIME_MS.propertyPreview
   });

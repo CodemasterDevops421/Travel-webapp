@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
+import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { trackFunnelEvent } from '@/shared/lib/analytics';
@@ -15,6 +16,7 @@ export function HeroSearch() {
   const [activeQuery, setActiveQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const currency = useSearchUIStore((state) => state.currency);
   const hasTrackedSearchInput = useRef(false);
   const suggestionsListId = useId();
   const { data, isFetching } = useAutocomplete(query);
@@ -23,7 +25,7 @@ export function HeroSearch() {
   const {
     data: propertyPreview,
     isFetching: isPreviewLoading
-  } = usePropertyPreview(activeQuery);
+  } = usePropertyPreview(activeQuery, currency);
 
   useEffect(() => {
     setHighlightedIndex(-1);

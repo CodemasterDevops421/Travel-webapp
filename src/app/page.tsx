@@ -6,6 +6,7 @@ import { HeroSearch } from '@/features/search/components/hero-search';
 import { SearchSkeleton } from '@/features/search/components/search-skeleton';
 import { TrendingDestinations } from '@/components/home/trending-destinations';
 import { MoodDiscovery } from '@/components/home/mood-discovery';
+import { LanguageCurrencyChooser } from '@/components/home/language-currency-chooser';
 
 export const metadata: Metadata = {
   title: 'TravelForge | Luxury Hotel Search & Booking',
@@ -26,9 +27,12 @@ export default function HomePage() {
           <Link href="/" className="text-muted-foreground transition-colors hover:text-foreground">Search</Link>
           <Link href="/booking" className="text-muted-foreground transition-colors hover:text-foreground">Checkout</Link>
         </div>
-        <div className="rounded-full border border-border/70 bg-card/80 p-2 shadow-sm" aria-label="Theme icons">
-          <Sun className="h-5 w-5 dark:hidden" />
-          <Moon className="hidden h-5 w-5 dark:block" />
+        <div className="flex items-center gap-2">
+          <LanguageCurrencyChooser />
+          <div className="rounded-full border border-border/70 bg-card/80 p-2 shadow-sm" aria-label="Theme icons">
+            <Sun className="h-5 w-5 dark:hidden" />
+            <Moon className="hidden h-5 w-5 dark:block" />
+          </div>
         </div>
       </nav>
 
