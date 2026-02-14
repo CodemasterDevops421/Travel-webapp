@@ -14,6 +14,7 @@ const envSchema = z.object({
   LITEAPI_API_KEY: emptyStringToUndefined(z.string().min(1).default('liteapi-placeholder-key')),
   LITEAPI_BASE_URL: emptyStringToUndefined(z.string().url().default('https://api.liteapi.travel/v3.0')),
   LITEAPI_BOOK_BASE_URL: emptyStringToUndefined(z.string().url().default('https://book.liteapi.travel/v3.0')),
+  LITEAPI_DASHBOARD_BASE_URL: emptyStringToUndefined(z.string().url().default('https://da.liteapi.travel')),
   LITEAPI_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
   LITEAPI_WEBHOOK_SECRET: emptyStringToUndefined(z.string().optional()),
   QUOTE_SIGNING_SECRET: emptyStringToUndefined(z.string().min(16).optional()),
@@ -28,6 +29,8 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: emptyStringToUndefined(z.string().optional()),
   STRICT_PERSISTENCE_MODE: z.coerce.boolean().default(false),
   SENTRY_DSN: emptyStringToUndefined(z.string().optional()),
+  OPENAI_API_KEY: emptyStringToUndefined(z.string().optional()),
+  OPENAI_MODEL: emptyStringToUndefined(z.string().optional()),
   PRICE_MARKUP_PERCENT: z.coerce.number().min(0).max(40).default(12),
   DEFAULT_CURRENCY: z.string().length(3).default('USD'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info')

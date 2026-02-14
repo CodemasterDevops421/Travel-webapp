@@ -89,6 +89,12 @@ type RatesSearchPayload = {
   includeHotelData: boolean;
   maxRatesPerHotel: number;
   limit: number;
+  timeout?: number;
+  minRating?: number;
+  starRating?: number[];
+  minReviewsCount?: number;
+  facilities?: number[];
+  strictFacilityFiltering?: boolean;
   placeId?: string;
   cityName?: string;
   aiSearch?: string;
@@ -615,7 +621,13 @@ export async function searchPropertyPreviews(
   checkin?: string,
   checkout?: string,
   adults?: number,
-  rooms?: number
+  rooms?: number,
+  filters?: {
+    brief?: string;
+    minStars?: number;
+    minGuestRating?: number;
+    maxPrice?: number;
+  }
 ): Promise<PropertyPreview[]> {
   if (!hasConfiguredLiteApiKey()) {
     return fallbackProperties;
@@ -640,6 +652,19 @@ export async function searchPropertyPreviews(
     const activeRooms = rooms ?? 1;
     const occupancies = Array.from({ length: activeRooms }, () => ({ adults: activeAdults }));
     const selectedCurrency = currency ?? env.DEFAULT_CURRENCY;
+    const trimmedBrief = filters?.brief?.trim();
+    const aiSearchQuery = trimmedBrief ? `${query} ${trimmedBrief}` : query;
+    const timeoutSeconds = Math.max(1, Math.round(env.LITEAPI_TIMEOUT_MS / 1000));
+    const normalizedMinStars = typeof filters?.minStars === 'number' ? Math.min(5, Math.max(0, filters.minStars)) : undefined;
+    const normalizedMinRating = typeof filters?.minGuestRating === 'number'
+      ? Math.min(5, Math.max(0, filters.minGuestRating / 2))
+      : undefined;
+    const starRating = typeof normalizedMinStars === 'number'
+      ? Array.from({ length: Math.max(0, Math.round((5 - normalizedMinStars) * 2) + 1) }, (_, idx) =>
+          Number((normalizedMinStars + idx * 0.5).toFixed(1))
+        )
+      : undefined;
+
     const basePayload: Omit<RatesSearchPayload, 'placeId' | 'cityName' | 'aiSearch'> = {
       checkin: activeCheckin,
       checkout: activeCheckout,
@@ -649,33 +674,75 @@ export async function searchPropertyPreviews(
       roomMapping: true,
       includeHotelData: true,
       maxRatesPerHotel: 1,
-      limit: 12
+      limit: 12,
+      timeout: timeoutSeconds,
+      minRating: normalizedMinRating,
+      starRating
     };
 
-    if (firstPlaceId) {
-      const byPlace = await searchRates({
-        ...basePayload,
-        placeId: firstPlaceId
-      }, query);
-      if (byPlace.length > 0) {
-        return byPlace.slice(0, 8);
+    const applyFilters = (items: PropertyPreview[]) => {
+      const minStars = typeof filters?.minStars === 'number' ? filters.minStars : undefined;
+      const minGuestRating = typeof filters?.minGuestRating === 'number' ? filters.minGuestRating : undefined;
+      const maxPrice = typeof filters?.maxPrice === 'number' ? filters.maxPrice : undefined;
+
+      return items.filter((hotel) => {
+        if (typeof minStars === 'number' && (hotel.starRating ?? 0) < minStars) return false;
+        if (typeof minGuestRating === 'number' && (hotel.reviewScore ?? 0) < minGuestRating) return false;
+        if (typeof maxPrice === 'number' && (hotel.price ?? Number.MAX_SAFE_INTEGER) > maxPrice) return false;
+        return true;
+      });
+    };
+
+    if (trimmedBrief) {
+      const byAiSearch = await searchRates(
+        {
+          ...basePayload,
+          aiSearch: aiSearchQuery
+        },
+        query
+      );
+      const filtered = applyFilters(byAiSearch);
+      if (filtered.length > 0) {
+        return filtered.slice(0, 8);
       }
     }
 
-    const byCity = await searchRates({
-      ...basePayload,
-      cityName: query
-    }, query);
-    if (byCity.length > 0) {
-      return byCity.slice(0, 8);
+    if (firstPlaceId) {
+      const byPlace = await searchRates(
+        {
+          ...basePayload,
+          placeId: firstPlaceId
+        },
+        query
+      );
+      const filtered = applyFilters(byPlace);
+      if (filtered.length > 0) {
+        return filtered.slice(0, 8);
+      }
     }
 
-    const byAiSearch = await searchRates({
-      ...basePayload,
-      aiSearch: query
-    }, query);
-    if (byAiSearch.length > 0) {
-      return byAiSearch.slice(0, 8);
+    const byCity = await searchRates(
+      {
+        ...basePayload,
+        cityName: query
+      },
+      query
+    );
+    const filteredByCity = applyFilters(byCity);
+    if (filteredByCity.length > 0) {
+      return filteredByCity.slice(0, 8);
+    }
+
+    const byAiSearch = await searchRates(
+      {
+        ...basePayload,
+        aiSearch: aiSearchQuery
+      },
+      query
+    );
+    const filteredByAiSearch = applyFilters(byAiSearch);
+    if (filteredByAiSearch.length > 0) {
+      return filteredByAiSearch.slice(0, 8);
     }
 
     const placeRes = await fetch(
@@ -711,6 +778,9 @@ export async function searchPropertyPreviews(
         occupancies,
         guestNationality: env.DEFAULT_GUEST_NATIONALITY,
         currency: selectedCurrency,
+        timeout: timeoutSeconds,
+        minRating: normalizedMinRating,
+        starRating,
         limit: 8
       }),
       cache: 'no-store'
@@ -719,7 +789,7 @@ export async function searchPropertyPreviews(
       throw new Error(`LiteAPI rates request failed: ${ratesRes.status}`);
     }
     const ratesResponse = (await ratesRes.json()) as LiteApiResponse<Array<Record<string, unknown>>>;
-    const mapped = mapRatesResponse(ratesResponse, query).slice(0, 8);
+    const mapped = applyFilters(mapRatesResponse(ratesResponse, query)).slice(0, 8);
 
     return mapped.length > 0 ? mapped : fallbackProperties;
   } catch (error) {
@@ -789,7 +859,7 @@ export async function bookRate(payload: BookPayload) {
       clientReference: payload.clientReference,
       holder: payload.holder,
       payment: {
-        method: 'TRANSACTION',
+        method: 'TRANSACTION_ID',
         transactionId: payload.transactionId
       },
       guests: payload.guests
@@ -803,6 +873,98 @@ export async function bookRate(payload: BookPayload) {
     throw new HttpError(
       response.status >= 400 && response.status < 500 ? 400 : 502,
       'Payment is not confirmed or booking session is invalid. Please retry checkout.'
+    );
+  }
+
+  return response.json();
+}
+
+export async function listBookings(params: { clientReference: string; timeoutSeconds?: number }) {
+  const url = new URL(`${env.LITEAPI_BOOK_BASE_URL}/bookings`);
+  url.searchParams.set('clientReference', params.clientReference);
+  if (typeof params.timeoutSeconds === 'number' && Number.isFinite(params.timeoutSeconds)) {
+    url.searchParams.set('timeout', String(params.timeoutSeconds));
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      accept: 'application/json',
+      'X-API-Key': env.LITEAPI_API_KEY
+    },
+    cache: 'no-store'
+  });
+
+  if (response.status === 204) {
+    return { data: [] };
+  }
+
+  if (!response.ok) {
+    const body = await response.text();
+    logger.error({ status: response.status, bodySample: body.slice(0, 180) }, 'LiteAPI list bookings failed');
+    throw new HttpError(
+      response.status >= 400 && response.status < 500 ? 400 : 502,
+      'Unable to fetch bookings right now.'
+    );
+  }
+
+  return response.json();
+}
+
+export async function getBooking(params: { bookingId: string; timeoutSeconds?: number }) {
+  const url = new URL(`${env.LITEAPI_BOOK_BASE_URL}/bookings/${encodeURIComponent(params.bookingId)}`);
+  if (typeof params.timeoutSeconds === 'number' && Number.isFinite(params.timeoutSeconds)) {
+    url.searchParams.set('timeout', String(params.timeoutSeconds));
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      accept: 'application/json',
+      'X-API-Key': env.LITEAPI_API_KEY
+    },
+    cache: 'no-store'
+  });
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const body = await response.text();
+    logger.error({ status: response.status, bodySample: body.slice(0, 180) }, 'LiteAPI retrieve booking failed');
+    throw new HttpError(
+      response.status >= 400 && response.status < 500 ? 400 : 502,
+      'Unable to fetch this booking right now.'
+    );
+  }
+
+  return response.json();
+}
+
+export async function cancelBooking(params: { bookingId: string; timeoutSeconds?: number }) {
+  const url = new URL(`${env.LITEAPI_BOOK_BASE_URL}/bookings/${encodeURIComponent(params.bookingId)}`);
+  if (typeof params.timeoutSeconds === 'number' && Number.isFinite(params.timeoutSeconds)) {
+    url.searchParams.set('timeout', String(params.timeoutSeconds));
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: {
+      accept: 'application/json',
+      'X-API-Key': env.LITEAPI_API_KEY
+    },
+    cache: 'no-store'
+  });
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const body = await response.text();
+    logger.error({ status: response.status, bodySample: body.slice(0, 180) }, 'LiteAPI cancel booking failed');
+    throw new HttpError(
+      response.status >= 400 && response.status < 500 ? 400 : 502,
+      'Unable to cancel this booking right now.'
     );
   }
 

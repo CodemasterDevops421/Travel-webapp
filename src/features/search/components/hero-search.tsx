@@ -138,17 +138,17 @@ export function HeroSearch() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="rounded-3xl border border-border/80 bg-card/90 p-5 shadow-xl backdrop-blur md:p-6"
+      className="rounded-[28px] border border-border/80 bg-card/95 p-6 shadow-2xl backdrop-blur md:p-7"
     >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">Find your next signature stay</h2>
-        <p className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground">
+      <div className="mb-5 space-y-2">
+        <h2 className="text-2xl font-semibold">Find your next signature stay</h2>
+        <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Shield className="h-3.5 w-3.5 text-primary" />
           Secure checkout with trusted payment protection
         </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="relative md:col-span-2">
           <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
           <Input
@@ -161,7 +161,7 @@ export function HeroSearch() {
               highlightedIndex >= 0 ? `${suggestionsListId}-option-${highlightedIndex}` : undefined
             }
             placeholder="Where to? city, hotel, landmark"
-            className="h-12 pl-10"
+            className="h-14 pl-10 text-base"
             value={query}
             onChange={(event) => {
               const nextValue = event.target.value;
@@ -225,12 +225,12 @@ export function HeroSearch() {
             </div>
           )}
         </div>
-        <label className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background/70 px-3">
+        <label className="flex min-h-12 flex-wrap items-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2">
           <Calendar className="h-4 w-4" />
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
             <input
               type="date"
-              className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
               value={checkIn}
               onChange={(event) => setCheckIn(event.target.value)}
               aria-label="Check-in date"
@@ -238,18 +238,18 @@ export function HeroSearch() {
             <span>to</span>
             <input
               type="date"
-              className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
               value={checkOut}
               onChange={(event) => setCheckOut(event.target.value)}
               aria-label="Check-out date"
             />
           </div>
         </label>
-        <label className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background/70 px-3">
+        <label className="flex min-h-12 flex-wrap items-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2">
           <Users className="h-4 w-4" />
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
             <select
-              className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
               value={adults}
               onChange={(event) => setAdults(Number(event.target.value))}
               aria-label="Adults"
@@ -261,7 +261,7 @@ export function HeroSearch() {
               ))}
             </select>
             <select
-              className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
               value={rooms}
               onChange={(event) => setRooms(Number(event.target.value))}
               aria-label="Rooms"

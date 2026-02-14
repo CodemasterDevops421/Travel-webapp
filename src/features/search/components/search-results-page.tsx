@@ -1,9 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Map, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Bot, Compass, Map, Send, SlidersHorizontal, Sparkles, Star } from 'lucide-react';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
 import { PreferenceLink } from '@/components/navigation/preference-link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 type SearchResultsPageProps = {
   query: string;
@@ -15,6 +17,89 @@ type SearchResultsPageProps = {
   currency: string;
 };
 
+type ConciergeMessage = {
+  role: 'assistant' | 'user';
+  text: string;
+};
+
+type ConciergeFilters = {
+  minStars?: number;
+  minGuestRating?: number;
+  maxPrice?: number;
+  vibeTags?: string[];
+  searchHint?: string;
+};
+
+const CONCIERGE_CHAT_KEY = 'tf:concierge:chat';
+const CONCIERGE_FILTERS_KEY = 'tf:concierge:filters';
+const SEARCH_MODE_KEY = 'tf:search-mode';
+
+const DEFAULT_CHAT_LOG: ConciergeMessage[] = [
+  {
+    role: 'assistant',
+    text: 'Welcome! What are your travel plans?'
+  }
+];
+
+const QUICK_PROMPTS = [
+  'Beach + mountains + casino',
+  'Boutique city stay with jazz + food scene',
+  'Family resort with water park',
+  'Ski town with hot springs'
+];
+
+const DEFAULT_VIBE_TAGS = ['Oceanfront', 'Mountain access', 'Casino nearby', 'Balcony views'];
+
+function readStorage<T>(key: string): T | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: unknown) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function snapToOption(value: number, options: number[]): number {
+  const sorted = [...options].sort((a, b) => a - b);
+  if (value <= sorted[0]) return sorted[0];
+  for (let i = sorted.length - 1; i >= 0; i -= 1) {
+    if (value >= sorted[i]) return sorted[i];
+  }
+  return sorted[0];
+}
+
+function normalizeFilters(filters: ConciergeFilters | null | undefined): ConciergeFilters {
+  if (!filters) return {};
+  const minStarsRaw = Number.isFinite(filters.minStars) ? Math.min(5, Math.max(0, filters.minStars ?? 0)) : undefined;
+  const minGuestRatingRaw = Number.isFinite(filters.minGuestRating)
+    ? Math.min(10, Math.max(0, filters.minGuestRating ?? 0))
+    : undefined;
+  const minStars = typeof minStarsRaw === 'number' ? snapToOption(minStarsRaw, [0, 3, 4, 5]) : undefined;
+  const minGuestRating = typeof minGuestRatingRaw === 'number' ? snapToOption(minGuestRatingRaw, [0, 7, 8, 9]) : undefined;
+  const maxPrice = Number.isFinite(filters.maxPrice) ? Math.max(50, filters.maxPrice ?? 0) : undefined;
+  const vibeTags = filters.vibeTags?.map((tag) => tag.trim()).filter(Boolean).slice(0, 6);
+  const searchHint = filters.searchHint?.trim();
+
+  return {
+    minStars,
+    minGuestRating,
+    maxPrice,
+    vibeTags: vibeTags && vibeTags.length > 0 ? vibeTags : undefined,
+    searchHint: searchHint && searchHint.length > 2 ? searchHint : undefined
+  };
+}
+
 function formatMoney(currency: string, amount: number | null): string {
   if (amount === null) return 'Price on request';
   try {
@@ -24,13 +109,92 @@ function formatMoney(currency: string, amount: number | null): string {
   }
 }
 
+function getMatchScore(hotel: { reviewScore?: number | null; starRating?: number | null }) {
+  const reviewScore = hotel.reviewScore ?? 7.8;
+  const starRating = hotel.starRating ?? 3.8;
+  const raw = reviewScore * 7 + starRating * 6;
+  return Math.max(72, Math.min(98, Math.round(raw)));
+}
+
+function getHotelBadges(hotel: { reviewScore?: number | null; starRating?: number | null; price?: number | null }) {
+  const badges: string[] = [];
+  if ((hotel.starRating ?? 0) >= 4.5) badges.push('Luxury finish');
+  if ((hotel.reviewScore ?? 0) >= 9.0) badges.push('Exceptional reviews');
+  if ((hotel.reviewScore ?? 0) >= 8.4 && (hotel.reviewScore ?? 0) < 9.0) badges.push('Guest favorite');
+  if ((hotel.price ?? 0) > 0 && (hotel.price ?? 0) <= 180) badges.push('Great value');
+  if ((hotel.price ?? 0) >= 350) badges.push('Premium pick');
+  if (badges.length === 0) badges.push('Curated stay');
+  return badges.slice(0, 3);
+}
+
 export function SearchResultsPage({ query, checkin, checkout, adults, rooms, language, currency }: SearchResultsPageProps) {
-  const { data, isFetching } = usePropertyPreview(query, language, currency, checkin, checkout, adults, rooms);
+  const [searchMode, setSearchMode] = useState<'traditional' | 'concierge'>('concierge');
+  const [chatLog, setChatLog] = useState<ConciergeMessage[]>(DEFAULT_CHAT_LOG);
+  const [chatInput, setChatInput] = useState('');
+  const [isConciergeLoading, setIsConciergeLoading] = useState(false);
+  const [conciergeFilters, setConciergeFilters] = useState<ConciergeFilters>({});
+  const [isChatHydrated, setIsChatHydrated] = useState(false);
+  const [isFiltersHydrated, setIsFiltersHydrated] = useState(false);
+  const conciergeBrief =
+    searchMode === 'concierge'
+      ? [conciergeFilters.searchHint, ...(conciergeFilters.vibeTags ?? [])]
+          .filter(Boolean)
+          .join(' ')
+          .trim()
+      : '';
+  const previewFilters =
+    searchMode === 'concierge'
+      ? {
+          brief: conciergeBrief,
+          minStars: conciergeFilters.minStars,
+          minGuestRating: conciergeFilters.minGuestRating,
+          maxPrice: conciergeFilters.maxPrice
+        }
+      : undefined;
+  const { data, isFetching } = usePropertyPreview(query, language, currency, checkin, checkout, adults, rooms, previewFilters);
   const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating-desc'>('recommended');
   const [minRating, setMinRating] = useState(0);
   const [minStars, setMinStars] = useState(0);
   const [maxPrice, setMaxPrice] = useState<number>(99999);
   const [mapMode, setMapMode] = useState<'list' | 'split'>('list');
+
+  useEffect(() => {
+    const storedMode = readStorage<'traditional' | 'concierge'>(SEARCH_MODE_KEY);
+    const resolvedMode = storedMode === 'traditional' || storedMode === 'concierge' ? storedMode : 'concierge';
+    setSearchMode(resolvedMode);
+
+    const storedChat = readStorage<ConciergeMessage[]>(CONCIERGE_CHAT_KEY);
+    if (storedChat && storedChat.length > 0) {
+      setChatLog(storedChat);
+    } else {
+      setChatLog(DEFAULT_CHAT_LOG);
+    }
+    setIsChatHydrated(true);
+
+    const storedFilters = readStorage<ConciergeFilters>(CONCIERGE_FILTERS_KEY);
+    if (storedFilters && resolvedMode === 'concierge') {
+      const normalized = normalizeFilters(storedFilters);
+      setConciergeFilters(normalized);
+      if (typeof normalized.minGuestRating === 'number') setMinRating(normalized.minGuestRating);
+      if (typeof normalized.minStars === 'number') setMinStars(normalized.minStars);
+      if (typeof normalized.maxPrice === 'number') setMaxPrice(normalized.maxPrice);
+    }
+    setIsFiltersHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isChatHydrated) return;
+    writeStorage(CONCIERGE_CHAT_KEY, chatLog);
+  }, [chatLog, isChatHydrated]);
+
+  useEffect(() => {
+    if (!isFiltersHydrated) return;
+    writeStorage(CONCIERGE_FILTERS_KEY, conciergeFilters);
+  }, [conciergeFilters, isFiltersHydrated]);
+
+  useEffect(() => {
+    writeStorage(SEARCH_MODE_KEY, searchMode);
+  }, [searchMode]);
 
   const listings = useMemo(() => {
     const source = [...(data ?? [])];
@@ -61,14 +225,80 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
     return Math.max(0, diff);
   }, [checkin, checkout]);
 
+  const vibeTags = conciergeFilters.vibeTags && conciergeFilters.vibeTags.length > 0 ? conciergeFilters.vibeTags : DEFAULT_VIBE_TAGS;
+
+  const sendConciergeMessage = async (messageText: string) => {
+    const trimmed = messageText.trim();
+    if (!trimmed || isConciergeLoading) return;
+
+    const userMessage: ConciergeMessage = { role: 'user', text: trimmed };
+    const nextMessages = [...chatLog, userMessage].slice(-18);
+    setChatLog(nextMessages);
+    setChatInput('');
+    setIsConciergeLoading(true);
+
+    try {
+      const response = await fetch('/api/concierge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: nextMessages,
+          trip: {
+            destination: query,
+            checkin,
+            checkout,
+            adults,
+            rooms,
+            currency,
+            language
+          }
+        })
+      });
+
+      const payload = (await response.json()) as { reply?: string; filters?: ConciergeFilters; error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Concierge request failed');
+      }
+
+      const replyText = typeof payload.reply === 'string' && payload.reply.trim().length > 0
+        ? payload.reply.trim()
+        : 'Got it. Tell me one more detail so I can refine your matches.';
+      const normalized = normalizeFilters(payload.filters);
+      if (Object.keys(normalized).length > 0) {
+        setConciergeFilters((current) => ({ ...current, ...normalized }));
+        if (typeof normalized.minGuestRating === 'number') setMinRating(normalized.minGuestRating);
+        if (typeof normalized.minStars === 'number') setMinStars(normalized.minStars);
+        if (typeof normalized.maxPrice === 'number') setMaxPrice(normalized.maxPrice);
+      }
+
+      setChatLog((current) => [...current, { role: 'assistant', text: replyText }]);
+    } catch {
+      setChatLog((current) => [
+        ...current,
+        { role: 'assistant', text: 'I am having trouble reaching the concierge right now. Try again in a moment.' }
+      ]);
+    } finally {
+      setIsConciergeLoading(false);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-7xl space-y-5 px-4 py-8">
-      <section className="rounded-3xl border border-border/80 bg-card/85 p-5 shadow-sm">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Search results</p>
-        <h1 className="mt-2 text-3xl font-bold">Stays in {query}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {checkin} to {checkout} · {nights} night{nights > 1 ? 's' : ''} · {adults} adults · {rooms} room{rooms > 1 ? 's' : ''} · {currency}
-        </p>
+      <section className="relative overflow-hidden rounded-[32px] border border-border/80 bg-[radial-gradient(circle_at_top_left,rgba(16,185,195,0.22),transparent_45%),radial-gradient(circle_at_top_right,rgba(251,191,36,0.18),transparent_40%),linear-gradient(140deg,rgba(255,255,255,0.88),rgba(255,255,255,0.65))] p-5 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.55)] md:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.26em] text-muted-foreground">
+              {searchMode === 'concierge' ? 'Concierge search' : 'Traditional search'}
+            </p>
+            <h1 className="text-3xl font-bold md:text-4xl">Curated stays in {query}</h1>
+            <p className="text-sm text-muted-foreground">
+              {checkin} to {checkout} · {nights} night{nights > 1 ? 's' : ''} · {adults} adults · {rooms} room{rooms > 1 ? 's' : ''} · {currency}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3 text-xs text-muted-foreground">
+            Powered by Lite API {searchMode === 'concierge' ? '· AI-curated matches' : ''}
+          </div>
+        </div>
       </section>
 
       <section className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/80 bg-card/75 p-3">
@@ -76,6 +306,26 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Filters
         </p>
+        <div className="ml-auto inline-flex items-center gap-1 rounded-full border border-border bg-background p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setSearchMode('traditional')}
+            className={`rounded-full px-3 py-1 font-semibold ${
+              searchMode === 'traditional' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            Traditional
+          </button>
+          <button
+            type="button"
+            onClick={() => setSearchMode('concierge')}
+            className={`rounded-full px-3 py-1 font-semibold ${
+              searchMode === 'concierge' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            Concierge
+          </button>
+        </div>
         <label className="rounded-full border border-border bg-background px-3 py-1 text-xs">
           Sort
           <select className="ml-2 bg-transparent outline-none" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
@@ -125,71 +375,230 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
         </button>
       </section>
 
-      {isFetching ? (
-        <p className="text-sm text-muted-foreground">Loading hotel listings...</p>
-      ) : (
-        <section className={`grid gap-3 ${mapMode === 'split' ? 'lg:grid-cols-[1.3fr,0.9fr]' : ''}`}>
-          <div className="space-y-3">
-            {listings.map((hotel) => (
-              <PreferenceLink
-                key={hotel.hotelId}
-                href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&adults=${adults}&rooms=${rooms}&currency=${encodeURIComponent(currency)}`}
-                className="grid gap-4 rounded-3xl border border-border/40 bg-card/60 p-4 shadow-[0_12px_30px_-22px_rgba(15,23,42,0.45)] transition-all duration-200 hover:border-primary/50 hover:shadow-[0_18px_40px_-24px_rgba(15,23,42,0.6)] md:grid-cols-[320px,1fr,220px]"
-              >
-                {hotel.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={hotel.imageUrl} alt={hotel.name} className="h-56 w-full rounded-2xl object-cover md:h-48" />
-                ) : (
-                  <div className="h-56 rounded-2xl bg-[linear-gradient(120deg,hsl(var(--muted))_0%,hsl(var(--card))_55%,hsl(var(--muted))_100%)] md:h-48" />
-                )}
-                <div className="space-y-2">
-                  <h2 className="text-xl font-semibold">{hotel.name}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {hotel.city}
-                    {hotel.countryCode ? `, ${hotel.countryCode}` : ''}
-                    {hotel.starRating ? ` · ${hotel.starRating}★` : ''}
-                  </p>
-                  <p className="text-sm font-medium">
-                    {hotel.reviewScore ? `${hotel.reviewScore.toFixed(1)} / 10 guest rating` : 'Guest rating available on details'}
-                    {hotel.reviewCount ? ` · Based on ${Math.round(hotel.reviewCount)} reviews` : ''}
-                  </p>
+      <section className={`grid gap-6 ${searchMode === 'concierge' ? 'lg:grid-cols-[0.95fr,1.55fr]' : ''}`}>
+        {searchMode === 'concierge' ? (
+        <aside className="space-y-4">
+          <div className="rounded-[28px] border border-border/70 bg-card/90 p-5 shadow-[0_20px_50px_-40px_rgba(15,23,42,0.55)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Bot className="h-5 w-5" />
                 </div>
-                <div className="flex flex-col items-start justify-between gap-4 md:items-end">
-                  <div className="rounded-2xl border border-border/50 bg-background/80 px-4 py-3 text-left md:text-right">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">From</p>
-                    <p className="text-2xl font-bold text-primary md:text-3xl">{formatMoney(hotel.currency, hotel.price)}</p>
-                    <p className="text-xs text-muted-foreground">per night</p>
-                  </div>
-                  <span className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm">
-                    View stay
+                <div>
+                  <p className="text-sm font-semibold">Travel Concierge AI</p>
+                  <p className="text-xs text-muted-foreground">Powered by OpenAI · Always on</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                Live
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {chatLog.map((message, index) => (
+                <div
+                  key={`${message.role}-${index}`}
+                  className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                    message.role === 'assistant'
+                      ? 'bg-background/80 text-foreground shadow-sm'
+                      : 'bg-primary/10 text-foreground'
+                  }`}
+                >
+                  {message.text}
+                </div>
+              ))}
+              {isConciergeLoading ? (
+                <div className="rounded-2xl bg-background/80 px-3 py-2 text-sm text-muted-foreground shadow-sm">
+                  Concierge is thinking...
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-border/70 bg-background/80 p-4">
+              <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                <span>Trip brief</span>
+                <span className="flex items-center gap-1 text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Smart match
+                </span>
+              </div>
+              <div className="mt-3 grid gap-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Destination</span>
+                  <span className="font-semibold text-foreground">{query}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Dates</span>
+                  <span className="font-semibold">{checkin} → {checkout}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Guests</span>
+                  <span className="font-semibold">{adults} adults · {rooms} room{rooms > 1 ? 's' : ''}</span>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {vibeTags.map((tag) => (
+                  <span key={tag} className="rounded-full border border-border bg-card px-3 py-1 text-[11px] font-semibold">
+                    {tag}
                   </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {QUICK_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => sendConciergeMessage(prompt)}
+                  className="rounded-full border border-border bg-background px-3 py-1 text-xs transition-colors hover:border-primary/50"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              <Input
+                placeholder="Tell me your vibe or must-haves..."
+                className="bg-background"
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    sendConciergeMessage(chatInput);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                className="h-11 w-11 rounded-2xl p-0"
+                onClick={() => sendConciergeMessage(chatInput)}
+                disabled={isConciergeLoading}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              The concierge learns your style and filters Lite API listings instantly.
+            </p>
+          </div>
+
+          <div className="rounded-[24px] border border-border/70 bg-card/90 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Compass className="h-4 w-4 text-primary" />
+              Your vibe map
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              We combine scenery, activity, and nightlife signals to surface stays that feel tailor-made.
+            </p>
+            <div className="mt-3 grid gap-2 text-xs">
+              {[
+                { label: 'Nature access', value: 'High' },
+                { label: 'Waterfront feel', value: 'Strong' },
+                { label: 'Nightlife radius', value: '< 20 miles' }
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between rounded-xl border border-border bg-background/80 px-3 py-2">
+                  <span>{item.label}</span>
+                  <span className="font-semibold text-primary">{item.value}</span>
                 </div>
-              </PreferenceLink>
-            ))}
-            {listings.length === 0 && (
-              <p className="rounded-xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
-                No stays found for this filter combination. Reset filters or try another destination.
-              </p>
-            )}
+              ))}
+            </div>
+          </div>
+        </aside>
+        ) : null}
+
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-border/70 bg-card/85 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Matches</p>
+                <h2 className="mt-1 text-2xl font-semibold">Recommended stays</h2>
+                <p className="text-sm text-muted-foreground">{listings.length} results curated for your vibe</p>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs">
+                <Star className="h-3.5 w-3.5 text-primary" />
+                Top picks update live
+              </div>
+            </div>
           </div>
 
           {mapMode === 'split' ? (
-            <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start">
-              <article className="overflow-hidden rounded-2xl border border-border bg-card/85">
-                <iframe
-                  title="Map view"
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=12&output=embed`}
-                  className="h-[420px] w-full"
-                  loading="lazy"
-                />
-              </article>
-              <article className="rounded-2xl border border-border bg-card/85 p-3 text-xs text-muted-foreground">
-                Map is centered on destination query and helps visual neighborhood context while you compare listings.
-              </article>
-            </aside>
+            <article className="overflow-hidden rounded-3xl border border-border bg-card/85">
+              <iframe
+                title="Map view"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=12&output=embed`}
+                className="h-[320px] w-full"
+                loading="lazy"
+              />
+            </article>
           ) : null}
-        </section>
-      )}
+
+          {isFetching ? (
+            <p className="text-sm text-muted-foreground">Loading hotel listings...</p>
+          ) : (
+            <div className="space-y-3">
+              {listings.map((hotel) => (
+                <PreferenceLink
+                  key={hotel.hotelId}
+                  href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&adults=${adults}&rooms=${rooms}&currency=${encodeURIComponent(currency)}`}
+                  className="grid cursor-pointer gap-4 rounded-3xl border border-border/40 bg-card/70 p-4 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.55)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_25px_50px_-30px_rgba(15,23,42,0.65)] md:grid-cols-[260px,1fr,210px]"
+                >
+                  <div className="relative">
+                    {hotel.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={hotel.imageUrl} alt={hotel.name} className="h-56 w-full rounded-2xl object-cover md:h-full" />
+                    ) : (
+                      <div className="h-56 rounded-2xl bg-[linear-gradient(120deg,hsl(var(--muted))_0%,hsl(var(--card))_55%,hsl(var(--muted))_100%)] md:h-full" />
+                    )}
+                    <div className="absolute left-3 top-3 rounded-full bg-black/65 px-3 py-1 text-[11px] font-semibold text-white">
+                      Match {getMatchScore(hotel)}%
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <h2 className="text-xl font-semibold">{hotel.name}</h2>
+                      <p className="text-sm text-muted-foreground">
+                        {hotel.city}
+                        {hotel.countryCode ? `, ${hotel.countryCode}` : ''}
+                        {hotel.starRating ? ` · ${hotel.starRating}★` : ''}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {getHotelBadges(hotel).map((badge) => (
+                        <span key={badge} className="rounded-full border border-border bg-background/80 px-3 py-1 text-[11px] font-semibold">
+                          {badge}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-sm font-medium">
+                      {hotel.reviewScore ? `${hotel.reviewScore.toFixed(1)} / 10 guest rating` : 'Guest rating available on details'}
+                      {hotel.reviewCount ? ` · Based on ${Math.round(hotel.reviewCount)} reviews` : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-start justify-between gap-4 md:items-end">
+                    <div className="rounded-2xl border border-border/50 bg-background/80 px-4 py-3 text-left md:text-right">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">From</p>
+                      <p className="text-2xl font-bold text-primary md:text-3xl">{formatMoney(hotel.currency, hotel.price)}</p>
+                      <p className="text-xs text-muted-foreground">per night</p>
+                    </div>
+                    <span className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm">
+                      View stay
+                    </span>
+                  </div>
+                </PreferenceLink>
+              ))}
+              {listings.length === 0 && (
+                <p className="rounded-xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
+                  No stays found for this filter combination. Reset filters or try another destination.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
     </main>
   );
 }

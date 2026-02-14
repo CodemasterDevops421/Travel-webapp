@@ -62,16 +62,17 @@ h6 {
 .hero-search-float {
   position: absolute;
   left: 50%;
-  bottom: 1.5rem;
+  bottom: 2.5rem;
   transform: translateX(-50%);
-  width: min(100%, 440px);
+  width: min(96%, 840px);
+  z-index: 2;
 }
 
 @media (max-width: 1024px) {
   .hero-search-float {
     position: static;
     transform: none;
-    margin-top: 1.25rem;
+    margin-top: 1.5rem;
     width: 100%;
   }
 }
