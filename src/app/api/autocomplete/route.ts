@@ -10,7 +10,7 @@ import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
 import { getClientIp } from '@/server/request';
 
 const querySchema = z.object({
-  q: z.string().trim().min(2).max(120),
+  q: z.string().trim().min(2, 'Query must be at least 2 characters').max(120, 'Query too long'),
   language: z.string().trim().toLowerCase().length(2).optional()
 });
 
@@ -57,7 +57,14 @@ export async function GET(request: NextRequest) {
       language: request.nextUrl.searchParams.get('language') ?? undefined
     });
     if (!parsed.success) {
-      return NextResponse.json([], { status: 200 });
+      const errors = parsed.error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message
+      }));
+      return NextResponse.json(
+        { error: 'Validation failed', details: errors },
+        { status: 400 }
+      );
     }
 
     const q = parsed.data.q;

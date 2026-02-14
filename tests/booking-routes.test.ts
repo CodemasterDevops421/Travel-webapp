@@ -7,7 +7,7 @@ describe('booking route handlers', () => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
     vi.stubEnv('NODE_ENV', 'test');
-    process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';
+    process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef1234567890abcdef12';
     process.env.LITEAPI_API_KEY = 'test';
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
@@ -165,7 +165,7 @@ describe('booking route handlers', () => {
     const body = await res.json();
 
     expect(res.status).toBe(400);
-    expect(body.error).toMatch(/(Invalid session signature|Prebook session expired)/i);
+    expect(body.error).toMatch(/(Session validation failed|Invalid session signature|Prebook session expired)/i);
     expect(bookRate).not.toHaveBeenCalled();
   });
 

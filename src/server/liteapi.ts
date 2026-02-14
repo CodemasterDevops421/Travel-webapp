@@ -1,14 +1,28 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import LiteAPI from 'liteapi-node-sdk';
-import { env } from '@/server/env';
+import { env, validateProductionConfig } from '@/server/env';
 import { logger } from '@/server/logger';
 import { HttpError } from '@/server/errors';
 
+// Validate config on module load in production
+if (env.NODE_ENV === 'production') {
+  validateProductionConfig();
+}
+
+// Helper to get API key with validation
+function getLiteApiKey(): string {
+  if (!env.LITEAPI_API_KEY) {
+    throw new HttpError(503, 'LiteAPI key not configured');
+  }
+  return env.LITEAPI_API_KEY;
+}
+
 const liteApiClient = new LiteAPI({
-  apiKey: env.LITEAPI_API_KEY,
+  apiKey: getLiteApiKey(),
   baseURL: env.LITEAPI_BASE_URL,
   timeout: env.LITEAPI_TIMEOUT_MS
-} as never);
+});
 
 type AutocompleteEntity = {
   id: string;
@@ -111,9 +125,30 @@ function nextStayWindow(): { checkin: string; checkout: string } {
   };
 }
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> {
+async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs?: number): Promise<Response> {
+  const effectiveTimeout = timeoutMs ?? env.LITEAPI_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
+  
   try {
-    const response = await fetch(url, init);
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new HttpError(504, 'Request timeout - supplier API took too long to respond');
+    }
+    throw error;
+  }
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit, timeoutMs?: number): Promise<T | null> {
+  try {
+    const response = await fetchWithTimeout(url, init, timeoutMs);
     const text = await response.text();
     if (!response.ok) {
       logger.warn(
@@ -128,6 +163,9 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> 
     }
     return JSON.parse(text) as T;
   } catch (error) {
+    if (error instanceof HttpError) {
+      throw error;
+    }
     logger.warn({ error, url }, 'LiteAPI request errored');
     return null;
   }
@@ -389,7 +427,7 @@ async function fetchReviewEnrichmentFromRates(
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': getLiteApiKey()
       },
       body: JSON.stringify({
         hotelIds: [hotelId],
@@ -476,7 +514,7 @@ function mapRatesResponse(
       parseNumber(hotel.totalReviews);
 
     return {
-      hotelId: hotelId || String(hotel.id ?? `hotel-${Math.random().toString(16).slice(2, 8)}`),
+      hotelId: hotelId || String(hotel.id ?? `hotel-${randomUUID().slice(0, 8)}`),
       name: String(hotel.name ?? 'Hotel'),
       city: String(hotel.city ?? fallbackCity),
       countryCode: typeof hotel.countryCode === 'string' ? hotel.countryCode : undefined,
@@ -507,7 +545,7 @@ async function searchRates(payload: RatesSearchPayload, fallbackCity: string): P
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': getLiteApiKey()
     },
     body: JSON.stringify(payload),
     cache: 'no-store'
@@ -535,7 +573,7 @@ export async function autocomplete(query: string, language?: string): Promise<Au
       {
         headers: {
           accept: 'application/json',
-          'X-API-Key': env.LITEAPI_API_KEY
+          'X-API-Key': getLiteApiKey()
         },
         cache: 'no-store'
       }
@@ -639,7 +677,7 @@ export async function searchPropertyPreviews(
       {
         headers: {
           accept: 'application/json',
-          'X-API-Key': env.LITEAPI_API_KEY
+          'X-API-Key': getLiteApiKey()
         },
         cache: 'no-store'
       }
@@ -750,7 +788,7 @@ export async function searchPropertyPreviews(
       {
       headers: {
         accept: 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': getLiteApiKey()
       },
       cache: 'no-store'
       }
@@ -769,7 +807,7 @@ export async function searchPropertyPreviews(
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': getLiteApiKey()
       },
       body: JSON.stringify({
         placeId: fallbackPlaceId,
@@ -799,19 +837,23 @@ export async function searchPropertyPreviews(
 }
 
 export async function prebookRate(offerId: string): Promise<LiteApiPrebookResponse> {
-  const response = await fetch(`${env.LITEAPI_BOOK_BASE_URL}/rates/prebook`, {
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+  const response = await fetchWithTimeout(
+    `${env.LITEAPI_BOOK_BASE_URL}/rates/prebook`,
+    {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'X-API-Key': getLiteApiKey()
+      },
+      body: JSON.stringify({
+        offerId,
+        usePaymentSdk: true
+      }),
+      cache: 'no-store'
     },
-    body: JSON.stringify({
-      offerId,
-      usePaymentSdk: true
-    }),
-    cache: 'no-store'
-  });
+    env.LITEAPI_TIMEOUT_MS
+  );
 
   if (!response.ok) {
     const body = await response.text();
@@ -847,25 +889,29 @@ type BookPayload = {
 };
 
 export async function bookRate(payload: BookPayload) {
-  const response = await fetch(`${env.LITEAPI_BOOK_BASE_URL}/rates/book`, {
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
-    },
-    body: JSON.stringify({
-      prebookId: payload.prebookId,
-      clientReference: payload.clientReference,
-      holder: payload.holder,
-      payment: {
-        method: 'TRANSACTION_ID',
-        transactionId: payload.transactionId
+  const response = await fetchWithTimeout(
+    `${env.LITEAPI_BOOK_BASE_URL}/rates/book`,
+    {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'X-API-Key': getLiteApiKey()
       },
-      guests: payload.guests
-    }),
-    cache: 'no-store'
-  });
+      body: JSON.stringify({
+        prebookId: payload.prebookId,
+        clientReference: payload.clientReference,
+        holder: payload.holder,
+        payment: {
+          method: 'TRANSACTION_ID',
+          transactionId: payload.transactionId
+        },
+        guests: payload.guests
+      }),
+      cache: 'no-store'
+    },
+    env.LITEAPI_TIMEOUT_MS
+  );
 
   if (!response.ok) {
     const body = await response.text();
@@ -889,7 +935,7 @@ export async function listBookings(params: { clientReference: string; timeoutSec
   const response = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': getLiteApiKey()
     },
     cache: 'no-store'
   });
@@ -919,7 +965,7 @@ export async function getBooking(params: { bookingId: string; timeoutSeconds?: n
   const response = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': getLiteApiKey()
     },
     cache: 'no-store'
   });
@@ -950,7 +996,7 @@ export async function cancelBooking(params: { bookingId: string; timeoutSeconds?
     method: 'PUT',
     headers: {
       accept: 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': getLiteApiKey()
     },
     cache: 'no-store'
   });
@@ -976,7 +1022,7 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
     const response = await fetch(`${env.LITEAPI_BASE_URL}/data/hotel?hotelId=${encodeURIComponent(hotelId)}`, {
       headers: {
         accept: 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': getLiteApiKey()
       },
       cache: 'no-store'
     });
@@ -1039,7 +1085,7 @@ export async function getHotelRates(params: {
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': getLiteApiKey()
       },
       body: JSON.stringify({
         hotelIds: [params.hotelId],

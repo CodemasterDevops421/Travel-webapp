@@ -8,13 +8,13 @@ import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
 import { getClientIp } from '@/server/request';
 
 const querySchema = z.object({
-  q: z.string().trim().min(2).max(120),
+  q: z.string().trim().min(2, 'Search query must be at least 2 characters').max(120, 'Search query too long'),
   language: z.string().trim().toLowerCase().length(2).optional(),
   currency: z.string().trim().toUpperCase().length(3).optional(),
-  checkin: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  checkout: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  adults: z.coerce.number().int().min(1).max(8).optional(),
-  rooms: z.coerce.number().int().min(1).max(4).optional(),
+  checkin: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Use YYYY-MM-DD').optional(),
+  checkout: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Use YYYY-MM-DD').optional(),
+  adults: z.coerce.number().int().min(1, 'At least 1 adult required').max(8, 'Maximum 8 adults allowed').optional(),
+  rooms: z.coerce.number().int().min(1, 'At least 1 room required').max(4, 'Maximum 4 rooms allowed').optional(),
   brief: z.string().trim().min(3).max(240).optional(),
   minStars: z.coerce.number().min(0).max(5).optional(),
   minGuestRating: z.coerce.number().min(0).max(10).optional(),
@@ -36,8 +36,16 @@ export async function GET(request: NextRequest) {
       minGuestRating: request.nextUrl.searchParams.get('minGuestRating') ?? undefined,
       maxPrice: request.nextUrl.searchParams.get('maxPrice') ?? undefined
     });
+
     if (!parsed.success) {
-      return NextResponse.json([], { status: 200 });
+      const errors = parsed.error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message
+      }));
+      return NextResponse.json(
+        { error: 'Validation failed', details: errors },
+        { status: 400 }
+      );
     }
 
     const q = parsed.data.q;

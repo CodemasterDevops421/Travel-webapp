@@ -1,24 +1,34 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 describe('env parsing', () => {
-  it('treats empty strings as missing and applies defaults', async () => {
+  beforeEach(() => {
     vi.resetModules();
-    process.env.NEXT_PUBLIC_APP_URL = '';
-    process.env.LITEAPI_API_KEY = '';
-    process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';
-    process.env.NEXT_PUBLIC_SUPABASE_URL = '';
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = '';
-    process.env.SUPABASE_SERVICE_ROLE_KEY = '';
-    process.env.UPSTASH_REDIS_REST_URL = '';
-    process.env.UPSTASH_REDIS_REST_TOKEN = '';
+    vi.unstubAllEnvs();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('treats empty strings as missing and applies defaults in test mode', async () => {
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '');
+    vi.stubEnv('LITEAPI_API_KEY', '');
+    vi.stubEnv('QUOTE_SIGNING_SECRET', '1234567890abcdef1234567890abcdef'); // 32+ chars
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
 
     const { env } = await import('@/server/env');
 
+    // In test mode, these get safe defaults
     expect(env.NEXT_PUBLIC_APP_URL).toBe('http://localhost:3000');
-    expect(env.LITEAPI_API_KEY).toBe('liteapi-placeholder-key');
-    expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe('https://example.supabase.co');
-    expect(env.NEXT_PUBLIC_SUPABASE_ANON_KEY).toBe('supabase-anon-placeholder');
-    expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe('supabase-service-role-placeholder');
+    expect(env.LITEAPI_API_KEY).toBeUndefined();
+    expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe('http://localhost:54321');
+    expect(env.NEXT_PUBLIC_SUPABASE_ANON_KEY).toBe('dev-anon-key');
+    expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe('dev-service-key');
     expect(env.UPSTASH_REDIS_REST_URL).toBeUndefined();
     expect(env.UPSTASH_REDIS_REST_TOKEN).toBeUndefined();
   });

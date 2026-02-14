@@ -7,7 +7,7 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
   {
     key: 'Content-Security-Policy',
-    value: "default-src 'self'; img-src 'self' https: data:; script-src 'self' 'unsafe-inline' https://payment-wrapper.liteapi.travel; style-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-src 'self' https://payment-wrapper.liteapi.travel https://js.stripe.com https://hooks.stripe.com;"
+    value: "default-src 'self'; img-src 'self' https: data: blob:; script-src 'self' https://payment-wrapper.liteapi.travel https://js.stripe.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-src 'self' https://payment-wrapper.liteapi.travel https://js.stripe.com https://hooks.stripe.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';"
   }
 ];
 
@@ -15,7 +15,13 @@ const nextConfig = {
   typedRoutes: true,
   poweredByHeader: false,
   images: {
-    remotePatterns: [{ protocol: 'https', hostname: '**' }]
+    remotePatterns: [
+      { protocol: 'https', hostname: '*.liteapi.travel' },
+      { protocol: 'https', hostname: '*.googleapis.com' },
+      { protocol: 'https', hostname: '*.googleusercontent.com' },
+      { protocol: 'https', hostname: '*.amazonaws.com' },
+      { protocol: 'https', hostname: '*.cloudfront.net' }
+    ]
   },
   async headers() {
     return [

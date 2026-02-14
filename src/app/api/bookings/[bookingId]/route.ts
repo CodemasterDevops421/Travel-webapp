@@ -13,9 +13,10 @@ const paramsSchema = z.object({
   bookingId: z.string().trim().min(1)
 });
 
-export async function GET(request: NextRequest, context: { params: { bookingId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ bookingId: string }> }) {
   try {
-    const params = paramsSchema.parse(context.params);
+    const routeParams = await params;
+    const validatedParams = paramsSchema.parse(routeParams);
     const parsed = querySchema.safeParse({
       timeout: request.nextUrl.searchParams.get('timeout') ?? undefined
     });
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest, context: { params: { bookingId: 
     await assertRateLimit(`bookings-get:${clientIp}`);
 
     const payload = await getBooking({
-      bookingId: params.bookingId,
+      bookingId: validatedParams.bookingId,
       timeoutSeconds: parsed.success ? parsed.data.timeout : undefined
     });
 
@@ -39,9 +40,10 @@ export async function GET(request: NextRequest, context: { params: { bookingId: 
   }
 }
 
-export async function PUT(request: NextRequest, context: { params: { bookingId: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ bookingId: string }> }) {
   try {
-    const params = paramsSchema.parse(context.params);
+    const routeParams = await params;
+    const validatedParams = paramsSchema.parse(routeParams);
     const parsed = querySchema.safeParse({
       timeout: request.nextUrl.searchParams.get('timeout') ?? undefined
     });
@@ -50,7 +52,7 @@ export async function PUT(request: NextRequest, context: { params: { bookingId: 
     await assertRateLimit(`bookings-cancel:${clientIp}`);
 
     const payload = await cancelBooking({
-      bookingId: params.bookingId,
+      bookingId: validatedParams.bookingId,
       timeoutSeconds: parsed.success ? parsed.data.timeout : undefined
     });
 
