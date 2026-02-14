@@ -5,6 +5,7 @@ describe('env parsing', () => {
     vi.resetModules();
     process.env.NEXT_PUBLIC_APP_URL = '';
     process.env.LITEAPI_API_KEY = '';
+    process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';
     process.env.NEXT_PUBLIC_SUPABASE_URL = '';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = '';
     process.env.SUPABASE_SERVICE_ROLE_KEY = '';

@@ -1,6 +1,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { env } from '@/server/env';
+import { RateLimitError } from '@/server/errors';
 
 const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
   ? Redis.fromEnv()
@@ -20,7 +21,7 @@ export async function assertRateLimit(key: string): Promise<void> {
   if (ratelimit) {
     const result = await ratelimit.limit(key);
     if (!result.success) {
-      throw new Error('Too many requests');
+      throw new RateLimitError();
     }
     return;
   }
@@ -33,6 +34,6 @@ export async function assertRateLimit(key: string): Promise<void> {
   }
   current.count += 1;
   if (current.count > 30) {
-    throw new Error('Too many requests');
+    throw new RateLimitError();
   }
 }
