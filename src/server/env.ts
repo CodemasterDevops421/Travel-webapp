@@ -8,6 +8,11 @@ const emptyStringToUndefined = <TSchema extends z.ZodTypeAny>(schema: TSchema) =
     return value;
   }, schema);
 
+// Check if we're in a build/CI environment
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
+                    process.env.CI === 'true' ||
+                    process.env.SKIP_ENV_VALIDATION === 'true';
+
 // Base schema with safe defaults for development
 const baseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -37,7 +42,7 @@ const baseEnvSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info')
 });
 
-// Production schema with strict validation
+// Production schema with strict validation (only enforced at runtime, not build time)
 const productionEnvSchema = baseEnvSchema.extend({
   LITEAPI_API_KEY: emptyStringToUndefined(
     z.string({ 
@@ -56,9 +61,12 @@ const productionEnvSchema = baseEnvSchema.extend({
   )
 });
 
-// Choose schema based on environment
+// Choose schema based on environment and build phase
+// During build time, use base schema to allow build without env vars
+// At runtime in production, use strict schema
 const isProduction = process.env.NODE_ENV === 'production';
-const schema = isProduction ? productionEnvSchema : baseEnvSchema;
+const shouldValidateStrictly = isProduction && !isBuildTime;
+const schema = shouldValidateStrictly ? productionEnvSchema : baseEnvSchema;
 
 export const env = schema.parse(process.env);
 

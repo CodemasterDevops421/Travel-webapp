@@ -1,349 +1,198 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
-import { Calendar, Search, Shield, Users } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
-import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
-import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PreferenceLink } from '@/components/navigation/preference-link';
-import { trackFunnelEvent } from '@/shared/lib/analytics';
+import { Search, MapPin, Calendar, Users, Plane, Building2, Ship, Car, Palmtree } from 'lucide-react';
 
 export function HeroSearch() {
-  const today = new Date();
-  const defaultCheckIn = new Date(today);
-  defaultCheckIn.setDate(defaultCheckIn.getDate() + 14);
-  const defaultCheckOut = new Date(defaultCheckIn);
-  defaultCheckOut.setDate(defaultCheckOut.getDate() + 2);
-
-  const [query, setQuery] = useState('');
-  const [activeQuery, setActiveQuery] = useState('');
-  const [checkIn, setCheckIn] = useState(defaultCheckIn.toISOString().slice(0, 10));
-  const [checkOut, setCheckOut] = useState(defaultCheckOut.toISOString().slice(0, 10));
-  const [adults, setAdults] = useState(2);
-  const [rooms, setRooms] = useState(1);
-  const [showSuggestions, setShowSuggestions] = useState(true);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const router = useRouter();
-  const language = useSearchUIStore((state) => state.language);
-  const currency = useSearchUIStore((state) => state.currency);
-  const hasTrackedSearchInput = useRef(false);
-  const suggestionsListId = useId();
-  const { data, isFetching } = useAutocomplete(query, language);
-  const suggestions = data ?? [];
-  const isSuggestionsOpen = query.length > 2 && showSuggestions;
-  const {
-    data: propertyPreview,
-    isFetching: isPreviewLoading
-  } = usePropertyPreview(activeQuery, language, currency, checkIn, checkOut, adults, rooms);
-  const selectedNights = (() => {
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-    const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    return Math.max(0, diff);
-  })();
+  const [activeTab, setActiveTab] = useState('vacations');
+  const [destination, setDestination] = useState('');
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('2 Travelers');
+  const [travelers, setTravelers] = useState('2 Travelers');
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setHighlightedIndex(-1);
-  }, [query, suggestions.length, showSuggestions]);
+    setIsMounted(true);
+  }, []);
 
-  const onSearch = () => {
-    if (query.trim().length < 3) return;
-    const nextQuery = query.trim();
-    setActiveQuery(nextQuery);
-    setShowSuggestions(false);
-    trackFunnelEvent({
-      name: 'search_submitted',
-      step: 'search',
-      properties: {
-        queryLength: nextQuery.length
-      }
-    });
-    const params = new URLSearchParams({
-      q: nextQuery,
-      checkin: checkIn,
-      checkout: checkOut,
-      adults: String(adults),
-      rooms: String(rooms),
-      language,
-      currency
-    });
-    router.push(`/search?${params.toString()}`);
-  };
+  if (!isMounted) {
+    return null;
+  }
 
-  const onPickSuggestion = (name: string) => {
-    setQuery(name);
-    setActiveQuery(name);
-    setShowSuggestions(false);
-    trackFunnelEvent({
-      name: 'autocomplete_suggestion_selected',
-      step: 'search',
-      properties: {
-        suggestionLength: name.length
-      }
-    });
-  };
+  const tabs = [
+    { id: 'vacations', label: 'Vacations', icon: Palmtree },
+    { id: 'hotels', label: 'Hotels', icon: Building2 },
+    { id: 'cruises', label: 'Cruises', icon: Ship },
+    { id: 'flights', label: 'Flights', icon: Plane },
+    { id: 'cars', label: 'Cars', icon: Car },
+  ];
 
-  const onAutocompleteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Escape') {
-      setShowSuggestions(false);
-      setHighlightedIndex(-1);
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      if (!isSuggestionsOpen || suggestions.length === 0) {
-        setShowSuggestions(true);
-        return;
-      }
-
-      setHighlightedIndex((currentIndex) => {
-        if (currentIndex < 0) return 0;
-        return Math.min(currentIndex + 1, suggestions.length - 1);
+  const handleSearch = () => {
+    if (destination) {
+      const params = new URLSearchParams({
+        q: destination,
+        ...(checkIn && { checkin: checkIn }),
+        ...(checkOut && { checkout: checkOut }),
       });
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      if (!isSuggestionsOpen || suggestions.length === 0) return;
-      event.preventDefault();
-      setHighlightedIndex((currentIndex) => {
-        if (currentIndex <= 0) return 0;
-        return currentIndex - 1;
-      });
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      if (isSuggestionsOpen && highlightedIndex >= 0 && suggestions[highlightedIndex]) {
-        onPickSuggestion(suggestions[highlightedIndex].name);
-        return;
-      }
-      onSearch();
-    }
-
-    if (event.key === 'Tab') {
-      setShowSuggestions(false);
+      router.push(`/search?${params.toString()}`);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="rounded-[28px] border border-border/80 bg-card/95 p-6 shadow-2xl backdrop-blur md:p-7"
-    >
-      <div className="mb-5 space-y-2">
-        <h2 className="text-2xl font-semibold">Find your next signature stay</h2>
-        <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <Shield className="h-3.5 w-3.5 text-primary" />
-          Secure checkout with trusted payment protection
-        </p>
+    <div className="relative w-full min-h-[600px] md:min-h-[700px] flex items-center justify-center overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0">
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=1920&q=80')`,
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/30 to-slate-900/60" />
+        {/* Aurora Effect Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 via-violet-500/10 to-amber-500/10 animate-pulse-slow" />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="relative md:col-span-2">
-          <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-          <Input
-            role="combobox"
-            aria-label="Search destination"
-            aria-autocomplete="list"
-            aria-expanded={isSuggestionsOpen}
-            aria-controls={suggestionsListId}
-            aria-activedescendant={
-              highlightedIndex >= 0 ? `${suggestionsListId}-option-${highlightedIndex}` : undefined
-            }
-            placeholder="Where to? city, hotel, landmark"
-            className="h-14 pl-10 text-base"
-            value={query}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              if (!hasTrackedSearchInput.current && nextValue.trim().length > 0) {
-                hasTrackedSearchInput.current = true;
-                trackFunnelEvent({
-                  name: 'search_input_started',
-                  step: 'discovery'
-                });
-              }
-              setQuery(nextValue);
-              setHighlightedIndex(-1);
-              setShowSuggestions(true);
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setShowSuggestions(false)}
-            onKeyDown={onAutocompleteKeyDown}
-          />
-          {isSuggestionsOpen && (
-            <div className="absolute z-20 mt-2 w-full rounded-xl border border-border bg-card p-2 shadow-xl">
-              {isFetching ? (
-                <p className="p-2 text-sm text-muted-foreground">Fetching destinations...</p>
-              ) : (
-                <ul
-                  id={suggestionsListId}
-                  className="space-y-1"
-                  role="listbox"
-                  aria-label="Autocomplete suggestions"
-                >
-                  {suggestions.length === 0 ? (
-                    <li
-                      role="status"
-                      aria-live="polite"
-                      className="rounded-lg px-2 py-2 text-sm text-muted-foreground"
-                    >
-                      No destinations found.
-                    </li>
-                  ) : (
-                    suggestions.map((item, idx) => (
-                      <li
-                        key={item.id}
-                        id={`${suggestionsListId}-option-${idx}`}
-                        role="option"
-                        aria-selected={highlightedIndex === idx}
-                        onMouseEnter={() => setHighlightedIndex(idx)}
-                      >
-                        <button
-                          type="button"
-                          className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => onPickSuggestion(item.name)}
-                        >
-                          <span className="font-medium">{item.name}</span>
-                          <span className="text-muted-foreground">{item.source === 'maps' ? 'maps' : 'inventory'}</span>
-                        </button>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              )}
-            </div>
-          )}
+      {/* Floating Elements */}
+      <div className="absolute top-20 left-10 w-20 h-20 bg-sky-500/20 rounded-full blur-3xl animate-float" />
+      <div className="absolute bottom-40 right-20 w-32 h-32 bg-violet-500/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-amber-500/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
+
+      {/* Search Form Container */}
+      <div className="relative z-10 w-full px-4 py-12">
+        {/* Hero Text */}
+        <div className="text-center mb-8 animate-fade-in">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+            Discover Your Next Adventure
+          </h1>
+          <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto">
+            Premium travel experiences curated for the modern explorer
+          </p>
         </div>
-        <label className="flex min-h-12 flex-wrap items-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2">
-          <Calendar className="h-4 w-4" />
-          <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
-            <input
-              type="date"
-              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-              value={checkIn}
-              onChange={(event) => setCheckIn(event.target.value)}
-              aria-label="Check-in date"
-            />
-            <span>to</span>
-            <input
-              type="date"
-              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-              value={checkOut}
-              onChange={(event) => setCheckOut(event.target.value)}
-              aria-label="Check-out date"
-            />
-          </div>
-        </label>
-        <label className="flex min-h-12 flex-wrap items-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2">
-          <Users className="h-4 w-4" />
-          <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
-            <select
-              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-              value={adults}
-              onChange={(event) => setAdults(Number(event.target.value))}
-              aria-label="Adults"
-            >
-              {[1, 2, 3, 4, 5, 6].map((count) => (
-                <option key={count} value={count}>
-                  {count} adults
-                </option>
-              ))}
-            </select>
-            <select
-              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-              value={rooms}
-              onChange={(event) => setRooms(Number(event.target.value))}
-              aria-label="Rooms"
-            >
-              {[1, 2, 3, 4].map((count) => (
-                <option key={count} value={count}>
-                  {count} room{count > 1 ? 's' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        </label>
-      </div>
-      <div className="mt-4 flex justify-end">
-        <Button size="lg" onClick={onSearch}>Search stays</Button>
-      </div>
-      <p className="mt-2 text-right text-xs text-muted-foreground">
-        {selectedNights > 0 ? `${selectedNights} night${selectedNights > 1 ? 's' : ''} · ${adults} adult${adults > 1 ? 's' : ''} · ${rooms} room${rooms > 1 ? 's' : ''}` : 'Select valid dates'}
-      </p>
 
-      {activeQuery && (
-        <section className="mt-6 space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Live rate preview</h3>
-          {isPreviewLoading ? (
-            <p className="text-sm text-muted-foreground">Loading properties...</p>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-3">
-              {(propertyPreview ?? []).map((hotel, idx) => (
-                <PreferenceLink
-                  key={hotel.hotelId}
-                  href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkIn)}&checkout=${encodeURIComponent(checkOut)}&adults=${adults}&rooms=${rooms}&currency=${encodeURIComponent(currency)}`}
-                  className="animate-soft-rise overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
-                  style={{ animationDelay: `${idx * 45}ms` }}
-                  onClick={() =>
-                    trackFunnelEvent({
-                      name: 'preview_card_opened',
-                      step: 'consideration',
-                      properties: {
-                        hotelId: hotel.hotelId
-                      }
-                    })
-                  }
+        {/* Glass Card Search Form */}
+        <div className="max-w-5xl mx-auto bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden animate-slide-up">
+          {/* Tabs */}
+          <div className="flex bg-white/5 backdrop-blur-sm border-b border-white/10">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-4 px-2 text-sm font-medium transition-all duration-300 ${
+                    activeTab === tab.id
+                      ? 'bg-white/20 text-white shadow-lg'
+                      : 'text-white/70 hover:text-white hover:bg-white/10'
+                  }`}
                 >
-                  {hotel.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={hotel.imageUrl}
-                      alt={hotel.name}
-                      className="h-40 w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="h-40 w-full bg-[linear-gradient(120deg,hsl(var(--muted))_0%,hsl(var(--card))_55%,hsl(var(--muted))_100%)]" />
-                  )}
-                  <div className="space-y-2 p-4">
-                    <h4 className="line-clamp-2 text-base font-semibold">{hotel.name}</h4>
-                    <p className="text-xs text-muted-foreground">
-                      {hotel.city}
-                      {hotel.countryCode ? `, ${hotel.countryCode}` : ''}
-                      {hotel.starRating ? ` · ${hotel.starRating}★` : ''}
-                    </p>
-                    {hotel.reviewScore ? (
-                      <p className="text-xs font-medium text-foreground/90">
-                        {hotel.reviewScore.toFixed(1)} / 10 guest rating
-                        {hotel.reviewCount ? ` · ${Math.round(hotel.reviewCount)} reviews` : ''}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Guest reviews available on details page</p>
-                    )}
-                    <p className="text-base font-semibold text-primary">
-                      {hotel.price ? `${hotel.currency} ${hotel.price} total/night` : 'Price on request'}
-                    </p>
-                    <span className="inline-flex text-xs font-semibold underline underline-offset-4">
-                      View details and rates
-                    </span>
-                  </div>
-                </PreferenceLink>
-              ))}
+                  <Icon className="w-5 h-5" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Fields */}
+          <div className="p-6 md:p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {/* From */}
+              <div className="relative group">
+                <label className="block text-xs text-slate-300 mb-1 ml-1">Where From?</label>
+                <div className="relative">
+                  <Plane className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-sky-400" />
+                  <Input
+                    placeholder="Origin city"
+                    className="pl-11 py-3 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/20 focus:border-sky-400 backdrop-blur-sm transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* To */}
+              <div className="relative group">
+                <label className="block text-xs text-slate-300 mb-1 ml-1">Going to</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-violet-400" />
+                  <Input
+                    placeholder="Destination"
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    className="pl-11 py-3 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/20 focus:border-violet-400 backdrop-blur-sm transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="relative group">
+                <label className="block text-xs text-slate-300 mb-1 ml-1">Check-in / Check-out</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-amber-400" />
+                  <Input
+                    type="date"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
+                    className="pl-11 py-3 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/20 focus:border-amber-400 backdrop-blur-sm transition-all [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+
+              {/* Travelers */}
+              <div className="relative group">
+                <label className="block text-xs text-slate-300 mb-1 ml-1">Travelers</label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-sky-400" />
+                  <select
+                    value={travelers}
+                    onChange={(e) => setTravelers(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent backdrop-blur-sm transition-all appearance-none cursor-pointer"
+                  >
+                    <option className="text-slate-900">1 Traveler</option>
+                    <option className="text-slate-900" selected>2 Travelers</option>
+                    <option className="text-slate-900">3 Travelers</option>
+                    <option className="text-slate-900">4 Travelers</option>
+                    <option className="text-slate-900">5+ Travelers</option>
+                  </select>
+                </div>
+              </div>
             </div>
-          )}
-        </section>
-      )}
-    </motion.div>
+
+            {/* Search Button */}
+            <Button
+              onClick={handleSearch}
+              className="w-full bg-gradient-to-r from-sky-500 via-violet-500 to-amber-500 hover:from-sky-600 hover:via-violet-600 hover:to-amber-600 text-white font-semibold py-4 text-lg rounded-xl transition-all hover:shadow-glow hover:scale-[1.02] flex items-center justify-center gap-3"
+            >
+              <Search className="h-6 w-6" />
+              Compare Vacations
+            </Button>
+          </div>
+        </div>
+
+        {/* Trust Badges */}
+        <div className="flex flex-wrap items-center justify-center gap-6 mt-8 text-white/70 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <span className="text-sm">🏆</span>
+            </div>
+            <span className="text-sm font-medium">Best Price Guarantee</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <span className="text-sm">🛡️</span>
+            </div>
+            <span className="text-sm font-medium">Secure Booking</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <span className="text-sm">⭐</span>
+            </div>
+            <span className="text-sm font-medium">4.8/5 Guest Rating</span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

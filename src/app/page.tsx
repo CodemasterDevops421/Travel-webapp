@@ -1,19 +1,14 @@
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { LockKeyhole, ShieldCheck, Sparkles, Wallet } from 'lucide-react';
 import { HeroSearch } from '@/features/search/components/hero-search';
-import { SearchSkeleton } from '@/features/search/components/search-skeleton';
-import { TrendingDestinations } from '@/components/home/trending-destinations';
-import { MoodDiscovery } from '@/components/home/mood-discovery';
-import { FeaturedDealsStrip } from '@/components/home/featured-deals-strip';
-import { PlanningGrid } from '@/components/home/planning-grid';
+import { TravelDeals } from '@/components/home/travel-deals';
+import { TravelPlanning } from '@/components/home/travel-planning';
 import { TravelArticles } from '@/components/home/travel-articles';
-import { NewsletterBand } from '@/components/home/newsletter-band';
-import { PreferenceLink } from '@/components/navigation/preference-link';
+import { NewsletterSignup } from '@/components/home/newsletter-signup';
+import { TrustedBy, Stats } from '@/components/home/trust-section';
 
 export const metadata: Metadata = {
-  title: 'TravelForge | Luxury Hotel Search & Booking',
-  description: 'Discover premium hotels with transparent total pricing and secure checkout.',
+  title: 'BabyBoomerTrips | the fun starts now',
+  description: 'The world\'s first travel portal for baby boomers. Find hand-selected travel deals with discounts on vacations, hotels, resorts, cruises, airfare, escorted tours and more.',
   alternates: {
     canonical: '/'
   }
@@ -21,60 +16,45 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-6xl space-y-16 px-4 pb-16 pt-6 md:pt-8">
-      <section className="relative overflow-visible rounded-[32px] border border-border/80 bg-card/75 p-5 md:p-8 lg:p-10">
-        <div className="grid gap-10 lg:grid-cols-[1.05fr_1fr] lg:items-center">
-          <header className="space-y-4">
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">TravelForge Signature Stays</p>
-            <h1 className="text-4xl font-bold leading-tight md:text-5xl">
-              Luxury booking with transparent pricing and zero checkout surprises.
-            </h1>
-            <p className="text-base text-muted-foreground md:text-lg">
-              Discover curated hotels, review full cancellation terms upfront, and complete secure payment in one smooth flow.
-            </p>
-            <div className="grid gap-3 rounded-2xl border border-border/80 bg-background/70 p-4 shadow-sm sm:grid-cols-2">
-              <article className="flex items-center gap-3 rounded-xl bg-card/80 p-3">
-                <ShieldCheck className="h-5 w-5 text-primary" />
-                <p className="text-sm">Verified rates direct from supply APIs</p>
-              </article>
-              <article className="flex items-center gap-3 rounded-xl bg-card/80 p-3">
-                <Wallet className="h-5 w-5 text-primary" />
-                <p className="text-sm">Total-first pricing with tax visibility</p>
-              </article>
-              <article className="flex items-center gap-3 rounded-xl bg-card/80 p-3">
-                <LockKeyhole className="h-5 w-5 text-primary" />
-                <p className="text-sm">Secure payment SDK and signed quote checks</p>
-              </article>
-              <article className="flex items-center gap-3 rounded-xl bg-card/80 p-3">
-                <Sparkles className="h-5 w-5 text-primary" />
-                <p className="text-sm">Premium curation for business and leisure</p>
-              </article>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/80 bg-background/70 px-4 py-3">
-              <p className="text-sm text-muted-foreground">Already selected a rate and ready to pay?</p>
-              <PreferenceLink href="/booking" className="text-sm font-semibold text-primary underline underline-offset-4">
-                Open secure checkout
-              </PreferenceLink>
-            </div>
-          </header>
+    <main className="min-h-screen bg-white">
+      {/* Hero Section with Search */}
+      <section className="relative pt-16">
+        <HeroSearch />
+      </section>
 
-          <div className="relative">
-            <div className="hero-photo" />
-            <div className="hero-search-float">
-              <Suspense fallback={<SearchSkeleton />}>
-                <HeroSearch />
-              </Suspense>
-            </div>
-          </div>
+      {/* Trust Stats */}
+      <Stats />
+
+      {/* Welcome Section */}
+      <section className="py-16 px-4 text-center bg-gradient-to-b from-white to-slate-50 relative">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
+            Welcome to BabyBoomerTrips.com
+          </h2>
+          <p className="text-lg font-semibold bg-gradient-to-r from-sky-500 to-violet-500 bg-clip-text text-transparent mb-4">
+            the world&apos;s first travel portal for baby boomers!
+          </p>
+          <p className="text-slate-600 leading-relaxed">
+            Here, you&apos;ll find hand-selected travel deals for the Baby Boomer generation, including 
+            senior travel deals with discounts on vacations, hotels, resorts, cruises, airfare, escorted tours and more.
+          </p>
         </div>
       </section>
 
-      <FeaturedDealsStrip />
-      <PlanningGrid />
+      {/* Trusted By Section */}
+      <TrustedBy />
+
+      {/* Today's Best Travel Deals */}
+      <TravelDeals />
+
+      {/* Start Your Travel Planning */}
+      <TravelPlanning />
+
+      {/* Travel Articles */}
       <TravelArticles />
-      <NewsletterBand />
-      <TrendingDestinations />
-      <MoodDiscovery />
+
+      {/* Newsletter Signup */}
+      <NewsletterSignup />
     </main>
   );
 }

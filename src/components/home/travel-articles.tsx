@@ -1,62 +1,65 @@
-import { ArrowUpRight } from 'lucide-react';
-import { PreferenceLink } from '@/components/navigation/preference-link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 const articles = [
   {
-    title: 'How to spot fully refundable luxury rates',
-    summary: 'A quick checklist for cancellation windows, deposits, and supplier policies.',
-    tag: 'Booking playbook',
-    readTime: '4 min read'
+    id: 1,
+    image: 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=300&h=200&fit=crop',
+    title: "A Baby Boomer's Guide to Travel Insurance",
+    excerpt: "Travel insurance - what you need, when to buy it, where to get it - is one of the topics many traveling baby boomers need to understand.",
+    author: null
   },
   {
-    title: 'Design-led stays that feel like private residences',
-    summary: 'Boutique hotels that trade crowds for curated, residential comfort.',
-    tag: 'Stay inspiration',
-    readTime: '6 min read'
-  },
-  {
-    title: 'Weekend itineraries built around wellness',
-    summary: 'Plan a reset with spa credits, slow mornings, and scenic walks.',
-    tag: 'Travel ideas',
-    readTime: '5 min read'
+    id: 2,
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=200&fit=crop',
+    title: 'Interview with Travel Expert Anita Dunham-Potter',
+    excerpt: "As a recognized authority on travel, Anita is often interviewed by major media outlets. She has appeared on CBS' The Early Show as well as online chats.",
+    author: 'Anita Dunham-Potter'
   }
 ];
 
 export function TravelArticles() {
   return (
-    <section className="space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Travel journal</p>
-          <h2 className="text-2xl font-semibold">Guides from our travel editors</h2>
+    <section className="py-12 px-4 bg-gray-50">
+      <div className="max-w-6xl mx-auto">
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-10">
+          Travel Articles
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {articles.map((article) => (
+            <Card key={article.id} className="overflow-hidden flex flex-col md:flex-row">
+              <div className="w-full md:w-1/3 h-48 md:h-auto">
+                <img
+                  src={article.image}
+                  alt={article.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <CardContent className="p-4 flex-1 flex flex-col justify-center">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                  {article.title}
+                </h3>
+                <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                  {article.excerpt}
+                </p>
+                <Button 
+                  variant="link" 
+                  className="text-teal-600 hover:text-teal-700 p-0 h-auto font-semibold self-start"
+                >
+                  Read More
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-        <PreferenceLink
-          href="/search"
-          className="text-sm font-semibold text-primary underline underline-offset-4"
-        >
-          Browse all guides
-        </PreferenceLink>
-      </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        {articles.map((article) => (
-          <article
-            key={article.title}
-            className="group flex h-full flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-card/75 p-5 shadow-sm"
-          >
-            <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{article.tag}</p>
-              <h3 className="text-lg font-semibold">{article.title}</h3>
-              <p className="text-sm text-muted-foreground">{article.summary}</p>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{article.readTime}</span>
-              <span className="inline-flex items-center gap-1 font-semibold text-primary">
-                Read article
-                <ArrowUpRight className="h-4 w-4" />
-              </span>
-            </div>
-          </article>
-        ))}
+
+        {/* Dots indicator */}
+        <div className="flex justify-center gap-2 mt-8">
+          <div className="w-2 h-2 rounded-full bg-teal-500" />
+          <div className="w-2 h-2 rounded-full bg-gray-300" />
+          <div className="w-2 h-2 rounded-full bg-gray-300" />
+        </div>
       </div>
     </section>
   );

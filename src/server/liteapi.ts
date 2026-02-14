@@ -1136,3 +1136,103 @@ export async function getHotelRates(params: {
     return [];
   }
 }
+
+export type Currency = {
+  code: string;
+  name: string;
+  symbol: string;
+  supportedCountries: string[];
+};
+
+export async function getCurrencies(): Promise<Currency[]> {
+  try {
+    const response = await fetchWithTimeout(
+      `${env.LITEAPI_BASE_URL}/data/currencies`,
+      {
+        headers: {
+          accept: 'application/json',
+          'X-API-Key': getLiteApiKey()
+        },
+        cache: 'no-store'
+      },
+      env.LITEAPI_TIMEOUT_MS
+    );
+
+    if (!response.ok) {
+      logger.warn({ status: response.status }, 'LiteAPI currencies failed');
+      return [];
+    }
+
+    const json = (await response.json()) as {
+      data?: Array<{
+        code: string;
+        name: string;
+        symbol?: string;
+        supportedCountries?: string[];
+      }>;
+    };
+
+    return (json.data ?? []).map((c) => ({
+      code: c.code,
+      name: c.name,
+      symbol: c.symbol ?? c.code,
+      supportedCountries: c.supportedCountries ?? []
+    }));
+  } catch (error) {
+    logger.warn({ error }, 'LiteAPI currencies failed');
+    return [];
+  }
+}
+
+export type IATACode = {
+  code: string;
+  name: string;
+  cityName?: string;
+  countryCode: string;
+  latitude?: number;
+  longitude?: number;
+};
+
+export async function getIATACodes(): Promise<IATACode[]> {
+  try {
+    const response = await fetchWithTimeout(
+      `${env.LITEAPI_BASE_URL}/data/iataCodes`,
+      {
+        headers: {
+          accept: 'application/json',
+          'X-API-Key': getLiteApiKey()
+        },
+        cache: 'no-store'
+      },
+      env.LITEAPI_TIMEOUT_MS
+    );
+
+    if (!response.ok) {
+      logger.warn({ status: response.status }, 'LiteAPI IATA codes failed');
+      return [];
+    }
+
+    const json = (await response.json()) as {
+      data?: Array<{
+        iataCode: string;
+        airportName?: string;
+        cityName?: string;
+        countryCode: string;
+        latitude?: number;
+        longitude?: number;
+      }>;
+    };
+
+    return (json.data ?? []).map((iata) => ({
+      code: iata.iataCode,
+      name: iata.airportName ?? iata.iataCode,
+      cityName: iata.cityName,
+      countryCode: iata.countryCode,
+      latitude: iata.latitude,
+      longitude: iata.longitude
+    }));
+  } catch (error) {
+    logger.warn({ error }, 'LiteAPI IATA codes failed');
+    return [];
+  }
+}

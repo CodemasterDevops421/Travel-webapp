@@ -50,13 +50,24 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
   const preferredCurrency = normalizeCurrency(pickParam(params, 'currency'));
 
   return (
-    <main className="mx-auto max-w-5xl space-y-4 px-4 py-8">
-      <section className="rounded-3xl border border-border/80 bg-card/80 p-5 shadow-sm">
-        <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Checkout</p>
-        <h1 className="mt-2 text-3xl font-semibold">Complete your secure booking</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          We lock your selected rate, collect payment in a secure widget, and confirm booking with signed quote integrity.
-        </p>
+    <main className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+      <section className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-lg animate-fade-in">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Checkout</p>
+            <h1 className="text-3xl font-semibold">Complete your secure booking</h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              We lock your selected rate, collect payment in a secure widget, and confirm booking with signed quote integrity.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            </span>
+            Secure
+          </div>
+        </div>
       </section>
       <BookingConsole
         initialValues={{

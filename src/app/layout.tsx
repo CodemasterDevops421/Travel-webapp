@@ -4,7 +4,10 @@ import { Sora, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AppQueryProvider } from '@/components/providers/query-provider';
-import { GlobalTopBar } from '@/components/layout/global-top-bar';
+import { Header } from '@/components/layout/header';
+import { Footer } from '@/components/layout/footer';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { ConfigStatusBanner } from '@/components/config-status-banner';
 
 const headingFont = Sora({
   subsets: ['latin'],
@@ -27,18 +30,18 @@ export const metadata: Metadata = {
       return new URL('http://localhost:3000');
     }
   })(),
-  title: 'TravelForge OTA',
-  description: 'Fast, transparent hotel booking with secure checkout.',
+  title: 'BabyBoomerTrips | the fun starts now',
+  description: 'The world\'s first travel portal for baby boomers. Find hand-selected travel deals with discounts on vacations, hotels, resorts, cruises, airfare, escorted tours and more.',
   openGraph: {
-    title: 'TravelForge OTA',
-    description: 'Fast, transparent hotel booking with secure checkout.',
+    title: 'BabyBoomerTrips',
+    description: 'The world\'s first travel portal for baby boomers.',
     type: 'website',
     url: '/'
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TravelForge OTA',
-    description: 'Fast, transparent hotel booking with secure checkout.'
+    title: 'BabyBoomerTrips',
+    description: 'The world\'s first travel portal for baby boomers.'
   },
   alternates: {
     canonical: '/'
@@ -48,14 +51,20 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${headingFont.variable} ${bodyFont.variable}`}>
+      <body className={`${headingFont.variable} ${bodyFont.variable} font-sans`}>
         <ThemeProvider>
-          <AppQueryProvider>
-            <Suspense fallback={null}>
-              <GlobalTopBar />
-            </Suspense>
-            {children}
-          </AppQueryProvider>
+          <ErrorBoundary>
+            <AppQueryProvider>
+              <Suspense fallback={null}>
+                <Header />
+              </Suspense>
+              {children}
+              <Suspense fallback={null}>
+                <Footer />
+              </Suspense>
+              <ConfigStatusBanner />
+            </AppQueryProvider>
+          </ErrorBoundary>
         </ThemeProvider>
       </body>
     </html>

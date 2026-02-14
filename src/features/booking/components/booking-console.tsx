@@ -9,6 +9,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { publicEnv } from '@/shared/env.public';
 import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
+import { 
+  Shield, 
+  Lock, 
+  CreditCard, 
+  User, 
+  Mail, 
+  Calendar, 
+  CheckCircle2, 
+  Circle,
+  ArrowRight,
+  AlertCircle,
+  Sparkles,
+  Building2,
+  Users
+} from 'lucide-react';
 
 const formSchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -141,6 +156,124 @@ async function ensurePaymentScriptLoaded(): Promise<void> {
   });
 }
 
+function ProgressStep({ 
+  step, 
+  label, 
+  isActive, 
+  isComplete 
+}: { 
+  step: number; 
+  label: string; 
+  isActive: boolean; 
+  isComplete: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-all ${
+        isComplete 
+          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25' 
+          : isActive 
+            ? 'bg-primary/10 text-primary border-2 border-primary'
+            : 'bg-muted text-muted-foreground'
+      }`}>
+        {isComplete ? <CheckCircle2 className="h-5 w-5" /> : step}
+      </div>
+      <span className={`text-sm font-medium transition-colors ${
+        isActive || isComplete ? 'text-foreground' : 'text-muted-foreground'
+      }`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function BookingSummaryCard({ 
+  nights, 
+  baseAmount, 
+  currency, 
+  markupAmount, 
+  totalAmount,
+  checkIn,
+  checkOut,
+  adults,
+  rooms
+}: { 
+  nights: number | null; 
+  baseAmount: number; 
+  currency: string; 
+  markupAmount: number; 
+  totalAmount: number;
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  rooms: number;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/60 glass-card p-5 shadow-lg animate-slide-up">
+      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">Booking Summary</p>
+      
+      <div className="space-y-3 rounded-xl border border-border/50 bg-background/60 p-4">
+        <div className="flex items-center gap-3 text-sm">
+          <Calendar className="h-4 w-4 text-primary" />
+          <span>{checkIn}</span>
+          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          <span>{checkOut}</span>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <Users className="h-4 w-4 text-primary" />
+          <span>{adults} adults · {rooms} room{rooms > 1 ? 's' : ''}</span>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Nights
+          </span>
+          <span className="font-semibold">{nights ?? '—'}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Base rate</span>
+          <span>{currency} {baseAmount.toLocaleString()}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground flex items-center gap-2">
+            <Sparkles className="h-3 w-3 text-primary" />
+            Service fee
+          </span>
+          <span>{currency} {markupAmount.toLocaleString()}</span>
+        </div>
+        <div className="h-px bg-border" />
+        <div className="flex items-center justify-between text-lg font-bold">
+          <span className="flex items-center gap-2">
+            <span className="text-gradient">Total</span>
+          </span>
+          <span className="text-gradient">{currency} {totalAmount.toLocaleString()}</span>
+        </div>
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+          Cancellation terms and taxes are provided by supplier and shown before you confirm payment.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PaymentWidget({ prebook, onError }: { prebook: PrebookResult; onError: (error: string) => void }) {
+  return (
+    <div className="rounded-2xl border border-border/60 glass-card p-5 animate-scale-in">
+      <div className="flex items-center gap-2 mb-4">
+        <CreditCard className="h-5 w-5 text-primary" />
+        <h3 className="text-lg font-semibold">Payment Details</h3>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Complete your payment securely. Test mode: use card <code className="bg-muted px-1.5 py-0.5 rounded text-xs">4242 4242 4242 4242</code> with any valid future date/CVV.
+      </p>
+      <div id="liteapi-payment-target" className="min-h-[200px] rounded-xl border border-border/50 bg-background/50" />
+    </div>
+  );
+}
+
 export function BookingConsole({ initialValues, preferredLanguage, preferredCurrency }: BookingConsoleProps) {
   const [prebook, setPrebook] = useState<PrebookResult | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -185,6 +318,8 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     return diff > 0 ? diff : null;
   })();
+
+  const currentStep = prebook ? 2 : 1 as 1 | 2;
 
   const prebookMutation = useMutation({
     mutationFn: async (values: FormValues): Promise<PrebookResult> => {
@@ -284,120 +419,177 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   });
 
   return (
-    <section className="space-y-4 rounded-3xl border border-border/80 bg-card/90 p-5 shadow-md md:p-6">
-      <div className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Secure Checkout</p>
-        <h1 className="text-3xl font-semibold">Finalize your stay in 3 quick steps</h1>
-        <p className="text-sm text-muted-foreground">1) Validate quote 2) Complete payment in SDK 3) Receive confirmed booking record.</p>
-      </div>
-
-      <div className="grid gap-3 rounded-2xl border border-border bg-background/60 p-3 text-xs md:grid-cols-3">
-        <p className="rounded-xl border border-border px-3 py-2">Step 1: Prebook + signed quote</p>
-        <p className={`rounded-xl border px-3 py-2 ${prebook ? 'border-primary/40 bg-primary/10' : 'border-border'}`}>Step 2: Payment widget</p>
-        <p className="rounded-xl border border-border px-3 py-2">Step 3: Server-side confirmation</p>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1.35fr,0.9fr]">
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={onSubmit}>
-          {hasSelectedRate ? (
-            <div className="md:col-span-2 rounded-2xl border border-border bg-background/70 p-3 text-sm">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Selected stay</p>
-              <p className="mt-1 font-medium">
-                Check-in {liveValues.checkIn} · Check-out {liveValues.checkOut}
-              </p>
-              <p className="mt-1 text-muted-foreground">
-                Rate token confirmed. Technical supplier IDs are hidden for cleaner checkout.
-              </p>
-            </div>
-          ) : (
-            <>
-              <Input aria-label="Hotel ID" placeholder="Hotel ID" {...form.register('hotelId')} />
-              <Input aria-label="Room ID" placeholder="Room ID" {...form.register('roomId')} />
-              <Input aria-label="Offer ID" placeholder="Offer ID" {...form.register('offerId')} />
-              <Input aria-label="Amount" placeholder="Amount" type="number" step="1" {...form.register('amount')} />
-              <Input aria-label="Currency" placeholder="Currency (USD)" {...form.register('currency')} />
-              <Input aria-label="Adults" placeholder="Adults" type="number" min={1} step="1" {...form.register('adults')} />
-              <Input aria-label="Rooms" placeholder="Rooms" type="number" min={1} step="1" {...form.register('rooms')} />
-              <Input aria-label="Check-in date" placeholder="Check-in YYYY-MM-DD" {...form.register('checkIn')} />
-              <Input aria-label="Check-out date" placeholder="Check-out YYYY-MM-DD" {...form.register('checkOut')} />
-            </>
-          )}
-
-          {hasSelectedRate && (
-            <>
-              <input type="hidden" {...form.register('hotelId')} />
-              <input type="hidden" {...form.register('roomId')} />
-              <input type="hidden" {...form.register('offerId')} />
-              <input type="hidden" {...form.register('amount')} />
-              <input type="hidden" {...form.register('currency')} />
-              <input type="hidden" {...form.register('adults')} />
-              <input type="hidden" {...form.register('rooms')} />
-              <input type="hidden" {...form.register('checkIn')} />
-              <input type="hidden" {...form.register('checkOut')} />
-            </>
-          )}
-
-          <Input aria-label="First name" placeholder="First name" {...form.register('firstName')} />
-          <Input aria-label="Last name" placeholder="Last name" {...form.register('lastName')} />
-          <Input aria-label="Email" placeholder="Email" type="email" {...form.register('email')} />
-
-          <div className="md:col-span-2">
-            <Button type="submit" size="lg" disabled={prebookMutation.isPending}>
-              {prebookMutation.isPending ? 'Securing your quote...' : !prebook ? 'Validate and launch payment' : 'Launch secure payment'}
-            </Button>
-          </div>
-        </form>
-
-        <aside className="rounded-2xl border border-border bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Booking Summary</p>
-          <p className="mt-2 text-sm text-muted-foreground">Live checkout estimate before payment.</p>
-          <div className="mt-4 space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Nights</span>
-              <span className="font-semibold">{nights ?? '—'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Base rate</span>
-              <span>{currency} {baseAmount || 0}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Service/markup</span>
-              <span>{currency} {markupAmount}</span>
-            </div>
-            <div className="h-px bg-border" />
-            <div className="flex items-center justify-between text-base font-semibold text-primary">
-              <span>Total payable</span>
-              <span>{currency} {totalAmount}</span>
-            </div>
-            <p className="rounded-xl border border-border bg-card/80 px-3 py-2 text-xs text-muted-foreground">
-              Cancellation terms and taxes are provided by supplier and shown before you confirm payment.
+    <section className="space-y-6">
+      <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-lg animate-fade-in">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Secure Checkout</p>
+            <h1 className="mt-1 text-3xl font-semibold">Complete your booking</h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Your rate is locked. Complete payment to receive instant confirmation.
             </p>
           </div>
-        </aside>
+          <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+            <Shield className="h-4 w-4" />
+            Secure booking
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-border/50 bg-background/60 p-4">
+          <ProgressStep step={1} label="Validate quote" isActive={currentStep === 1} isComplete={currentStep > 1} />
+          <div className="h-px w-8 bg-border" />
+          <ProgressStep step={2} label="Payment" isActive={currentStep === 2} isComplete={currentStep > 2} />
+          <div className="h-px w-8 bg-border" />
+          <ProgressStep step={3} label="Confirmation" isActive={false} isComplete={false} />
+        </div>
       </div>
 
-      {form.formState.errors && Object.keys(form.formState.errors).length > 0 && (
-        <p className="text-sm text-red-600">Please correct invalid fields.</p>
-      )}
+      <div className="grid gap-6 lg:grid-cols-[1.35fr,0.9fr]">
+        <form className="space-y-5" onSubmit={onSubmit}>
+          <div className="rounded-2xl border border-border/60 glass-card p-5 animate-slide-up">
+            <div className="flex items-center gap-2 mb-4">
+              <User className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Guest Details</h2>
+            </div>
 
-      {prebook && (
-        <div className="rounded-2xl border border-border bg-background/70 p-4 text-sm">
-          <p className="font-semibold">Prebook created successfully</p>
-          <p className="mt-1 text-muted-foreground">Prebook ID: {prebook.prebookId}</p>
-          <p className="text-muted-foreground">Transaction ID: {prebook.transactionId}</p>
-          <p className="mt-2 font-semibold text-primary">Quote total: {prebook.quote.currency} {prebook.quote.totalAmount}</p>
-          <p className="text-xs text-muted-foreground">Quote signature: {prebook.quote.signature.slice(0, 12)}...</p>
-        </div>
-      )}
+            {hasSelectedRate ? (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-medium">Check-in {liveValues.checkIn} → Check-out {liveValues.checkOut}</p>
+                    <p className="text-sm text-muted-foreground">{nights} night{nights !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input aria-label="Hotel ID" placeholder="Hotel ID" className="input-glass" {...form.register('hotelId')} />
+                <Input aria-label="Room ID" placeholder="Room ID" className="input-glass" {...form.register('roomId')} />
+                <Input aria-label="Offer ID" placeholder="Offer ID" className="input-glass" {...form.register('offerId')} />
+                <Input aria-label="Amount" placeholder="Amount" type="number" step="1" className="input-glass" {...form.register('amount')} />
+                <Input aria-label="Currency" placeholder="Currency (USD)" className="input-glass" {...form.register('currency')} />
+                <Input aria-label="Adults" placeholder="Adults" type="number" min={1} step="1" className="input-glass" {...form.register('adults')} />
+                <Input aria-label="Rooms" placeholder="Rooms" type="number" min={1} step="1" className="input-glass" {...form.register('rooms')} />
+                <Input aria-label="Check-in date" placeholder="Check-in YYYY-MM-DD" className="input-glass" {...form.register('checkIn')} />
+                <Input aria-label="Check-out date" placeholder="Check-out YYYY-MM-DD" className="input-glass" {...form.register('checkOut')} />
+              </div>
+            )}
 
-      <section className={`rounded-2xl border border-border bg-background p-4 ${prebook ? '' : 'hidden'}`}>
-        <h2 className="mb-2 text-sm font-semibold">Payment</h2>
-        <p className="mb-2 text-xs text-muted-foreground">Sandbox test card: `4242 4242 4242 4242` with any valid future date/CVV.</p>
-        <div id="liteapi-payment-target" />
-      </section>
+            {hasSelectedRate && (
+              <>
+                <input type="hidden" {...form.register('hotelId')} />
+                <input type="hidden" {...form.register('roomId')} />
+                <input type="hidden" {...form.register('offerId')} />
+                <input type="hidden" {...form.register('amount')} />
+                <input type="hidden" {...form.register('currency')} />
+                <input type="hidden" {...form.register('adults')} />
+                <input type="hidden" {...form.register('rooms')} />
+                <input type="hidden" {...form.register('checkIn')} />
+                <input type="hidden" {...form.register('checkOut')} />
+              </>
+            )}
 
-      {prebookMutation.error && <p className="text-sm text-red-600">{errorMessage(prebookMutation.error)}</p>}
-      {paymentError && <p className="text-sm text-red-600">{paymentError}</p>}
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">First name</label>
+                <Input aria-label="First name" placeholder="John" className="input-glass" {...form.register('firstName')} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Last name</label>
+                <Input aria-label="Last name" placeholder="Doe" className="input-glass" {...form.register('lastName')} />
+              </div>
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                  <Mail className="h-3.5 w-3.5" />
+                  Email address
+                </label>
+                <Input aria-label="Email" placeholder="john@example.com" type="email" className="input-glass" {...form.register('email')} />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <Button 
+                type="submit" 
+                size="lg" 
+                disabled={prebookMutation.isPending}
+                className="w-full"
+              >
+                {prebookMutation.isPending ? (
+                  <>
+                    <span className="mr-2 animate-spin">⏳</span>
+                    Securing your quote...
+                  </>
+                ) : !prebook ? (
+                  <>
+                    <Lock className="mr-2 h-4 w-4" />
+                    Validate and proceed to payment
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Proceed to payment
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {form.formState.errors && Object.keys(form.formState.errors).length > 0 && (
+              <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <p>Please correct the invalid fields above.</p>
+              </div>
+            )}
+          </div>
+
+          {prebook && (
+            <PaymentWidget 
+              prebook={prebook} 
+              onError={(error) => setPaymentError(error)} 
+            />
+          )}
+
+          {prebook && (
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 animate-slide-up">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="font-semibold">Quote secured successfully</p>
+                  <p className="text-sm text-muted-foreground">
+                    Prebook ID: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{prebook.prebookId.slice(0, 12)}...</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {prebookMutation.error && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 animate-fade-in">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <p>{errorMessage(prebookMutation.error)}</p>
+            </div>
+          )}
+          
+          {paymentError && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 animate-fade-in">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <p>{paymentError}</p>
+            </div>
+          )}
+        </form>
+
+        <BookingSummaryCard
+          nights={nights}
+          baseAmount={baseAmount}
+          currency={currency}
+          markupAmount={markupAmount}
+          totalAmount={totalAmount}
+          checkIn={liveValues.checkIn || '-'}
+          checkOut={liveValues.checkOut || '-'}
+          adults={liveValues.adults || 0}
+          rooms={liveValues.rooms || 0}
+        />
+      </div>
     </section>
   );
 }
