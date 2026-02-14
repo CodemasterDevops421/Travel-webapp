@@ -18,11 +18,29 @@ function getLiteApiKey(): string {
   return env.LITEAPI_API_KEY;
 }
 
-const liteApiClient = new LiteAPI({
-  apiKey: getLiteApiKey(),
-  baseURL: env.LITEAPI_BASE_URL,
-  timeout: env.LITEAPI_TIMEOUT_MS
-});
+// Initialize client only if API key is available, otherwise defer to fallback
+let liteApiClient: LiteAPI | null = null;
+
+try {
+  const apiKey = env.LITEAPI_API_KEY;
+  if (apiKey) {
+    liteApiClient = new LiteAPI({
+      apiKey,
+      baseURL: env.LITEAPI_BASE_URL,
+      timeout: env.LITEAPI_TIMEOUT_MS
+    });
+  }
+} catch (error) {
+  logger.warn({ error }, 'Failed to initialize LiteAPI client at startup');
+}
+
+// Helper to get client instance
+function getLiteApiClient(): LiteAPI {
+  if (!liteApiClient) {
+    throw new HttpError(503, 'LiteAPI client not initialized');
+  }
+  return liteApiClient;
+}
 
 type AutocompleteEntity = {
   id: string;
@@ -599,7 +617,7 @@ export async function autocomplete(query: string, language?: string): Promise<Au
       return places.slice(0, 8);
     }
 
-    const response = await liteApiClient.data.cities({ query });
+    const response = await getLiteApiClient().data.cities({ query });
     const cities = (response?.data ?? []).slice(0, 8).map((item: Record<string, string>) => ({
       id: item.id,
       name: item.name,

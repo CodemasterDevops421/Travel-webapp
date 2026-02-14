@@ -284,15 +284,32 @@ export async function updateBookingStatusByLiteApiId(
   try {
     const supabase = createAdminClient();
     
-    // Use a single atomic query with update returning
+    // First get the current metadata
+    const { data: existing, error: lookupError } = await supabase
+      .from('bookings')
+      .select('metadata')
+      .eq('liteapi_booking_id', liteApiBookingId)
+      .single();
+
+    if (lookupError) {
+      if (isSchemaMissingError(lookupError)) {
+        logger.warn({ error: lookupError, liteApiBookingId }, 'Supabase schema missing during update');
+      } else {
+        logger.error({ error: lookupError, liteApiBookingId }, 'Failed to lookup booking for update');
+      }
+      return false;
+    }
+
+    // Merge existing metadata with new metadata
+    const currentMetadata = (existing?.metadata as Record<string, unknown>) || {};
+    const mergedMetadata = { ...currentMetadata, ...metadata };
+
+    // Then update with merged metadata
     const { error } = await supabase
       .from('bookings')
       .update({
         status,
-        metadata: supabase.rpc('jsonb_merge', { 
-          existing: 'metadata',
-          incoming: JSON.stringify(metadata)
-        })
+        metadata: mergedMetadata
       })
       .eq('liteapi_booking_id', liteApiBookingId);
 
