@@ -1,14 +1,12 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import LiteAPI from 'liteapi-node-sdk';
-import { env, validateProductionConfig } from '@/server/env';
+import { env } from '@/server/env';
 import { logger } from '@/server/logger';
 import { HttpError } from '@/server/errors';
 
-// Validate config on module load in production
-if (env.NODE_ENV === 'production') {
-  validateProductionConfig();
-}
+// Don't validate at import time - defer to runtime checks
+// This allows the module to load during build without a key
 
 // Helper to get API key with validation
 function getLiteApiKey(): string {
