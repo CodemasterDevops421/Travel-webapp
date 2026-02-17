@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Heart, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
-import { PropertyPreview } from '@/features/search/types/property-preview';
+import { PropertyPreview } from '@/features/search/hooks/use-property-preview';
 
 interface HorizontalHotelCardProps {
     hotel: PropertyPreview;

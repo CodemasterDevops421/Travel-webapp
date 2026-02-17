@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/shared/lib/utils';
-import { PropertyPreview } from '@/features/search/types/property-preview';
+import { PropertyPreview } from '@/features/search/hooks/use-property-preview';
 
 interface HotelDetailsProps {
     hotel: PropertyPreview & { images?: string[], address?: string };
@@ -172,10 +172,10 @@ export function HotelDetailsPage({ hotel }: HotelDetailsProps) {
 
                         <div className="flex items-center gap-3 mb-6">
                             <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-3 py-1 text-sm font-medium border-0">
-                                "Great Location"
+                                &quot;Great Location&quot;
                             </Badge>
                             <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-3 py-1 text-sm font-medium border-0">
-                                "Excellent Service"
+                                &quot;Excellent Service&quot;
                             </Badge>
                         </div>
 

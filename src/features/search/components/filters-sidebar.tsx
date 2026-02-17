@@ -41,7 +41,7 @@ export function FiltersSidebar() {
             <div className="space-y-4 rounded-xl border border-border bg-white p-4 shadow-sm">
                 <h4 className="text-sm font-semibold">Price (per night)</h4>
                 <div className="px-2 pt-2">
-                    <Slider defaultValue={[50]} max={1000} step={10} />
+                    <Slider defaultValue={50} max={1000} step={10} />
                     <div className="mt-4 flex justify-between text-xs text-muted-foreground font-medium">
                         <span>SGD 0</span>
                         <span>SGD 1000+</span>
