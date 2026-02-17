@@ -13,9 +13,9 @@ const paramsSchema = z.object({
   bookingId: z.string().trim().min(1)
 });
 
-export async function GET(request: NextRequest, context: { params: { bookingId: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ bookingId: string }> }) {
   try {
-    const params = paramsSchema.parse(context.params);
+    const params = paramsSchema.parse(await context.params);
     const parsed = querySchema.safeParse({
       timeout: request.nextUrl.searchParams.get('timeout') ?? undefined
     });
@@ -39,9 +39,9 @@ export async function GET(request: NextRequest, context: { params: { bookingId: 
   }
 }
 
-export async function PUT(request: NextRequest, context: { params: { bookingId: string } }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ bookingId: string }> }) {
   try {
-    const params = paramsSchema.parse(context.params);
+    const params = paramsSchema.parse(await context.params);
     const parsed = querySchema.safeParse({
       timeout: request.nextUrl.searchParams.get('timeout') ?? undefined
     });
