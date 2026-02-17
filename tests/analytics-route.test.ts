@@ -19,6 +19,10 @@ describe('analytics funnel route', () => {
     vi.doMock('@/server/logger', () => ({
       logger: { info: loggerInfo }
     }));
+    const persistFunnelEvent = vi.fn().mockResolvedValue('event-1');
+    vi.doMock('@/server/analytics-repository', () => ({
+      persistFunnelEvent
+    }));
 
     const { POST } = await import('@/app/api/analytics/funnel/route');
     const req = {
@@ -38,6 +42,7 @@ describe('analytics funnel route', () => {
     expect(res.status).toBe(202);
     expect(body.ok).toBe(true);
     expect(loggerInfo).toHaveBeenCalled();
+    expect(persistFunnelEvent).toHaveBeenCalled();
   });
 
   it('rejects malformed payload', async () => {
@@ -46,6 +51,9 @@ describe('analytics funnel route', () => {
     }));
     vi.doMock('@/server/logger', () => ({
       logger: { info: vi.fn() }
+    }));
+    vi.doMock('@/server/analytics-repository', () => ({
+      persistFunnelEvent: vi.fn().mockResolvedValue('event-2')
     }));
 
     const { POST } = await import('@/app/api/analytics/funnel/route');

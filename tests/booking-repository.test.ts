@@ -24,6 +24,15 @@ describe('booking repository fallback mode', () => {
     vi.unstubAllEnvs();
     vi.stubEnv('NODE_ENV', 'test');
     process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';
+    process.env.BOOKING_VIEW_TOKEN_SECRET = '1234567890abcdef';
+    process.env.LITEAPI_WEBHOOK_SECRET = 'liteapi-webhook-secret-123';
+    process.env.BOOKING_API_AUTH_SECRET = 'abcdefghijklmnopqrstuvwxyz123456';
+    process.env.UPSTASH_REDIS_REST_URL = 'https://example.upstash.io';
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'upstash-token';
+    process.env.LITEAPI_API_KEY = 'test-key';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role';
   });
 
   it('enables fallback mode on PGRST205 and avoids repeated Supabase writes', async () => {

@@ -12,6 +12,11 @@ describe('booking route handlers', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
+    process.env.BOOKING_VIEW_TOKEN_SECRET = '1234567890abcdef';
+    process.env.LITEAPI_WEBHOOK_SECRET = 'liteapi-webhook-secret-123';
+    process.env.BOOKING_API_AUTH_SECRET = 'abcdefghijklmnopqrstuvwxyz123456';
+    process.env.UPSTASH_REDIS_REST_URL = 'https://example.upstash.io';
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'upstash-token';
   });
 
   it('prebook route returns payment sdk payload and persists session', async () => {
@@ -74,6 +79,7 @@ describe('booking route handlers', () => {
 
   it('prebook route continues when quote persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
     const savePrebookSession = vi.fn().mockResolvedValue(undefined);
     const persistQuote = vi.fn().mockResolvedValue(null);
 

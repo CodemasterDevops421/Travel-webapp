@@ -25,6 +25,13 @@ npm run dev
 - `NEXT_PUBLIC_SUPABASE_URL=<supabase_url>`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase_anon_key>`
 - `SUPABASE_SERVICE_ROLE_KEY=<supabase_service_role_key>`
+- `QUOTE_SIGNING_SECRET=<min_16_chars>`
+- `BOOKING_VIEW_TOKEN_SECRET=<min_16_chars>`
+- `BOOKING_API_AUTH_SECRET=<min_24_chars>`
+- `LITEAPI_WEBHOOK_SECRET=<webhook_secret>`
+- `UPSTASH_REDIS_REST_URL=<upstash_url>`
+- `UPSTASH_REDIS_REST_TOKEN=<upstash_token>`
+- `STRICT_PERSISTENCE_MODE=true`
 
 ## Optional Vercel env vars
 - `UPSTASH_REDIS_REST_URL`
@@ -42,3 +49,4 @@ npm run dev
 - Prefer `LITEAPI_API_KEY`; `LITEAPI_KEY` is only for legacy compatibility.
 - Keep all secrets server-side; never place private keys in `NEXT_PUBLIC_*` variables.
 - Redis is optional; app falls back to in-memory cache/rate-limit behavior in local development.
+- Booking management APIs (`/api/bookings*`) require `x-booking-api-key` matching `BOOKING_API_AUTH_SECRET` when configured.

@@ -5,6 +5,7 @@
 - Core product flow: **search destination → list property previews → open hotel details/rates → prebook → finalize booking → secure confirmation page**.
 - Primary integrations: **LiteAPI** (inventory/rates/prebook/book), **Supabase** (quote + booking persistence), **Upstash Redis** (cache/rate-limit/idempotency/session), optional **OpenAI** (concierge), optional **Google Places** fallback autocomplete.
 - Reliability strategy is mixed-mode: Redis/Supabase enabled in production, plus in-memory fallback behavior for local/degraded environments, controlled by `STRICT_PERSISTENCE_MODE`.
+- Hardening update (current branch): production now enforces fail-fast config validation, booking management APIs are auth-gated, funnel analytics are persisted to DB when available, and Supabase migration SQL/runbook are included.
 
 ---
 
@@ -205,10 +206,7 @@ Operational caveat:
 ---
 
 ## 13) Items likely “missed” (recommended audit follow-ups)
-1. Enforce stricter production startup validation for mandatory secrets (no placeholders in prod).
-2. Replace process-local fallback maps with distributed durable fallback (or disable fallback in prod).
-3. Add contract/integration tests for webhook signature + replay + booking update permutations.
-4. Add persistence migration docs/schema SQL for `booking_quotes` and `bookings`.
-5. Add explicit SLO instrumentation (latency/error metrics) for each critical API.
-6. Add authorization model if booking retrieval/cancel APIs are exposed beyond trusted client paths.
-7. Clarify compliance/privacy retention policy for booking metadata and analytics events.
+1. Add contract/integration tests for webhook signature + replay + booking update permutations.
+2. Add explicit SLO instrumentation (latency/error metrics) for each critical API.
+3. Clarify compliance/privacy retention policy for booking metadata and analytics events.
+4. Complete payment front-end orchestration proof for LiteAPI Payment SDK in UI playbook (server path already uses `usePaymentSdk: true`).

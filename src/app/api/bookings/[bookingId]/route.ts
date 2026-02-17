@@ -4,6 +4,7 @@ import { assertRateLimit } from '@/server/ratelimit';
 import { cancelBooking, getBooking } from '@/server/liteapi';
 import { toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
+import { assertBookingApiAuthorized } from '@/server/authz';
 
 const querySchema = z.object({
   timeout: z.coerce.number().positive().max(30).optional()
@@ -15,6 +16,8 @@ const paramsSchema = z.object({
 
 export async function GET(request: NextRequest, context: { params: Promise<{ bookingId: string }> }) {
   try {
+    assertBookingApiAuthorized(request);
+
     const params = paramsSchema.parse(await context.params);
     const parsed = querySchema.safeParse({
       timeout: request.nextUrl.searchParams.get('timeout') ?? undefined
@@ -41,6 +44,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ boo
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ bookingId: string }> }) {
   try {
+    assertBookingApiAuthorized(request);
+
     const params = paramsSchema.parse(await context.params);
     const parsed = querySchema.safeParse({
       timeout: request.nextUrl.searchParams.get('timeout') ?? undefined

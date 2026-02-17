@@ -22,4 +22,20 @@ describe('env parsing', () => {
     expect(env.UPSTASH_REDIS_REST_URL).toBeUndefined();
     expect(env.UPSTASH_REDIS_REST_TOKEN).toBeUndefined();
   });
+
+  it('fails fast in production when critical config is missing', async () => {
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LITEAPI_API_KEY', 'liteapi-placeholder-key');
+    vi.stubEnv('QUOTE_SIGNING_SECRET', '');
+    vi.stubEnv('BOOKING_VIEW_TOKEN_SECRET', '');
+    vi.stubEnv('LITEAPI_WEBHOOK_SECRET', '');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'supabase-service-role-placeholder');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    vi.stubEnv('BOOKING_API_AUTH_SECRET', '');
+    vi.stubEnv('STRICT_PERSISTENCE_MODE', 'false');
+
+    await expect(import('@/server/env')).rejects.toThrow(/Production configuration invalid/i);
+  });
 });
