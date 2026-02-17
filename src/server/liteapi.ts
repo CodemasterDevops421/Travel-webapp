@@ -375,7 +375,8 @@ function shouldEnrichReviews(
 }
 
 async function fetchReviewEnrichmentFromRates(
-  hotelId: string
+  hotelId: string,
+  currency?: string
 ): Promise<{
   reviewScore: number | null;
   reviewCount: number | null;
@@ -397,12 +398,12 @@ async function fetchReviewEnrichmentFromRates(
         checkout: stayWindow.checkout,
         occupancies: [{ adults: 2 }],
         guestNationality: env.DEFAULT_GUEST_NATIONALITY,
-        currency: env.DEFAULT_CURRENCY,
+        currency: currency ?? env.DEFAULT_CURRENCY,
         includeHotelData: true,
         roomMapping: true,
         maxRatesPerHotel: 1
       }),
-      cache: 'no-store'
+      next: { revalidate: 300 }
     });
 
     if (!response.ok) {
@@ -510,7 +511,7 @@ async function searchRates(payload: RatesSearchPayload, fallbackCity: string): P
       'X-API-Key': env.LITEAPI_API_KEY
     },
     body: JSON.stringify(payload),
-    cache: 'no-store'
+    next: { revalidate: 300 }
   });
 
   if (!response) {
@@ -537,7 +538,7 @@ export async function autocomplete(query: string, language?: string): Promise<Au
           accept: 'application/json',
           'X-API-Key': env.LITEAPI_API_KEY
         },
-        cache: 'no-store'
+        next: { revalidate: 3600 }
       }
     );
 
@@ -641,7 +642,7 @@ export async function searchPropertyPreviews(
           accept: 'application/json',
           'X-API-Key': env.LITEAPI_API_KEY
         },
-        cache: 'no-store'
+        next: { revalidate: 3600 }
       }
     );
     const firstPlaceId = String(placeResponse?.data?.[0]?.placeId ?? placeResponse?.data?.[0]?.id ?? '');
@@ -661,8 +662,8 @@ export async function searchPropertyPreviews(
       : undefined;
     const starRating = typeof normalizedMinStars === 'number'
       ? Array.from({ length: Math.max(0, Math.round((5 - normalizedMinStars) * 2) + 1) }, (_, idx) =>
-          Number((normalizedMinStars + idx * 0.5).toFixed(1))
-        )
+        Number((normalizedMinStars + idx * 0.5).toFixed(1))
+      )
       : undefined;
 
     const basePayload: Omit<RatesSearchPayload, 'placeId' | 'cityName' | 'aiSearch'> = {
@@ -748,11 +749,11 @@ export async function searchPropertyPreviews(
     const placeRes = await fetch(
       `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}${language ? `&language=${encodeURIComponent(language)}` : ''}`,
       {
-      headers: {
-        accept: 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
-      },
-      cache: 'no-store'
+        headers: {
+          accept: 'application/json',
+          'X-API-Key': env.LITEAPI_API_KEY
+        },
+        next: { revalidate: 3600 }
       }
     );
     if (!placeRes.ok) {
@@ -783,7 +784,7 @@ export async function searchPropertyPreviews(
         starRating,
         limit: 8
       }),
-      cache: 'no-store'
+      next: { revalidate: 300 }
     });
     if (!ratesRes.ok) {
       throw new Error(`LiteAPI rates request failed: ${ratesRes.status}`);
@@ -971,9 +972,9 @@ export async function cancelBooking(params: { bookingId: string; timeoutSeconds?
   return response.json();
 }
 
-export async function getHotelDetails(hotelId: string): Promise<HotelDetails | null> {
+export async function getHotelDetails(hotelId: string, language?: string, currency?: string): Promise<HotelDetails | null> {
   try {
-    const response = await fetch(`${env.LITEAPI_BASE_URL}/data/hotel?hotelId=${encodeURIComponent(hotelId)}`, {
+    const response = await fetch(`${env.LITEAPI_BASE_URL}/data/hotel?hotelId=${encodeURIComponent(hotelId)}${language ? `&language=${encodeURIComponent(language)}` : ''}`, {
       headers: {
         accept: 'application/json',
         'X-API-Key': env.LITEAPI_API_KEY
@@ -990,11 +991,14 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
     const mainPhoto = typeof data.main_photo === 'string' ? data.main_photo : photos[0];
     const { latitude, longitude } = pickCoordinates(data);
     const reviewBreakdown = pickReviewBreakdown(data);
-    const reviews = pickGuestReviews(data);
+    const reviews = await getGuestReviews(hotelId) ?? [];
     const reviewScore = pickReviewScore(data);
     const reviewCount = pickReviewCount(data);
-    const enrichment = shouldEnrichReviews(reviewScore, reviewCount, reviewBreakdown, reviews)
-      ? await fetchReviewEnrichmentFromRates(hotelId)
+
+    // If we have no reviews from /data/hotel or /data/reviews, try enrichment as a last resort
+    // but prefer the dedicated reviews endpoint data if available
+    const enrichment = (reviews.length === 0 && (reviewScore === null || reviewCount === null))
+      ? await fetchReviewEnrichmentFromRates(hotelId, currency)
       : null;
 
     return {
@@ -1026,14 +1030,63 @@ export async function getHotelDetails(hotelId: string): Promise<HotelDetails | n
   }
 }
 
+export async function getGuestReviews(hotelId: string, limit: number = 10): Promise<HotelDetails['reviews'] | null> {
+  try {
+    const response = await fetch(`${env.LITEAPI_BASE_URL}/data/reviews?hotelId=${encodeURIComponent(hotelId)}&limit=${limit}`, {
+      headers: {
+        accept: 'application/json',
+        'X-API-Key': env.LITEAPI_API_KEY
+      },
+      next: { revalidate: 3600 }
+    });
+
+    if (!response.ok) {
+      // If 404 or other error, return null so caller can fallback
+      return null;
+    }
+
+    const json = (await response.json()) as { data?: Array<Record<string, unknown>> };
+    return (json.data ?? []).map((item) => {
+      const pros = String(item.pros ?? '').trim();
+      const cons = String(item.cons ?? '').trim();
+      const headline = String(item.headline ?? '').trim();
+
+      const parts = [
+        pros ? `Pros: ${pros}` : null,
+        cons ? `Cons: ${cons}` : null
+      ].filter(Boolean);
+
+      const comment = parts.length > 0
+        ? parts.join('\n\n')
+        : headline;
+
+      return {
+        author: String(item.name ?? 'Guest'),
+        travelerType: String(item.type ?? 'Traveler'),
+        comment,
+        score: parseNumber(item.averageScore),
+        createdAt: String(item.date ?? '')
+      };
+    }).filter(r => r.comment.length > 0);
+  } catch (error) {
+    logger.warn({ error, hotelId }, 'LiteAPI guest reviews failed');
+    return null;
+  }
+}
+
 export async function getHotelRates(params: {
   hotelId: string;
   checkin: string;
   checkout: string;
   adults: number;
+  rooms?: number;
   currency?: string;
+  guestNationality?: string;
 }): Promise<HotelRateOption[]> {
   try {
+    const numRooms = params.rooms ?? 1;
+    const occupancies = Array.from({ length: numRooms }, () => ({ adults: params.adults }));
+
     const response = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
       method: 'POST',
       headers: {
@@ -1045,8 +1098,8 @@ export async function getHotelRates(params: {
         hotelIds: [params.hotelId],
         checkin: params.checkin,
         checkout: params.checkout,
-        occupancies: [{ adults: params.adults }],
-        guestNationality: env.DEFAULT_GUEST_NATIONALITY,
+        occupancies,
+        guestNationality: params.guestNationality ?? env.DEFAULT_GUEST_NATIONALITY,
         currency: params.currency ?? env.DEFAULT_CURRENCY,
         includeHotelData: true,
         roomMapping: true

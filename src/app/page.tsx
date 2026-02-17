@@ -1,18 +1,16 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { LockKeyhole, ShieldCheck, Sparkles, Wallet } from 'lucide-react';
-import { HeroSearch } from '@/features/search/components/hero-search';
+import { HeroSearchBar } from '@/features/search/components/hero-search-bar';
 import { SearchSkeleton } from '@/features/search/components/search-skeleton';
 import { TrendingDestinations } from '@/components/home/trending-destinations';
 import { MoodDiscovery } from '@/components/home/mood-discovery';
 import { FeaturedDealsStrip } from '@/components/home/featured-deals-strip';
-import { PlanningGrid } from '@/components/home/planning-grid';
 import { TravelArticles } from '@/components/home/travel-articles';
 import { NewsletterBand } from '@/components/home/newsletter-band';
-import { PreferenceLink } from '@/components/navigation/preference-link';
 
 export const metadata: Metadata = {
-  title: 'TravelForge | Luxury Hotel Search & Booking',
+  title: 'TravelApp | Same Stays. Better Prices.',
   description: 'Discover premium hotels with transparent total pricing and secure checkout.',
   alternates: {
     canonical: '/'
@@ -21,60 +19,68 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-6xl space-y-16 px-4 pb-16 pt-6 md:pt-8">
-      <section className="relative overflow-visible rounded-[32px] border border-border/80 bg-card/75 p-5 md:p-8 lg:p-10">
-        <div className="grid gap-10 lg:grid-cols-[1.05fr_1fr] lg:items-center">
-          <header className="space-y-4">
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">TravelForge Signature Stays</p>
-            <h1 className="text-4xl font-bold leading-tight md:text-5xl">
-              Luxury booking with transparent pricing and zero checkout surprises.
-            </h1>
-            <p className="text-base text-muted-foreground md:text-lg">
-              Discover curated hotels, review full cancellation terms upfront, and complete secure payment in one smooth flow.
-            </p>
-            <div className="grid gap-3 rounded-2xl border border-border/80 bg-background/70 p-4 shadow-sm sm:grid-cols-2">
-              <article className="flex items-center gap-3 rounded-xl bg-card/80 p-3">
-                <ShieldCheck className="h-5 w-5 text-primary" />
-                <p className="text-sm">Verified rates direct from supply APIs</p>
-              </article>
-              <article className="flex items-center gap-3 rounded-xl bg-card/80 p-3">
-                <Wallet className="h-5 w-5 text-primary" />
-                <p className="text-sm">Total-first pricing with tax visibility</p>
-              </article>
-              <article className="flex items-center gap-3 rounded-xl bg-card/80 p-3">
-                <LockKeyhole className="h-5 w-5 text-primary" />
-                <p className="text-sm">Secure payment SDK and signed quote checks</p>
-              </article>
-              <article className="flex items-center gap-3 rounded-xl bg-card/80 p-3">
-                <Sparkles className="h-5 w-5 text-primary" />
-                <p className="text-sm">Premium curation for business and leisure</p>
-              </article>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/80 bg-background/70 px-4 py-3">
-              <p className="text-sm text-muted-foreground">Already selected a rate and ready to pay?</p>
-              <PreferenceLink href="/booking" className="text-sm font-semibold text-primary underline underline-offset-4">
-                Open secure checkout
-              </PreferenceLink>
-            </div>
-          </header>
+    <main className="mx-auto max-w-7xl space-y-24 px-4 pb-24 pt-8 md:pt-12">
+      {/* Hero Section */}
+      <section className="relative flex min-h-[500px] flex-col justify-center overflow-visible rounded-[2rem] bg-gradient-to-br from-[#1a0b2e] to-[#2d1b4e] p-8 text-center text-white shadow-2xl md:p-16">
+        <div className="absolute inset-0 z-0 overflow-hidden rounded-[2rem]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+            alt="Luxury Hotel Pool"
+            className="h-full w-full object-cover opacity-40 mix-blend-overlay transition-transform duration-1000 hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+        </div>
 
-          <div className="relative">
-            <div className="hero-photo" />
-            <div className="hero-search-float">
-              <Suspense fallback={<SearchSkeleton />}>
-                <HeroSearch />
-              </Suspense>
-            </div>
+        <div className="relative z-10 mx-auto max-w-4xl space-y-6">
+          <h1 className="font-heading text-5xl font-bold leading-tight tracking-tight md:text-7xl">
+            Same Stays. <br />
+            <span className="bg-gradient-to-r from-[#A4B6EA] via-[#C99DDB] to-[#F28A9B] bg-clip-text text-transparent">
+              Better Prices.
+            </span>
+          </h1>
+          <p className="mx-auto max-w-2xl text-lg text-white/90 md:text-xl">
+            2 Million Hotels Worldwide. Compare rates, review full terms upfront, and book with confidence.
+          </p>
+        </div>
+
+        <div className="relative z-20 mt-12 w-full">
+          <Suspense fallback={<SearchSkeleton />}>
+            <HeroSearchBar />
+          </Suspense>
+        </div>
+      </section>
+
+      {/* Value Props */}
+      <section className="mx-auto grid max-w-5xl gap-8 text-center md:grid-cols-3">
+        <div className="group rounded-3xl border border-border/50 bg-card p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <ShieldCheck className="h-7 w-7" />
           </div>
+          <h3 className="mb-2 text-lg font-semibold">Verified Rates</h3>
+          <p className="text-sm text-muted-foreground">Direct supply connections ensure real-time availability and pricing accuracy.</p>
+        </div>
+        <div className="group rounded-3xl border border-border/50 bg-card p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Wallet className="h-7 w-7" />
+          </div>
+          <h3 className="mb-2 text-lg font-semibold">Transparent Pricing</h3>
+          <p className="text-sm text-muted-foreground">See the full total including taxes and fees before you start checkout.</p>
+        </div>
+        <div className="group rounded-3xl border border-border/50 bg-card p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <LockKeyhole className="h-7 w-7" />
+          </div>
+          <h3 className="mb-2 text-lg font-semibold">Secure Checkout</h3>
+          <p className="text-sm text-muted-foreground">Bank-grade encryption and signed quote verification for peace of mind.</p>
         </div>
       </section>
 
       <FeaturedDealsStrip />
-      <PlanningGrid />
-      <TravelArticles />
-      <NewsletterBand />
       <TrendingDestinations />
       <MoodDiscovery />
+      <TravelArticles />
+      <NewsletterBand />
     </main>
   );
 }

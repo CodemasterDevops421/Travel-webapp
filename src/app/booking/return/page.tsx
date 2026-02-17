@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import { BookingReturnClient } from '@/app/booking/return/booking-return-client';
 
 export const metadata: Metadata = {
-  title: 'Payment Return | TravelForge',
-  description: 'Finalizing your payment and confirming your TravelForge booking.',
+  title: 'Payment Return | TravelApp',
+  description: 'Finalizing your payment and confirming your TravelApp booking.',
   alternates: {
     canonical: '/booking/return'
   },

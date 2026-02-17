@@ -10,7 +10,7 @@ export function GlobalTopBar() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <PreferenceLink href="/" className="text-sm font-semibold tracking-[0.16em]">
-            TRAVELFORGE
+            TRAVELAPP
           </PreferenceLink>
           <nav className="hidden items-center gap-5 text-sm md:flex">
             <PreferenceLink href="/" className="text-muted-foreground transition-colors hover:text-foreground">

@@ -1,0 +1,55 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { assertRateLimit } from '@/server/ratelimit';
+import { getHotelRates } from '@/server/liteapi';
+import { getOrSetRedisCache } from '@/server/cache';
+import { toHttpError } from '@/server/errors';
+import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
+import { getClientIp } from '@/server/request';
+
+const querySchema = z.object({
+    hotelId: z.string().trim().min(1),
+    checkin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    checkout: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    adults: z.coerce.number().int().min(1).max(10),
+    rooms: z.coerce.number().int().min(1).max(5),
+    currency: z.string().trim().length(3).optional(),
+    guestNationality: z.string().trim().length(2).optional()
+});
+
+export async function GET(request: NextRequest) {
+    try {
+        const searchParams = Object.fromEntries(request.nextUrl.searchParams);
+        const result = querySchema.safeParse(searchParams);
+
+        if (!result.success) {
+            return NextResponse.json({ error: 'Invalid query parameters', details: result.error.format() }, { status: 400 });
+        }
+
+        const { hotelId, checkin, checkout, adults, rooms, currency, guestNationality } = result.data;
+        const clientIp = getClientIp(request);
+        await assertRateLimit(`hotel-rates:${clientIp}`);
+
+        const cacheKey = `hotel-rates:${hotelId}:${checkin}:${checkout}:${adults}:${rooms}:${currency ?? 'USD'}:${guestNationality ?? 'US'}`;
+        const payload = await getOrSetRedisCache(
+            cacheKey,
+            CACHE_TTL_SECONDS.hotelRates,
+            async () => {
+                return getHotelRates({
+                    hotelId,
+                    checkin,
+                    checkout,
+                    adults,
+                    rooms,
+                    currency,
+                    guestNationality
+                });
+            }
+        );
+
+        return NextResponse.json(payload, { status: 200 });
+    } catch (error) {
+        const httpError = toHttpError(error);
+        return NextResponse.json({ error: httpError.message }, { status: httpError.status });
+    }
+}

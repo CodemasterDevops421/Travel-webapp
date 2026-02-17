@@ -11,16 +11,17 @@ type PageProps = {
     adults?: string;
     rooms?: string;
     currency?: string;
+    language?: string;
   }>;
 };
 
 export async function generateMetadata({ params }: Pick<PageProps, 'params'>): Promise<Metadata> {
   const { hotelId } = await params;
   return {
-    title: `Hotel Details | ${hotelId} | TravelForge`,
+    title: `Hotel Details | ${hotelId} | TravelApp`,
     description: `Compare rates, reviews, and full stay details for hotel ${hotelId}.`,
     openGraph: {
-      title: `Hotel Details | ${hotelId} | TravelForge`,
+      title: `Hotel Details | ${hotelId} | TravelApp`,
       description: `Compare rates, reviews, and full stay details for hotel ${hotelId}.`,
       url: `/hotels/${hotelId}`,
       type: 'website'
@@ -53,7 +54,7 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
   const currency = normalizeCurrency(qs.currency) ?? DEFAULT_CURRENCY;
 
   const [hotel, rates] = await Promise.all([
-    getHotelDetails(hotelId),
+    getHotelDetails(hotelId, qs.language, currency),
     getHotelRates({
       hotelId,
       checkin,
@@ -66,36 +67,36 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
   const lowestRate = rates.reduce<number | null>((min, rate) => (min === null || rate.amount < min ? rate.amount : min), null);
   const jsonLd = hotel
     ? {
-        '@context': 'https://schema.org',
-        '@type': 'Hotel',
-        name: hotel.name,
-        address: hotel.address ?? `${hotel.city}${hotel.countryCode ? `, ${hotel.countryCode}` : ''}`,
-        image: hotel.photos?.length ? hotel.photos : hotel.mainPhoto ? [hotel.mainPhoto] : undefined,
-        starRating: hotel.starRating
+      '@context': 'https://schema.org',
+      '@type': 'Hotel',
+      name: hotel.name,
+      address: hotel.address ?? `${hotel.city}${hotel.countryCode ? `, ${hotel.countryCode}` : ''}`,
+      image: hotel.photos?.length ? hotel.photos : hotel.mainPhoto ? [hotel.mainPhoto] : undefined,
+      starRating: hotel.starRating
+        ? {
+          '@type': 'Rating',
+          ratingValue: hotel.starRating
+        }
+        : undefined,
+      aggregateRating:
+        hotel.reviewScore && hotel.reviewCount
           ? {
-              '@type': 'Rating',
-              ratingValue: hotel.starRating
-            }
+            '@type': 'AggregateRating',
+            ratingValue: hotel.reviewScore,
+            reviewCount: hotel.reviewCount
+          }
           : undefined,
-        aggregateRating:
-          hotel.reviewScore && hotel.reviewCount
-            ? {
-                '@type': 'AggregateRating',
-                ratingValue: hotel.reviewScore,
-                reviewCount: hotel.reviewCount
-              }
-            : undefined,
-        offers:
-          lowestRate !== null
-            ? {
-                '@type': 'Offer',
-                price: lowestRate,
-                priceCurrency: rates[0]?.currency ?? 'USD',
-                availability: 'https://schema.org/InStock',
-                validFrom: new Date().toISOString()
-              }
-            : undefined
-      }
+      offers:
+        lowestRate !== null
+          ? {
+            '@type': 'Offer',
+            price: lowestRate,
+            priceCurrency: rates[0]?.currency ?? 'USD',
+            availability: 'https://schema.org/InStock',
+            validFrom: new Date().toISOString()
+          }
+          : undefined
+    }
     : null;
 
   return (

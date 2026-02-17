@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { ChangeEvent, useEffect, useRef } from 'react';
 import { Coins, Globe2 } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
@@ -27,8 +27,8 @@ export function LanguageCurrencyChooser() {
   useEffect(() => {
     const queryLanguage = normalizeLanguage(searchParams.get('language'));
     const queryCurrency = normalizeCurrency(searchParams.get('currency'));
-    const savedLanguage = normalizeLanguage(window.localStorage.getItem('tf:language'));
-    const savedCurrency = normalizeCurrency(window.localStorage.getItem('tf:currency'));
+    const savedLanguage = normalizeLanguage(window.localStorage.getItem('travelapp:language'));
+    const savedCurrency = normalizeCurrency(window.localStorage.getItem('travelapp:currency'));
     const nextLanguage = queryLanguage ?? savedLanguage ?? DEFAULT_LANGUAGE;
     const nextCurrency = queryCurrency ?? savedCurrency ?? DEFAULT_CURRENCY;
 
@@ -45,8 +45,8 @@ export function LanguageCurrencyChooser() {
     if (!hydratedRef.current) return;
     const normalizedLanguage = normalizeLanguage(language) ?? DEFAULT_LANGUAGE;
     const normalizedCurrency = normalizeCurrency(currency) ?? DEFAULT_CURRENCY;
-    window.localStorage.setItem('tf:language', normalizedLanguage);
-    window.localStorage.setItem('tf:currency', normalizedCurrency);
+    window.localStorage.setItem('travelapp:language', normalizedLanguage);
+    window.localStorage.setItem('travelapp:currency', normalizedCurrency);
 
     const nextParams = upsertPreferenceParams(new URLSearchParams(searchParams.toString()), {
       language: normalizedLanguage,
@@ -67,7 +67,7 @@ export function LanguageCurrencyChooser() {
         <select
           className="bg-transparent text-xs outline-none"
           value={language}
-          onChange={(event) => {
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => {
             const value = normalizeLanguage(event.target.value) ?? DEFAULT_LANGUAGE;
             setLanguage(value);
           }}
@@ -86,7 +86,7 @@ export function LanguageCurrencyChooser() {
         <select
           className="bg-transparent text-xs outline-none"
           value={currency}
-          onChange={(event) => {
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => {
             const value = normalizeCurrency(event.target.value) ?? DEFAULT_CURRENCY;
             setCurrency(value);
           }}

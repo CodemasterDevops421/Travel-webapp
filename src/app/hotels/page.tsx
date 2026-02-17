@@ -3,7 +3,7 @@ import { SearchResultsPage } from '@/features/search/components/search-results-p
 import { parseListingSearchParams } from '@/features/search/lib/listing-search-params';
 
 export const metadata: Metadata = {
-  title: 'Hotels | TravelForge',
+  title: 'Hotels | TravelApp',
   description: 'Browse hotels with live rates, ratings, and flexible stay filters.',
   alternates: {
     canonical: '/hotels'

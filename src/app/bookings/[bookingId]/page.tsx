@@ -12,7 +12,7 @@ type BookingConfirmationPageProps = {
 };
 
 export const metadata: Metadata = {
-  title: 'Booking Confirmation | TravelForge',
+  title: 'Booking Confirmation | TravelApp',
   description: 'View your confirmed booking details securely.',
   robots: {
     index: false,

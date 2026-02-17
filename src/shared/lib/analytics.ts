@@ -12,8 +12,8 @@ export type FunnelEvent = {
   properties?: Record<string, AnalyticsPrimitive>;
 };
 
-const CLIENT_EVENT_NAME = 'travelforge:funnel-event';
-const DATA_LAYER_EVENT_NAME = 'travelforge_funnel';
+const CLIENT_EVENT_NAME = 'travelapp:funnel-event';
+const DATA_LAYER_EVENT_NAME = 'travelapp_funnel';
 const FUNNEL_API_ENDPOINT = '/api/analytics/funnel';
 
 export function trackFunnelEvent(event: FunnelEvent): void {

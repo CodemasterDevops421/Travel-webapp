@@ -207,7 +207,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       }
       return json as PrebookResult;
     },
-    onSuccess: (result) => {
+    onSuccess: (result: PrebookResult) => {
       setPrebook(result);
     }
   });
@@ -216,6 +216,13 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     const activePrebook = prebookPayload ?? prebook;
     if (!activePrebook) return;
     setPaymentError(null);
+
+    const guestDistribution = buildPrebookGuests(values.adults, values.rooms);
+    const guestsPayload = guestDistribution.map((guest, index) => ({
+      occupancyNumber: guest.adults,
+      firstName: index === 0 ? values.firstName : '',
+      lastName: index === 0 ? values.lastName : ''
+    }));
 
     const checkoutSession: CheckoutSessionPayload = {
       clientReference: activePrebook.clientReference,
@@ -227,13 +234,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
         lastName: values.lastName,
         email: values.email
       },
-      guests: [
-        {
-          occupancyNumber: 1,
-          firstName: values.firstName,
-          lastName: values.lastName
-        }
-      ]
+      guests: guestsPayload
     };
 
     saveCheckoutSession(activePrebook.transactionId, checkoutSession);
@@ -249,7 +250,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       prebookId: activePrebook.prebookId,
       transactionId: activePrebook.transactionId
     });
-    const resolvedLanguage = normalizeLanguage(preferredLanguage) ?? normalizeLanguage(window.localStorage.getItem('tf:language'));
+    const resolvedLanguage = normalizeLanguage(preferredLanguage) ?? normalizeLanguage(window.localStorage.getItem('travelapp:language'));
     const resolvedCurrency = normalizeCurrency(values.currency) ?? normalizeCurrency(preferredCurrency);
     if (resolvedLanguage) {
       returnParams.set('language', resolvedLanguage);
@@ -264,7 +265,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       returnUrl,
       targetElement: '#liteapi-payment-target',
       appearance: { theme: 'flat' },
-      options: { business: { name: 'TravelForge' } }
+      options: { business: { name: 'TravelApp' } }
     });
 
     liteAPIPayment.handlePayment();

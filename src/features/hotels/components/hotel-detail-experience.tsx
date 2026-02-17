@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import type { HotelDetails, HotelRateOption } from '@/server/liteapi';
 import { PreferenceLink } from '@/components/navigation/preference-link';
+import { useHotelDetails } from '@/features/hotels/hooks/use-hotel-details';
+import { useHotelRates } from '@/features/hotels/hooks/use-hotel-rates';
 
 type HotelDetailExperienceProps = {
   hotelId: string;
@@ -36,12 +38,27 @@ function formatMoney(currency: string, amount: number | null, compact = false): 
   }
 }
 
-export function HotelDetailExperience({ hotelId, checkin, checkout, adults, rooms, hotel, rates }: HotelDetailExperienceProps) {
+export function HotelDetailExperience({ hotelId, checkin, checkout, adults, rooms, hotel: initialHotel, rates: initialRates }: HotelDetailExperienceProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [question, setQuestion] = useState('');
   const [askAnswer, setAskAnswer] = useState('');
   const [askLoading, setAskLoading] = useState(false);
+
+  const { data: hotel } = useHotelDetails(hotelId, undefined, initialRates[0]?.currency, {
+    initialData: initialHotel ?? undefined
+  });
+
+  const { data: rates = [] } = useHotelRates({
+    hotelId,
+    checkin,
+    checkout,
+    adults,
+    rooms,
+    currency: initialRates[0]?.currency
+  }, {
+    initialData: initialRates
+  });
 
   const photos = hotel?.photos?.length ? hotel.photos : hotel?.mainPhoto ? [hotel.mainPhoto] : [];
   const facilities = hotel?.facilities?.length
@@ -87,7 +104,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-7 md:py-9">
-      <section className="space-y-3 rounded-3xl border border-border/80 bg-card/85 p-5 shadow-sm md:p-6">
+      <section className="space-y-2 rounded-2xl border border-border/80 bg-card/85 p-4 shadow-sm md:p-5">
         <PreferenceLink href={browseHotelsHref} className="inline-flex text-sm font-semibold text-muted-foreground underline underline-offset-4">
           See all properties
         </PreferenceLink>
@@ -149,9 +166,8 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
             key={tab.id}
             href={`#${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-              activeTab === tab.id ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border bg-background'
-            }`}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${activeTab === tab.id ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border bg-background'
+              }`}
           >
             {tab.label}
           </a>
@@ -160,7 +176,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
 
       <div className="grid gap-5 lg:grid-cols-[1.75fr,0.95fr]">
         <div className="space-y-5">
-          <section id="overview" className="rounded-2xl border border-border bg-card/85 p-5" onMouseEnter={() => setActiveTab('overview')}>
+          <section id="overview" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('overview')}>
             <h2 className="text-xl font-semibold">Smart highlights</h2>
             <ul className="mt-3 space-y-3 text-sm">
               <li className="rounded-xl border border-border bg-background/70 p-3">
@@ -181,7 +197,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
             </div>
           </section>
 
-          <section id="facilities" className="rounded-2xl border border-border bg-card/85 p-5" onMouseEnter={() => setActiveTab('facilities')}>
+          <section id="facilities" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('facilities')}>
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-xl font-semibold">Popular facilities</h2>
               <span className="text-xs text-muted-foreground">See all facilities</span>
@@ -195,7 +211,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
             </div>
           </section>
 
-          <section id="rooms" className="space-y-3 rounded-2xl border border-border bg-card/85 p-5" onMouseEnter={() => setActiveTab('rooms')}>
+          <section id="rooms" className="space-y-3 rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('rooms')}>
             <h2 className="text-xl font-semibold">Choose your room</h2>
             <p className="text-sm text-muted-foreground">
               {checkin} to {checkout} · {adults} adults · {rooms} room{rooms > 1 ? 's' : ''}
@@ -247,7 +263,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
             )}
           </section>
 
-          <section id="reviews" className="rounded-2xl border border-border bg-card/85 p-5" onMouseEnter={() => setActiveTab('reviews')}>
+          <section id="reviews" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('reviews')}>
             <h2 className="text-xl font-semibold">Guest reviews</h2>
             {hotel?.reviewScore ? (
               <p className="mt-2 text-sm text-muted-foreground">
@@ -290,14 +306,14 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
             )}
           </section>
 
-          <section id="description" className="rounded-2xl border border-border bg-card/85 p-5" onMouseEnter={() => setActiveTab('description')}>
+          <section id="description" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('description')}>
             <h2 className="text-xl font-semibold">Property description</h2>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
               {hotel?.description ?? 'Property description is currently unavailable.'}
             </p>
           </section>
 
-          <section id="ask-ai" className="rounded-2xl border border-border bg-card/85 p-5" onMouseEnter={() => setActiveTab('ask-ai')}>
+          <section id="ask-ai" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('ask-ai')}>
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Ask AI · Beta</p>
             <h2 className="mt-2 text-xl font-semibold">Ask about this hotel</h2>
             <p className="mt-1 text-sm text-muted-foreground">Get quick answers about facilities, policies, and stay details.</p>

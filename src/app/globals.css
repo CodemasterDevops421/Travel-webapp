@@ -3,27 +3,60 @@
 @tailwind utilities;
 
 :root {
-  --background: 42 47% 97%;
-  --foreground: 216 33% 14%;
-  --primary: 183 80% 34%;
-  --primary-foreground: 195 100% 97%;
-  --muted: 40 20% 90%;
-  --muted-foreground: 220 8% 35%;
+  /* ZZZello Brand Colors */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+
   --card: 0 0% 100%;
-  --card-foreground: 216 33% 14%;
-  --border: 35 20% 82%;
+  --card-foreground: 222.2 84% 4.9%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+
+  /* ZZZello Electric Violet #aa15ef -> HSL approx 282 85% 51% */
+  --primary: 282 85% 51%;
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 282 85% 51%;
+
+  --radius: 1rem;
+
+  --brand-gradient: linear-gradient(90deg, #7EFEFD 0%, #85F4FC 20%, #A4B6EA 40%, #C99DDB 60%, #F28A9B 75%, #FB9476 85%, #FBB173 100%);
 }
 
 .dark {
-  --background: 214 40% 9%;
-  --foreground: 195 36% 96%;
-  --primary: 180 63% 46%;
-  --primary-foreground: 210 50% 9%;
-  --muted: 219 29% 16%;
-  --muted-foreground: 214 20% 70%;
-  --card: 218 30% 12%;
-  --card-foreground: 195 36% 96%;
-  --border: 218 20% 26%;
+  /* Adapted Dark Mode for ZZZello (using Ink-2 #232635 as base or darker) */
+  --background: 230 20% 11%;
+  /* Darker than Ink-2 for contrast */
+  --foreground: 210 20% 98%;
+
+  --primary: 277 100% 65%;
+  /* Lighter violet for dark mode */
+  --primary-foreground: 212 33% 10%;
+
+  --muted: 220 20% 16%;
+  --muted-foreground: 218 11% 75%;
+
+  --card: 230 20% 14%;
+  --card-foreground: 210 20% 98%;
+
+  --border: 230 20% 20%;
+  --input: 230 20% 20%;
+  --ring: 277 100% 65%;
 }
 
 body {
@@ -56,7 +89,9 @@ h6 {
     url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80");
   background-size: cover;
   background-position: center;
-  box-shadow: 0 30px 65px rgba(15, 23, 42, 0.2);
+  box-shadow:
+    0 30px 65px -10px rgba(15, 23, 42, 0.15),
+    0 10px 30px -15px rgba(170, 21, 239, 0.2);
 }
 
 .hero-search-float {
@@ -84,6 +119,7 @@ h6 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -99,6 +135,7 @@ h6 {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -109,6 +146,7 @@ h6 {
   0% {
     background-position: 200% 0;
   }
+
   100% {
     background-position: -200% 0;
   }

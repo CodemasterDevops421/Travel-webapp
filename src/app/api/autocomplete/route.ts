@@ -26,7 +26,7 @@ async function googlePlacesFallback(query: string, language?: string): Promise<A
     if (language) {
       url.searchParams.set('language', language);
     }
-    const response = await fetch(url, { cache: 'no-store' });
+    const response = await fetch(url, { next: { revalidate: 3600 } });
     if (!response.ok) {
       return [];
     }

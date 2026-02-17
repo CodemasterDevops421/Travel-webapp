@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { Sora, Source_Sans_3 } from 'next/font/google';
+import { Inter, Roboto_Slab } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AppQueryProvider } from '@/components/providers/query-provider';
-import { GlobalTopBar } from '@/components/layout/global-top-bar';
+import { Header } from '@/components/layout/header';
 
-const headingFont = Sora({
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-heading',
+  variable: '--font-body',
   display: 'swap'
 });
 
-const bodyFont = Source_Sans_3({
+const headingFont = Roboto_Slab({
   subsets: ['latin'],
-  variable: '--font-body',
+  variable: '--font-heading',
   display: 'swap'
 });
 
@@ -27,17 +27,17 @@ export const metadata: Metadata = {
       return new URL('http://localhost:3000');
     }
   })(),
-  title: 'TravelForge OTA',
+  title: 'TravelApp OTA',
   description: 'Fast, transparent hotel booking with secure checkout.',
   openGraph: {
-    title: 'TravelForge OTA',
+    title: 'TravelApp OTA',
     description: 'Fast, transparent hotel booking with secure checkout.',
     type: 'website',
     url: '/'
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TravelForge OTA',
+    title: 'TravelApp OTA',
     description: 'Fast, transparent hotel booking with secure checkout.'
   },
   alternates: {
@@ -45,16 +45,21 @@ export const metadata: Metadata = {
   }
 };
 
+import { AIChatbot } from '@/features/ai/components/ai-chatbot';
+
+// ... existing imports
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${headingFont.variable} ${bodyFont.variable}`}>
+      <body className={`${headingFont.variable} ${inter.variable}`}>
         <ThemeProvider>
           <AppQueryProvider>
             <Suspense fallback={null}>
-              <GlobalTopBar />
+              <Header />
             </Suspense>
             {children}
+            <AIChatbot />
           </AppQueryProvider>
         </ThemeProvider>
       </body>
