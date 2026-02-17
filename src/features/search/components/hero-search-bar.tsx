@@ -134,7 +134,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
         >
             {/* Search Bar Container - Fully Rounded Pill */}
             <div className={cn(
-                "flex flex-col gap-2 bg-white p-2 md:flex-row md:items-center md:gap-0 transition-all",
+                "flex flex-col gap-2 bg-background p-2 text-foreground md:flex-row md:items-center md:gap-0 transition-all",
                 variant === 'default'
                     ? "rounded-[2rem] lg:rounded-full shadow-soft-xl border border-white/20"
                     : "rounded-3xl lg:rounded-full shadow-sm border border-border"
@@ -165,7 +165,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
                     {/* Autocomplete Dropdown */}
                     {isSuggestionsOpen && (
-                        <div className="absolute left-0 right-0 top-full z-30 mt-4 overflow-hidden rounded-[1.5rem] border border-border/60 bg-white/95 backdrop-blur-sm shadow-electric-lg ring-1 ring-black/5 p-2">
+                        <div className="absolute left-0 right-0 top-full z-30 mt-4 overflow-hidden rounded-[1.5rem] border border-border/60 bg-popover/95 text-popover-foreground backdrop-blur-sm shadow-electric-lg ring-1 ring-black/5 p-2">
                             {isFetching ? (
                                 <div className="p-4 text-sm text-muted-foreground">Searching...</div>
                             ) : suggestions.length === 0 ? (
@@ -200,7 +200,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                         </div>
                         <input
                             type="date"
-                            className="h-14 w-full cursor-pointer bg-transparent pl-12 pr-2 text-sm font-medium focus:outline-none md:h-16"
+                            className="h-14 w-full cursor-pointer bg-transparent pl-12 pr-2 text-sm font-medium text-foreground focus:outline-none md:h-16"
                             value={checkIn}
                             onChange={(e) => setCheckIn(e.target.value)}
                         />
@@ -211,7 +211,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                         </div>
                         <input
                             type="date"
-                            className="h-14 w-full cursor-pointer bg-transparent pl-12 pr-2 text-sm font-medium focus:outline-none md:h-16"
+                            className="h-14 w-full cursor-pointer bg-transparent pl-12 pr-2 text-sm font-medium text-foreground focus:outline-none md:h-16"
                             value={checkOut}
                             onChange={(e) => setCheckOut(e.target.value)}
                         />
