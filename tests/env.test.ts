@@ -36,6 +36,7 @@ describe('env parsing', () => {
     vi.stubEnv('BOOKING_API_AUTH_SECRET', '');
     vi.stubEnv('STRICT_PERSISTENCE_MODE', 'false');
 
-    await expect(import('@/server/env')).rejects.toThrow(/Production configuration invalid/i);
+    const { assertProductionReadiness } = await import('@/server/env');
+    expect(() => assertProductionReadiness()).toThrow(/Production configuration invalid/i);
   });
 });

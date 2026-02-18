@@ -7,7 +7,7 @@ import { HttpError, toHttpError } from '@/server/errors';
 import { persistBooking } from '@/server/booking/repository';
 import { verifyCheckoutSessionSignature } from '@/server/booking-session';
 import { signBookingViewToken } from '@/server/booking-view-token';
-import { env } from '@/server/env';
+import { assertProductionReadiness, env } from '@/server/env';
 import { logger } from '@/server/logger';
 import { getClientIp, getCorrelationId } from '@/server/request';
 
@@ -34,6 +34,7 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    assertProductionReadiness();
     const clientIp = getClientIp(request);
     const correlationId = getCorrelationId(request);
     await assertRateLimit(`booking-book:${clientIp}`);

@@ -63,6 +63,7 @@ describe('booking prebook session fallback store', () => {
     process.env.UPSTASH_REDIS_REST_URL = '';
     process.env.UPSTASH_REDIS_REST_TOKEN = '';
 
-    await expect(import('@/server/booking-store')).rejects.toThrow(/Production configuration invalid/i);
+    const { assertProductionReadiness } = await import('@/server/env');
+    expect(() => assertProductionReadiness()).toThrow(/Production configuration invalid/i);
   });
 });

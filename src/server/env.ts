@@ -45,7 +45,7 @@ function isPlaceholderValue(value: string | undefined, patterns: string[]): bool
   return patterns.some((pattern) => normalized === pattern || normalized.includes(pattern));
 }
 
-function assertProductionReadiness(): void {
+export function assertProductionReadiness(): void {
   if (parsedEnv.NODE_ENV !== 'production') {
     return;
   }
@@ -81,7 +81,5 @@ function assertProductionReadiness(): void {
     throw new Error(`Production configuration invalid:\n- ${problems.join('\n- ')}`);
   }
 }
-
-assertProductionReadiness();
 
 export const env = parsedEnv;

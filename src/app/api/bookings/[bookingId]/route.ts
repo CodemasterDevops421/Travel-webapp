@@ -5,6 +5,7 @@ import { cancelBooking, getBooking } from '@/server/liteapi';
 import { toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
 import { assertBookingApiAuthorized } from '@/server/authz';
+import { assertProductionReadiness } from '@/server/env';
 
 const querySchema = z.object({
   timeout: z.coerce.number().positive().max(30).optional()
@@ -16,6 +17,7 @@ const paramsSchema = z.object({
 
 export async function GET(request: NextRequest, context: { params: Promise<{ bookingId: string }> }) {
   try {
+    assertProductionReadiness();
     assertBookingApiAuthorized(request);
 
     const params = paramsSchema.parse(await context.params);
@@ -44,6 +46,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ boo
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ bookingId: string }> }) {
   try {
+    assertProductionReadiness();
     assertBookingApiAuthorized(request);
 
     const params = paramsSchema.parse(await context.params);
