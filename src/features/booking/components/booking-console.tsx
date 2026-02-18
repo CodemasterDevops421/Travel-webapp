@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -59,6 +59,14 @@ type CheckoutSessionPayload = {
     firstName: string;
     lastName: string;
     email: string;
+  };
+  quote: {
+    hotelId: string;
+    roomId: string;
+    baseAmount: number;
+    totalAmount: number;
+    currency: string;
+    signature: string;
   };
   guests: Array<{
     occupancyNumber: number;
@@ -170,6 +178,37 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     }
   });
   const liveValues = form.watch();
+  const prebookFingerprint = useMemo(
+    () => [
+      liveValues.hotelId,
+      liveValues.roomId,
+      liveValues.offerId,
+      liveValues.checkIn,
+      liveValues.checkOut,
+      liveValues.adults,
+      liveValues.rooms
+    ].join('|'),
+    [
+      liveValues.adults,
+      liveValues.checkIn,
+      liveValues.checkOut,
+      liveValues.hotelId,
+      liveValues.offerId,
+      liveValues.roomId,
+      liveValues.rooms
+    ]
+  );
+
+  useEffect(() => {
+    if (!prebook) {
+      return;
+    }
+    if (paymentError) {
+      setPaymentError(null);
+    }
+    setPrebook(null);
+  }, [paymentError, prebook, prebookFingerprint]);
+
   const hasSelectedRate = Boolean(
     liveValues.hotelId && liveValues.roomId && liveValues.offerId && liveValues.checkIn && liveValues.checkOut
   );
@@ -234,6 +273,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
         lastName: values.lastName,
         email: values.email
       },
+      quote: activePrebook.quote,
       guests: guestsPayload
     };
 

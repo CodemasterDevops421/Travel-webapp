@@ -25,27 +25,34 @@ export type HeroSearchBarProps = {
 };
 
 export function HeroSearchBar({ variant = 'default', className, initialValues }: HeroSearchBarProps) {
+    const initialCheckIn = initialValues?.checkIn;
+    const initialCheckOut = initialValues?.checkOut;
+
     const [query, setQuery] = useState(initialValues?.query ?? '');
-    // Initialize with empty strings to prevent hydration mismatch
-    const [checkIn, setCheckIn] = useState(initialValues?.checkIn ?? '');
-    const [checkOut, setCheckOut] = useState(initialValues?.checkOut ?? '');
+    const [checkIn, setCheckIn] = useState(() => {
+        if (initialCheckIn) {
+            return initialCheckIn;
+        }
+        const today = new Date();
+        const start = new Date(today);
+        start.setDate(today.getDate() + 14);
+        return start.toISOString().slice(0, 10);
+    });
+    const [checkOut, setCheckOut] = useState(() => {
+        if (initialCheckOut) {
+            return initialCheckOut;
+        }
+        const today = new Date();
+        const start = new Date(today);
+        start.setDate(today.getDate() + 14);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 2);
+        return end.toISOString().slice(0, 10);
+    });
     const [adults, setAdults] = useState(initialValues?.adults ?? 2);
     const [rooms, setRooms] = useState(initialValues?.rooms ?? 1);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
-
-    useEffect(() => {
-        if (!checkIn && !initialValues?.checkIn) {
-            const today = new Date();
-            const start = new Date(today);
-            start.setDate(today.getDate() + 14);
-            setCheckIn(start.toISOString().slice(0, 10));
-
-            const end = new Date(start);
-            end.setDate(start.getDate() + 2);
-            setCheckOut(end.toISOString().slice(0, 10));
-        }
-    }, []);
 
     const router = useRouter();
     const language = useSearchUIStore((state) => state.language);

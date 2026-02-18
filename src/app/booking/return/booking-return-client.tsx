@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
 
@@ -13,6 +13,14 @@ type CheckoutSessionPayload = {
     firstName: string;
     lastName: string;
     email: string;
+  };
+  quote: {
+    hotelId: string;
+    roomId: string;
+    baseAmount: number;
+    totalAmount: number;
+    currency: string;
+    signature: string;
   };
   guests: Array<{
     occupancyNumber: number;
@@ -32,6 +40,8 @@ function isCheckoutSessionPayload(value: unknown): value is CheckoutSessionPaylo
   if (typeof candidate.sessionSignature !== 'string') return false;
   if (typeof candidate.quoteSignature !== 'string') return false;
   if (!candidate.holder || typeof candidate.holder !== 'object') return false;
+  if (!candidate.quote || typeof candidate.quote !== 'object') return false;
+  if (typeof candidate.quote.signature !== 'string') return false;
   if (!Array.isArray(candidate.guests) || candidate.guests.length < 1) return false;
   return true;
 }
@@ -84,6 +94,8 @@ export function BookingReturnClient() {
   const [message, setMessage] = useState('Finalizing booking...');
   const [fallbackBookingId, setFallbackBookingId] = useState<string | null>(null);
 
+  const finalizedRequestRef = useRef<string | null>(null);
+
   const prebookId = params.get('prebookId') ?? '';
   const transactionId = params.get('transactionId') ?? '';
   const language = normalizeLanguage(params.get('language'));
@@ -110,6 +122,12 @@ export function BookingReturnClient() {
         return;
       }
 
+      const requestKey = `${prebookId}:${transactionId}`;
+      if (finalizedRequestRef.current === requestKey) {
+        return;
+      }
+      finalizedRequestRef.current = requestKey;
+
       try {
         const response = await fetch('/api/booking/book', {
           method: 'POST',
@@ -121,6 +139,7 @@ export function BookingReturnClient() {
             quoteId: session.quoteId,
             sessionSignature: session.sessionSignature,
             quoteSignature: session.quoteSignature,
+            quote: session.quote,
             holder: session.holder,
             guests: session.guests
           })
@@ -156,6 +175,7 @@ export function BookingReturnClient() {
         setStatus('error');
         setMessage('Booking finalized but secure view token missing. Please restart checkout.');
       } catch (error) {
+        finalizedRequestRef.current = null;
         if (!active) return;
         setStatus('error');
         setMessage(error instanceof Error ? error.message : 'Failed to finalize booking');

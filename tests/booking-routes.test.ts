@@ -6,6 +6,7 @@ describe('booking route handlers', () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.unstubAllEnvs();
+    vi.doUnmock('@/server/booking-idempotency');
     vi.stubEnv('NODE_ENV', 'test');
     process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';
     process.env.LITEAPI_API_KEY = 'test';
@@ -157,7 +158,7 @@ describe('booking route handlers', () => {
       headers: new Headers(),
       json: async () => ({
         prebookId: 'pb-1',
-        transactionId: 'tx-1',
+        transactionId: 'tx-2',
         clientReference: 'client-ref-1',
         quoteId: 'q1',
         quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -172,6 +173,104 @@ describe('booking route handlers', () => {
 
     expect(res.status).toBe(400);
     expect(body.error).toMatch(/(Invalid session signature|Prebook session expired)/i);
+    expect(bookRate).not.toHaveBeenCalled();
+  });
+
+
+  it('book route requires cryptographically verifiable quote for recovered sessions', async () => {
+    const bookRate = vi.fn();
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/liteapi', () => ({
+      bookRate
+    }));
+    vi.doMock('@/server/booking-store', () => ({
+      getPrebookSession: vi.fn().mockResolvedValue(null)
+    }));
+    vi.doMock('@/server/booking-session', () => ({
+      verifyCheckoutSessionSignature: vi.fn().mockReturnValue(true)
+    }));
+    vi.doMock('@/server/pricing', () => ({
+      verifyPriceQuoteSignature: vi.fn().mockReturnValue(false)
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      persistBooking: vi.fn()
+    }));
+
+    const { POST } = await import('@/app/api/booking/book/route');
+    const req = {
+      headers: new Headers(),
+      json: async () => ({
+        prebookId: 'pb-1',
+        transactionId: 'tx-1',
+        clientReference: 'client-ref-1',
+        quoteId: 'q1',
+        quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        sessionSignature: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        quote: {
+          hotelId: 'h1',
+          roomId: 'r1',
+          baseAmount: 100,
+          totalAmount: 112,
+          currency: 'USD',
+          signature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        },
+        holder: { firstName: 'A', lastName: 'B', email: 'a@b.com' },
+        guests: [{ occupancyNumber: 1, firstName: 'A', lastName: 'B' }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatch(/invalid quote signature/i);
+    expect(bookRate).not.toHaveBeenCalled();
+  });
+
+  it('book route returns cached response for duplicate transaction', async () => {
+    const bookRate = vi.fn();
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/liteapi', () => ({
+      bookRate
+    }));
+    vi.doMock('@/server/booking-idempotency', () => ({
+      getFinalizedBookingResult: vi.fn().mockResolvedValue({
+        booking: { data: { bookingId: 'cached-booking' } },
+        localBookingId: 'local-cached-1',
+        bookingViewToken: 'view-cached-1',
+        liteApiBookingId: 'cached-booking',
+        status: 'confirmed',
+        clientReference: 'client-ref-cached',
+        quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      }),
+      acquireFinalizeBookingLock: vi.fn(),
+      releaseFinalizeBookingLock: vi.fn(),
+      saveFinalizedBookingResult: vi.fn()
+    }));
+
+    const { POST } = await import('@/app/api/booking/book/route');
+    const req = {
+      headers: new Headers(),
+      json: async () => ({
+        prebookId: 'pb-1',
+        transactionId: 'tx-2',
+        quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        holder: { firstName: 'A', lastName: 'B', email: 'a@b.com' },
+        guests: [{ occupancyNumber: 1, firstName: 'A', lastName: 'B' }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.localBookingId).toBe('local-cached-1');
     expect(bookRate).not.toHaveBeenCalled();
   });
 
@@ -235,6 +334,18 @@ describe('booking route handlers', () => {
     expect(body.localBookingId).toBe('local-booking-1');
     expect(body.bookingViewToken).toBe('booking-view-token-1');
     expect(signBookingViewToken).toHaveBeenCalledWith({ bookingId: 'local-booking-1' });
+    expect(persistBooking).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: expect.objectContaining({
+        itinerary: expect.objectContaining({
+          hotelId: 'h1',
+          roomId: 'r1',
+          totalAmount: 112,
+          currency: 'USD'
+        }),
+        holder: expect.objectContaining({ email: 'a@b.com' }),
+        guests: expect.any(Array)
+      })
+    }));
     expect(persistBooking).toHaveBeenCalledOnce();
   });
 
@@ -257,7 +368,7 @@ describe('booking route handlers', () => {
     vi.doMock('@/server/booking-store', () => ({
       getPrebookSession: vi.fn().mockResolvedValue({
         prebookId: 'pb-1',
-        transactionId: 'tx-1',
+        transactionId: 'tx-3',
         clientReference: 'client-ref-1',
         quoteId: 'q-1',
         quote: {
@@ -285,7 +396,7 @@ describe('booking route handlers', () => {
       headers: new Headers(),
       json: async () => ({
         prebookId: 'pb-1',
-        transactionId: 'tx-1',
+        transactionId: 'tx-3',
         quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         holder: { firstName: 'A', lastName: 'B', email: 'a@b.com' },
         guests: [{ occupancyNumber: 1, firstName: 'A', lastName: 'B' }]

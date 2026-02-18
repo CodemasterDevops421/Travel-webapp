@@ -7,6 +7,13 @@ import { HttpError, toHttpError } from '@/server/errors';
 import { persistBooking } from '@/server/booking/repository';
 import { verifyCheckoutSessionSignature } from '@/server/booking-session';
 import { signBookingViewToken } from '@/server/booking-view-token';
+import { verifyPriceQuoteSignature, type PriceQuote } from '@/server/pricing';
+import {
+  acquireFinalizeBookingLock,
+  getFinalizedBookingResult,
+  releaseFinalizeBookingLock,
+  saveFinalizedBookingResult
+} from '@/server/booking-idempotency';
 import { assertProductionReadiness, env } from '@/server/env';
 import { logger } from '@/server/logger';
 import { getClientIp, getCorrelationId } from '@/server/request';
@@ -18,6 +25,14 @@ const requestSchema = z.object({
   quoteId: z.string().trim().min(1).nullable().optional(),
   sessionSignature: z.string().trim().min(32).optional(),
   quoteSignature: z.string().trim().min(32),
+  quote: z.object({
+    hotelId: z.string().trim().min(1),
+    roomId: z.string().trim().min(1),
+    baseAmount: z.number().nonnegative(),
+    totalAmount: z.number().nonnegative(),
+    currency: z.string().trim().length(3),
+    signature: z.string().trim().min(32)
+  }).optional(),
   holder: z.object({
     firstName: z.string().trim().min(1),
     lastName: z.string().trim().min(1),
@@ -33,6 +48,9 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  let lockAcquired = false;
+  let transactionIdForLock: string | null = null;
+
   try {
     assertProductionReadiness();
     const clientIp = getClientIp(request);
@@ -41,6 +59,22 @@ export async function POST(request: NextRequest) {
 
     const raw = await request.json();
     const payload = requestSchema.parse(raw);
+    transactionIdForLock = payload.transactionId;
+
+    const cachedResult = await getFinalizedBookingResult(payload.transactionId);
+    if (cachedResult) {
+      logger.info({ correlationId, transactionId: payload.transactionId }, 'Returning cached finalized booking response');
+      return NextResponse.json(cachedResult);
+    }
+
+    lockAcquired = await acquireFinalizeBookingLock(payload.transactionId);
+    if (!lockAcquired) {
+      const inFlightResult = await getFinalizedBookingResult(payload.transactionId);
+      if (inFlightResult) {
+        return NextResponse.json(inFlightResult);
+      }
+      throw new HttpError(409, 'Booking finalization already in progress');
+    }
 
     const storedSession = await getPrebookSession(payload.transactionId);
     const recoveredSession = (
@@ -82,8 +116,16 @@ export async function POST(request: NextRequest) {
     if (session.prebookId !== payload.prebookId) {
       throw new HttpError(400, 'Prebook mismatch');
     }
-    if (storedSession && storedSession.quote.signature !== payload.quoteSignature) {
+
+    const quoteToVerify: PriceQuote | null = storedSession?.quote ?? payload.quote ?? null;
+    if (!quoteToVerify) {
+      throw new HttpError(400, 'Quote payload missing');
+    }
+    if (quoteToVerify.signature !== payload.quoteSignature) {
       throw new HttpError(400, 'Quote mismatch');
+    }
+    if (!verifyPriceQuoteSignature(quoteToVerify)) {
+      throw new HttpError(400, 'Invalid quote signature');
     }
 
     const booking = await bookRate({
@@ -111,7 +153,17 @@ export async function POST(request: NextRequest) {
       metadata: {
         clientReference: session.clientReference,
         transactionId: payload.transactionId,
-        prebookId: payload.prebookId
+        prebookId: payload.prebookId,
+        itinerary: {
+          hotelId: quoteToVerify.hotelId,
+          roomId: quoteToVerify.roomId,
+          baseAmount: quoteToVerify.baseAmount,
+          totalAmount: quoteToVerify.totalAmount,
+          currency: quoteToVerify.currency,
+          quoteSignature: quoteToVerify.signature
+        },
+        holder: payload.holder,
+        guests: payload.guests
       }
     });
     if (!localBookingId && env.NODE_ENV === 'production' && env.STRICT_PERSISTENCE_MODE) {
@@ -130,18 +182,27 @@ export async function POST(request: NextRequest) {
       'Booking finalized'
     );
 
-    return NextResponse.json({
+    const responsePayload = {
       booking,
       localBookingId,
       bookingViewToken,
       liteApiBookingId,
       status,
       clientReference: session.clientReference,
-      quoteSignature: storedSession?.quote.signature ?? payload.quoteSignature ?? null
-    });
+      quoteSignature: quoteToVerify.signature
+    };
+
+    await saveFinalizedBookingResult(payload.transactionId, responsePayload);
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
     logger.warn({ error, route: 'booking-book' }, 'Book request failed');
     const httpError = toHttpError(error);
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
+  } finally {
+    if (lockAcquired && transactionIdForLock) {
+      await releaseFinalizeBookingLock(transactionIdForLock);
+    }
   }
 }
+
