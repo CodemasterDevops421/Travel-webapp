@@ -4,6 +4,8 @@ import { assertRateLimit } from '@/server/ratelimit';
 import { logger } from '@/server/logger';
 import { toHttpError } from '@/server/errors';
 import { getClientIp, getCorrelationId } from '@/server/request';
+import { persistFunnelEvent } from '@/server/analytics-repository';
+import { assertProductionReadiness } from '@/server/env';
 
 const payloadSchema = z.object({
   name: z.enum([
@@ -19,20 +21,32 @@ const payloadSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    assertProductionReadiness();
     const clientIp = getClientIp(request);
     await assertRateLimit(`analytics-funnel:${clientIp}`);
 
     const correlationId = getCorrelationId(request);
     const raw = await request.json();
     const payload = payloadSchema.parse(raw);
+    const ts = payload.ts ?? Date.now();
+
+    const eventId = await persistFunnelEvent({
+      name: payload.name,
+      step: payload.step,
+      properties: payload.properties ?? {},
+      correlationId,
+      ts,
+      clientIp
+    });
 
     logger.info(
       {
         correlationId,
+        eventId,
         eventName: payload.name,
         step: payload.step,
         properties: payload.properties ?? null,
-        ts: payload.ts ?? Date.now()
+        ts
       },
       'Funnel analytics event received'
     );

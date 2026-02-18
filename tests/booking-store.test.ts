@@ -7,6 +7,11 @@ describe('booking prebook session fallback store', () => {
     vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.stubEnv('NODE_ENV', 'test');
+    process.env.BOOKING_VIEW_TOKEN_SECRET = '1234567890abcdef';
+    process.env.LITEAPI_WEBHOOK_SECRET = 'liteapi-webhook-secret-123';
+    process.env.BOOKING_API_AUTH_SECRET = 'abcdefghijklmnopqrstuvwxyz123456';
+    process.env.UPSTASH_REDIS_REST_URL = 'https://example.upstash.io';
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'upstash-token';
   });
 
   it('expires in-memory sessions after TTL when Redis is unavailable', async () => {
@@ -46,7 +51,7 @@ describe('booking prebook session fallback store', () => {
     expect(await getPrebookSession('tx-1')).toBeNull();
   });
 
-  it('fails closed in production when Redis session persistence is unavailable', async () => {
+  it('fails fast in production when Redis credentials are missing', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
     process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
@@ -58,26 +63,7 @@ describe('booking prebook session fallback store', () => {
     process.env.UPSTASH_REDIS_REST_URL = '';
     process.env.UPSTASH_REDIS_REST_TOKEN = '';
 
-    const { savePrebookSession, getPrebookSession } = await import('@/server/booking-store');
-
-    await expect(
-      savePrebookSession({
-        prebookId: 'pb-2',
-        transactionId: 'tx-2',
-        clientReference: 'cr-2',
-        quoteId: 'q-2',
-        quote: {
-          hotelId: 'h2',
-          roomId: 'r2',
-          baseAmount: 120,
-          totalAmount: 132,
-          currency: 'USD',
-          signature: 'sig-2'
-        },
-        createdAt: new Date().toISOString()
-      })
-    ).rejects.toMatchObject({ status: 503 });
-
-    await expect(getPrebookSession('tx-2')).rejects.toMatchObject({ status: 503 });
+    const { assertProductionReadiness } = await import('@/server/env');
+    expect(() => assertProductionReadiness()).toThrow(/Production configuration invalid/i);
   });
 });

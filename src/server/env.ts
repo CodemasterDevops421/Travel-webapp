@@ -19,6 +19,7 @@ const envSchema = z.object({
   LITEAPI_WEBHOOK_SECRET: emptyStringToUndefined(z.string().optional()),
   QUOTE_SIGNING_SECRET: emptyStringToUndefined(z.string().min(16).optional()),
   BOOKING_VIEW_TOKEN_SECRET: emptyStringToUndefined(z.string().min(16).optional()),
+  BOOKING_API_AUTH_SECRET: emptyStringToUndefined(z.string().min(24).optional()),
   BOOKING_VIEW_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(600),
   DEFAULT_GUEST_NATIONALITY: z.string().length(2).default('US'),
   GOOGLE_PLACES_API_KEY: emptyStringToUndefined(z.string().optional()),
@@ -36,4 +37,49 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info')
 });
 
-export const env = envSchema.parse(process.env);
+const parsedEnv = envSchema.parse(process.env);
+
+function isPlaceholderValue(value: string | undefined, patterns: string[]): boolean {
+  if (!value) return true;
+  const normalized = value.trim().toLowerCase();
+  return patterns.some((pattern) => normalized === pattern || normalized.includes(pattern));
+}
+
+export function assertProductionReadiness(): void {
+  if (parsedEnv.NODE_ENV !== 'production') {
+    return;
+  }
+
+  const problems: string[] = [];
+
+  if (isPlaceholderValue(parsedEnv.LITEAPI_API_KEY, ['placeholder', 'your_liteapi_api_key'])) {
+    problems.push('LITEAPI_API_KEY must be set to a real key in production.');
+  }
+  if (!parsedEnv.QUOTE_SIGNING_SECRET) {
+    problems.push('QUOTE_SIGNING_SECRET is required in production.');
+  }
+  if (!parsedEnv.BOOKING_VIEW_TOKEN_SECRET) {
+    problems.push('BOOKING_VIEW_TOKEN_SECRET is required in production.');
+  }
+  if (!parsedEnv.LITEAPI_WEBHOOK_SECRET) {
+    problems.push('LITEAPI_WEBHOOK_SECRET is required in production.');
+  }
+  if (isPlaceholderValue(parsedEnv.SUPABASE_SERVICE_ROLE_KEY, ['placeholder', 'your_service_role_key'])) {
+    problems.push('SUPABASE_SERVICE_ROLE_KEY must be set in production.');
+  }
+  if (!parsedEnv.UPSTASH_REDIS_REST_URL || !parsedEnv.UPSTASH_REDIS_REST_TOKEN) {
+    problems.push('UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required in production.');
+  }
+  if (!parsedEnv.BOOKING_API_AUTH_SECRET) {
+    problems.push('BOOKING_API_AUTH_SECRET is required in production to protect booking APIs.');
+  }
+  if (!parsedEnv.STRICT_PERSISTENCE_MODE) {
+    problems.push('STRICT_PERSISTENCE_MODE must be true in production.');
+  }
+
+  if (problems.length > 0) {
+    throw new Error(`Production configuration invalid:\n- ${problems.join('\n- ')}`);
+  }
+}
+
+export const env = parsedEnv;
