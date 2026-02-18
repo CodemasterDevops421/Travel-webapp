@@ -67,9 +67,9 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
         setHighlightedIndex(-1);
     }, [query, suggestions.length, showSuggestions]);
 
-    const onSearch = () => {
-        if (query.trim().length < 3) return;
-        const nextQuery = query.trim();
+    const onSearch = (queryOverride?: string) => {
+        const nextQuery = (queryOverride ?? query).trim();
+        if (nextQuery.length < 3) return;
         setShowSuggestions(false);
 
         trackFunnelEvent({
@@ -98,6 +98,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             step: 'search',
             properties: { suggestionLength: name.length }
         });
+        onSearch(name);
     };
 
     const onAutocompleteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
