@@ -277,7 +277,7 @@ export function HeroSearch() {
         </label>
       </div>
       <div className="mt-4 flex justify-end">
-        <Button size="lg" onClick={onSearch}>Search stays</Button>
+        <Button size="lg" onClick={() => onSearch()}>Search stays</Button>
       </div>
       <p className="mt-2 text-right text-xs text-muted-foreground">
         {selectedNights > 0 ? `${selectedNights} night${selectedNights > 1 ? 's' : ''} · ${adults} adult${adults > 1 ? 's' : ''} · ${rooms} room${rooms > 1 ? 's' : ''}` : 'Select valid dates'}

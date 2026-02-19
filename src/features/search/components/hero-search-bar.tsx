@@ -268,7 +268,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
                     <Button
                         size="lg"
-                        onClick={onSearch}
+                        onClick={() => onSearch()}
                         className="h-12 rounded-full px-8 text-base font-semibold shadow-electric-md transition-all hover:scale-105 hover:shadow-electric-lg active:scale-95 md:h-14"
                     >
                         Search
