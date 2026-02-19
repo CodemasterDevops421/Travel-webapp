@@ -201,7 +201,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   } finally {
     if (lockAcquired && transactionIdForLock) {
-      await releaseFinalizeBookingLock(transactionIdForLock);
+      try {
+        await releaseFinalizeBookingLock(transactionIdForLock);
+      } catch (error) {
+        logger.error(
+          { error, route: 'booking-book', transactionId: transactionIdForLock },
+          'Failed to release booking finalization lock'
+        );
+      }
     }
   }
 }

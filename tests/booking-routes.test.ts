@@ -349,6 +349,71 @@ describe('booking route handlers', () => {
     expect(persistBooking).toHaveBeenCalledOnce();
   });
 
+
+  it('book route still succeeds when lock release fails after finalize', async () => {
+    const persistBooking = vi.fn().mockResolvedValue('local-booking-1');
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/liteapi', () => ({
+      bookRate: vi.fn().mockResolvedValue({
+        data: {
+          bookingId: 'lite-booking-1',
+          status: 'confirmed'
+        }
+      })
+    }));
+    vi.doMock('@/server/booking-store', () => ({
+      getPrebookSession: vi.fn().mockResolvedValue({
+        prebookId: 'pb-1',
+        transactionId: 'tx-4',
+        clientReference: 'client-ref-1',
+        quoteId: 'q-1',
+        quote: {
+          hotelId: 'h1',
+          roomId: 'r1',
+          baseAmount: 100,
+          totalAmount: 112,
+          currency: 'USD',
+          signature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        }
+      })
+    }));
+    vi.doMock('@/server/pricing', () => ({
+      verifyPriceQuoteSignature: vi.fn().mockReturnValue(true)
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      persistBooking
+    }));
+    vi.doMock('@/server/booking-idempotency', async () => {
+      const actual = await vi.importActual<typeof import('@/server/booking-idempotency')>('@/server/booking-idempotency');
+      return {
+        ...actual,
+        releaseFinalizeBookingLock: vi.fn().mockRejectedValue(new Error('redis transient failure'))
+      };
+    });
+
+    const { POST } = await import('@/app/api/booking/book/route');
+    const req = {
+      headers: new Headers(),
+      json: async () => ({
+        prebookId: 'pb-1',
+        transactionId: 'tx-4',
+        quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        holder: { firstName: 'A', lastName: 'B', email: 'a@b.com' },
+        guests: [{ occupancyNumber: 1, firstName: 'A', lastName: 'B' }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.localBookingId).toBe('local-booking-1');
+    expect(persistBooking).toHaveBeenCalledOnce();
+  });
+
   it('book route fails closed in production when booking persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
