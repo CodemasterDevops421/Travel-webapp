@@ -51,9 +51,9 @@ export function HeroSearch() {
     setHighlightedIndex(-1);
   }, [query, suggestions.length, showSuggestions]);
 
-  const onSearch = () => {
-    if (query.trim().length < 3) return;
-    const nextQuery = query.trim();
+  const onSearch = (queryOverride?: string) => {
+    const nextQuery = (queryOverride ?? query).trim();
+    if (nextQuery.length < 3) return;
     setActiveQuery(nextQuery);
     setShowSuggestions(false);
     trackFunnelEvent({
@@ -86,6 +86,7 @@ export function HeroSearch() {
         suggestionLength: name.length
       }
     });
+    onSearch(name);
   };
 
   const onAutocompleteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -276,7 +277,7 @@ export function HeroSearch() {
         </label>
       </div>
       <div className="mt-4 flex justify-end">
-        <Button size="lg" onClick={onSearch}>Search stays</Button>
+        <Button size="lg" onClick={() => onSearch()}>Search stays</Button>
       </div>
       <p className="mt-2 text-right text-xs text-muted-foreground">
         {selectedNights > 0 ? `${selectedNights} night${selectedNights > 1 ? 's' : ''} · ${adults} adult${adults > 1 ? 's' : ''} · ${rooms} room${rooms > 1 ? 's' : ''}` : 'Select valid dates'}
