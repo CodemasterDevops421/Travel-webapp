@@ -14,7 +14,7 @@ import {
   releaseFinalizeBookingLock,
   saveFinalizedBookingResult
 } from '@/server/booking-idempotency';
-import { assertProductionReadiness, env } from '@/server/env';
+import { assertProductionReadinessOnce, env } from '@/server/env';
 import { logger } from '@/server/logger';
 import { getClientIp, getCorrelationId } from '@/server/request';
 
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   let transactionIdForLock: string | null = null;
 
   try {
-    assertProductionReadiness();
+    assertProductionReadinessOnce();
     const clientIp = getClientIp(request);
     const correlationId = getCorrelationId(request);
     await assertRateLimit(`booking-book:${clientIp}`);

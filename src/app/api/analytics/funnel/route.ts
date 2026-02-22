@@ -5,7 +5,7 @@ import { logger } from '@/server/logger';
 import { toHttpError } from '@/server/errors';
 import { getClientIp, getCorrelationId } from '@/server/request';
 import { persistFunnelEvent } from '@/server/analytics-repository';
-import { assertProductionReadiness } from '@/server/env';
+import { assertProductionReadinessOnce } from '@/server/env';
 
 const payloadSchema = z.object({
   name: z.enum([
@@ -21,7 +21,7 @@ const payloadSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    assertProductionReadiness();
+    assertProductionReadinessOnce();
     const clientIp = getClientIp(request);
     await assertRateLimit(`analytics-funnel:${clientIp}`);
 

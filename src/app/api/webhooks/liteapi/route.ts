@@ -1,6 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { assertProductionReadiness, env } from '@/server/env';
+import { assertProductionReadinessOnce, env } from '@/server/env';
 import { logger } from '@/server/logger';
 import { assertRateLimit } from '@/server/ratelimit';
 import { markWebhookEventProcessed } from '@/server/webhook-idempotency';
@@ -79,7 +79,7 @@ function verifySignature(rawBody: string, signature: string, rawTimestamp: strin
 
 export async function POST(request: NextRequest) {
   try {
-    assertProductionReadiness();
+    assertProductionReadinessOnce();
     const clientIp = getClientIp(request);
     await assertRateLimit(`webhook-liteapi:${clientIp}`);
 

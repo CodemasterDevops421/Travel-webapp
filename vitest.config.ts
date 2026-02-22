@@ -10,6 +10,18 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts']
+    include: ['tests/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      all: false,
+      exclude: ['**/node_modules/**', '**/node_modules.bak*/**'],
+      thresholds: {
+        lines: 20,
+        functions: 30,
+        branches: 20,
+        statements: 20
+      }
+    }
   }
 });

@@ -5,7 +5,7 @@ import { listBookings } from '@/server/liteapi';
 import { toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
 import { assertBookingApiAuthorized } from '@/server/authz';
-import { assertProductionReadiness } from '@/server/env';
+import { assertProductionReadinessOnce } from '@/server/env';
 
 const querySchema = z.object({
   clientReference: z.string().trim().min(1),
@@ -14,7 +14,7 @@ const querySchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    assertProductionReadiness();
+    assertProductionReadinessOnce();
     assertBookingApiAuthorized(request);
 
     const parsed = querySchema.safeParse({

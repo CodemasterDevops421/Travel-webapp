@@ -8,6 +8,19 @@ const emptyStringToUndefined = <TSchema extends z.ZodTypeAny>(schema: TSchema) =
     return value;
   }, schema);
 
+const stringBoolean = z.preprocess((value) => {
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) {
+      return true;
+    }
+    if (['false', '0', 'no', 'off'].includes(normalized)) {
+      return false;
+    }
+  }
+  return value;
+}, z.boolean());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   NEXT_PUBLIC_APP_URL: emptyStringToUndefined(z.string().url().default('http://localhost:3000')),
@@ -28,13 +41,14 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: emptyStringToUndefined(z.string().min(1).default('supabase-service-role-placeholder')),
   UPSTASH_REDIS_REST_URL: emptyStringToUndefined(z.string().url().optional()),
   UPSTASH_REDIS_REST_TOKEN: emptyStringToUndefined(z.string().optional()),
-  STRICT_PERSISTENCE_MODE: z.coerce.boolean().default(false),
+  STRICT_PERSISTENCE_MODE: stringBoolean.default(false),
   SENTRY_DSN: emptyStringToUndefined(z.string().optional()),
   OPENAI_API_KEY: emptyStringToUndefined(z.string().optional()),
   OPENAI_MODEL: emptyStringToUndefined(z.string().optional()),
   PRICE_MARKUP_PERCENT: z.coerce.number().min(0).max(40).default(12),
   DEFAULT_CURRENCY: z.string().length(3).default('USD'),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info')
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  TRUST_PROXY_HEADERS: stringBoolean.default(false)
 });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -80,6 +94,16 @@ export function assertProductionReadiness(): void {
   if (problems.length > 0) {
     throw new Error(`Production configuration invalid:\n- ${problems.join('\n- ')}`);
   }
+}
+
+let readinessAsserted = false;
+
+export function assertProductionReadinessOnce(): void {
+  if (readinessAsserted) {
+    return;
+  }
+  assertProductionReadiness();
+  readinessAsserted = true;
 }
 
 export const env = parsedEnv;

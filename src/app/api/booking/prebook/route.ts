@@ -9,7 +9,7 @@ import { persistQuote } from '@/server/booking/repository';
 import { signCheckoutSession } from '@/server/booking-session';
 import { logger } from '@/server/logger';
 import { getClientIp, getCorrelationId } from '@/server/request';
-import { assertProductionReadiness } from '@/server/env';
+import { assertProductionReadinessOnce } from '@/server/env';
 
 const requestSchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -34,7 +34,7 @@ function createClientReference(input: { hotelId: string; roomId: string; offerId
 
 export async function POST(request: NextRequest) {
   try {
-    assertProductionReadiness();
+    assertProductionReadinessOnce();
     const clientIp = getClientIp(request);
     const correlationId = getCorrelationId(request);
     await assertRateLimit(`booking-prebook:${clientIp}`);
