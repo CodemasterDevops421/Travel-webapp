@@ -54,6 +54,7 @@ Each task was committed atomically:
 1. **Task 1: Enforce CSRF and rate-limit policies on cookie-auth mutations** - `9b0d68a` (feat)
 2. **Task 2: Harden security headers and CSP configuration** - `eb48ca4` (feat)
 3. **Task 3: Validate and sanitize external and user-controlled payloads** - `9eafdce` (feat)
+4. **Plan metadata update** - `a89019e` (docs)
 
 ## Files Created/Modified
 - `src/server/ratelimit.ts` - Route-class policies and normalized key construction.
