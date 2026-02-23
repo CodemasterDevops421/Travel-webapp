@@ -69,31 +69,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SECU-01 | TBD | Pending |
-| SECU-02 | TBD | Pending |
-| SECU-03 | TBD | Pending |
-| SECU-04 | TBD | Pending |
-| SECU-05 | TBD | Pending |
-| BOOK-01 | TBD | Pending |
-| BOOK-02 | TBD | Pending |
-| BOOK-03 | TBD | Pending |
-| BOOK-04 | TBD | Pending |
-| BOOK-05 | TBD | Pending |
-| SRCH-01 | TBD | Pending |
-| SRCH-02 | TBD | Pending |
-| SRCH-03 | TBD | Pending |
-| MONE-01 | TBD | Pending |
-| MONE-02 | TBD | Pending |
-| MONE-03 | TBD | Pending |
-| OPER-01 | TBD | Pending |
-| OPER-02 | TBD | Pending |
-| OPER-03 | TBD | Pending |
+| SECU-01 | Phase 1 | Pending |
+| SECU-02 | Phase 1 | Pending |
+| SECU-03 | Phase 1 | Pending |
+| SECU-04 | Phase 1 | Pending |
+| SECU-05 | Phase 1 | Pending |
+| BOOK-01 | Phase 2 | Pending |
+| BOOK-02 | Phase 2 | Pending |
+| BOOK-03 | Phase 2 | Pending |
+| BOOK-04 | Phase 2 | Pending |
+| BOOK-05 | Phase 2 | Pending |
+| SRCH-01 | Phase 3 | Pending |
+| SRCH-02 | Phase 3 | Pending |
+| SRCH-03 | Phase 3 | Pending |
+| MONE-01 | Phase 4 | Pending |
+| MONE-02 | Phase 4 | Pending |
+| MONE-03 | Phase 2 | Pending |
+| OPER-01 | Phase 4 | Pending |
+| OPER-02 | Phase 4 | Pending |
+| OPER-03 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after auto-mode initialization*
+*Last updated: 2026-02-23 after roadmap creation*
