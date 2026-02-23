@@ -10,6 +10,8 @@ type FunnelEvent = {
   correlationId: string;
   ts: number;
   clientIp: string;
+  userId?: string | null;
+  bookingQuoteId?: string | null;
 };
 
 const fallbackEvents = new Map<string, FunnelEvent>();
@@ -22,6 +24,11 @@ function isSchemaMissingError(error: unknown): boolean {
 
 export async function persistFunnelEvent(event: FunnelEvent): Promise<string | null> {
   const fallbackId = randomUUID();
+  const checkIn = typeof event.properties.checkIn === 'string' ? event.properties.checkIn : null;
+  const checkOut = typeof event.properties.checkOut === 'string' ? event.properties.checkOut : null;
+  const guests = typeof event.properties.guests === 'number'
+    ? [{ adults: event.properties.guests }]
+    : null;
 
   if (schemaUnavailable) {
     fallbackEvents.set(fallbackId, event);
@@ -32,8 +39,12 @@ export async function persistFunnelEvent(event: FunnelEvent): Promise<string | n
   const { data, error } = await supabase
     .from('search_logs')
     .insert({
+      user_id: event.userId ?? null,
       query_text: typeof event.properties.query === 'string' ? event.properties.query : null,
       destination: typeof event.properties.destination === 'string' ? event.properties.destination : null,
+      check_in: checkIn,
+      check_out: checkOut,
+      guests: guests,
       filters: {
         event: event.name,
         funnel_step: event.step,
@@ -42,7 +53,9 @@ export async function persistFunnelEvent(event: FunnelEvent): Promise<string | n
       correlation_id: event.correlationId,
       result_count: typeof event.properties.resultCount === 'number' ? event.properties.resultCount : null,
       degraded: Boolean(event.properties.degraded ?? false),
+      booking_quote_id: event.bookingQuoteId ?? null,
       metadata: {
+        module: 'analytics-funnel',
         client_ip: event.clientIp,
         occurred_at: new Date(event.ts).toISOString()
       }

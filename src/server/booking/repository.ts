@@ -15,10 +15,14 @@ type PersistQuoteInput = {
   checkIn: string;
   checkOut: string;
   guests: GuestInput[];
+  userId?: string | null;
+  correlationId?: string | null;
+  searchLogId?: string | null;
 };
 
 type FallbackQuoteRecord = {
   id: string;
+  user_id: string | null;
   hotel_id: string;
   room_id: string;
   check_in: string;
@@ -27,6 +31,8 @@ type FallbackQuoteRecord = {
   total_amount: number;
   currency: string;
   price_signature: string;
+  correlation_id: string | null;
+  search_log_id: string | null;
   expires_at: string;
   created_at: string;
 };
@@ -54,6 +60,7 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
   const fallbackId = randomUUID();
   const fallbackRecord: FallbackQuoteRecord = {
     id: fallbackId,
+    user_id: input.userId ?? null,
     hotel_id: input.quote.hotelId,
     room_id: input.quote.roomId,
     check_in: input.checkIn,
@@ -62,6 +69,8 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
     total_amount: input.quote.totalAmount,
     currency: input.quote.currency,
     price_signature: input.quote.signature,
+    correlation_id: input.correlationId ?? null,
+    search_log_id: input.searchLogId ?? null,
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     created_at: new Date().toISOString()
   };
@@ -80,6 +89,7 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
   const { data, error } = await supabase
     .from('booking_quotes')
     .insert({
+      user_id: input.userId ?? null,
       hotel_id: input.quote.hotelId,
       room_id: input.quote.roomId,
       check_in: input.checkIn,
@@ -88,6 +98,7 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
       total_amount: input.quote.totalAmount,
       currency: input.quote.currency,
       price_signature: input.quote.signature,
+      correlation_id: input.correlationId ?? null,
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
     })
     .select('id')
@@ -115,6 +126,10 @@ type PersistBookingInput = {
   liteApiBookingId: string | null;
   status: string;
   metadata: Record<string, unknown>;
+  userId?: string | null;
+  correlationId?: string | null;
+  searchLogId?: string | null;
+  latestPaymentLogId?: string | null;
 };
 
 type FallbackBookingRecord = BookingRecord;
@@ -137,13 +152,37 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
   const paymentStatus = typeof input.metadata.paymentStatus === 'string' ? input.metadata.paymentStatus : 'pending';
   const confirmationCode = typeof input.metadata.confirmationCode === 'string' ? input.metadata.confirmationCode : null;
   const commissionAmount = typeof input.metadata.commissionAmount === 'number' ? input.metadata.commissionAmount : null;
+  const searchLogIdFromMetadata = typeof input.metadata.searchLogId === 'string' ? input.metadata.searchLogId : null;
+  const latestPaymentLogIdFromMetadata = typeof input.metadata.latestPaymentLogId === 'string'
+    ? input.metadata.latestPaymentLogId
+    : typeof input.metadata.paymentLogId === 'string'
+      ? input.metadata.paymentLogId
+      : null;
+  const currency = typeof itinerary.currency === 'string'
+    ? itinerary.currency
+    : typeof pricing.currency === 'string'
+      ? pricing.currency
+      : null;
 
   const fallbackId = randomUUID();
   const fallbackRecord: FallbackBookingRecord = {
     id: fallbackId,
+    user_id: input.userId ?? null,
     liteapi_booking_id: input.liteApiBookingId,
     status: input.status,
     quote_id: input.quoteId,
+    hotel_id: hotelId,
+    room_id: roomId,
+    check_in: checkIn,
+    check_out: checkOut,
+    total_amount: totalAmount,
+    currency,
+    commission_amount: commissionAmount,
+    payment_status: paymentStatus,
+    confirmation_code: confirmationCode,
+    correlation_id: input.correlationId ?? null,
+    search_log_id: input.searchLogId ?? searchLogIdFromMetadata,
+    latest_payment_log_id: input.latestPaymentLogId ?? latestPaymentLogIdFromMetadata,
     metadata: input.metadata,
     created_at: new Date().toISOString()
   };
@@ -163,6 +202,7 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
     .from('bookings')
     .insert({
       quote_id: input.quoteId,
+      user_id: input.userId ?? null,
       liteapi_booking_id: input.liteApiBookingId,
       status: input.status,
       hotel_id: hotelId,
@@ -170,9 +210,13 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
       check_in: checkIn,
       check_out: checkOut,
       total_amount: totalAmount,
+      currency,
       payment_status: paymentStatus,
       confirmation_code: confirmationCode,
       commission_amount: commissionAmount,
+      correlation_id: input.correlationId ?? null,
+      search_log_id: input.searchLogId ?? searchLogIdFromMetadata,
+      latest_payment_log_id: input.latestPaymentLogId ?? latestPaymentLogIdFromMetadata,
       metadata: input.metadata
     })
     .select('id')
@@ -197,9 +241,22 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
 
 export type BookingRecord = {
   id: string;
+  user_id: string | null;
   liteapi_booking_id: string | null;
   status: string;
   quote_id: string | null;
+  hotel_id: string | null;
+  room_id: string | null;
+  check_in: string | null;
+  check_out: string | null;
+  total_amount: number | null;
+  currency: string | null;
+  commission_amount: number | null;
+  payment_status: string | null;
+  confirmation_code: string | null;
+  correlation_id: string | null;
+  search_log_id: string | null;
+  latest_payment_log_id: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
 };
@@ -215,7 +272,9 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, liteapi_booking_id, status, quote_id, metadata, created_at')
+    .select(
+      'id, user_id, liteapi_booking_id, status, quote_id, hotel_id, room_id, check_in, check_out, total_amount, currency, commission_amount, payment_status, confirmation_code, correlation_id, search_log_id, latest_payment_log_id, metadata, created_at'
+    )
     .eq('id', id)
     .single();
 
