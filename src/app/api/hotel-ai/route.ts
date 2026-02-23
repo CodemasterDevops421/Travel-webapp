@@ -3,7 +3,11 @@ import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
 import { getHotelDetails } from '@/server/liteapi';
 import { getClientIp } from '@/server/request';
-import { answerHotelQuestion, extractHotelAiContext } from '@/server/hotel-ai-context';
+import {
+  answerHotelQuestion,
+  buildHotelAiContextDigest,
+  extractHotelAiContext
+} from '@/server/hotel-ai-context';
 
 const bodySchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -24,7 +28,15 @@ export async function POST(request: NextRequest) {
     const hotel = await getHotelDetails(parsed.data.hotelId);
     const context = extractHotelAiContext(hotel);
     const response = answerHotelQuestion(parsed.data.question, context);
-    return NextResponse.json(response, { status: 200 });
+    const contextDigest = buildHotelAiContextDigest(context);
+
+    return NextResponse.json(
+      {
+        ...response,
+        contextDigest
+      },
+      { status: 200 }
+    );
   } catch {
     return NextResponse.json({ error: 'Unable to process your question right now.' }, { status: 500 });
   }

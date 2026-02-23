@@ -103,6 +103,21 @@ type OpenAIResponsePayload = {
   error?: { message?: string };
 };
 
+function safeParseJsonWithSchema<T>(raw: string, schema: z.ZodType<T>): T | null {
+  try {
+    const parsedJson = JSON.parse(raw) as unknown;
+    const parsed = schema.safeParse(parsedJson);
+    if (!parsed.success) {
+      logger.warn({ issues: parsed.error.issues }, 'Concierge response schema mismatch');
+      return null;
+    }
+    return parsed.data;
+  } catch (error) {
+    logger.warn({ error }, 'Concierge response parsing failed');
+    return null;
+  }
+}
+
 function buildMessages(messages: ConciergeMessage[]): OpenAIMessage[] {
   return messages.map((message) => ({
     role: message.role,
@@ -184,20 +199,13 @@ export async function runConciergeChat(params: {
     return FALLBACK_RESPONSE;
   }
 
-  try {
-    const parsedJson = JSON.parse(outputText) as unknown;
-    const parsedResponse = conciergeResponseSchema.safeParse(parsedJson);
-    if (!parsedResponse.success) {
-      logger.warn({ issues: parsedResponse.error.issues }, 'Concierge response schema mismatch');
-      return FALLBACK_RESPONSE;
-    }
-
-    return {
-      reply: parsedResponse.data.reply,
-      filters: normalizeFilters(parsedResponse.data.filters)
-    };
-  } catch (error) {
-    logger.warn({ error }, 'Concierge response parsing failed');
+  const parsedResponse = safeParseJsonWithSchema(outputText, conciergeResponseSchema);
+  if (!parsedResponse) {
     return FALLBACK_RESPONSE;
   }
+
+  return {
+    reply: parsedResponse.reply,
+    filters: normalizeFilters(parsedResponse.filters)
+  };
 }

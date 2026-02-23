@@ -35,6 +35,13 @@ type HotelAiAnswer = {
   safety: 'booking-safe';
 };
 
+export type HotelAiContextDigest = {
+  knownFactSections: string[];
+  amenityCount: number;
+  policyCount: number;
+  locationSignalCount: number;
+};
+
 function clampText(input: string, max = MAX_TEXT): string {
   const text = input.trim();
   if (text.length <= max) return text;
@@ -163,6 +170,32 @@ export function extractHotelAiContext(hotel: HotelDetails | null): HotelAiContex
   });
 
   return parsed.success ? parsed.data : null;
+}
+
+export function buildHotelAiContextDigest(context: HotelAiContext | null): HotelAiContextDigest {
+  if (!context) {
+    return {
+      knownFactSections: [],
+      amenityCount: 0,
+      policyCount: 0,
+      locationSignalCount: 0
+    };
+  }
+
+  const knownFactSections = [
+    context.amenities.length > 0 ? 'amenities' : null,
+    context.cancellationPolicies.length > 0 || context.paymentPolicies.length > 0 ? 'policies' : null,
+    context.address || context.nearbyLandmarks.length > 0 || context.transit.length > 0 ? 'location' : null,
+    context.description || context.pros.length > 0 || context.cons.length > 0 ? 'descriptive' : null,
+    typeof context.reviewScore === 'number' || typeof context.reviewCount === 'number' ? 'reviews' : null
+  ].filter((value): value is string => Boolean(value));
+
+  return {
+    knownFactSections,
+    amenityCount: context.amenities.length,
+    policyCount: context.cancellationPolicies.length + context.paymentPolicies.length,
+    locationSignalCount: Number(Boolean(context.address)) + context.nearbyLandmarks.length + context.transit.length
+  };
 }
 
 export function answerHotelQuestion(question: string, context: HotelAiContext | null): HotelAiAnswer {
