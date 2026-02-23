@@ -1,8 +1,8 @@
-# Roadmap: Hostel Stays Production Hardening
+# Roadmap: Hostel Stays Production Platform
 
 ## Overview
 
-This roadmap hardens an existing booking product for production launch by locking security boundaries first, then enforcing booking and pricing correctness, then adding supplier-facing resilience controls, and finally proving launch readiness with monetization accuracy and operations guardrails.
+This roadmap delivers a production-grade travel commerce platform by first establishing secure multi-environment foundations, then shipping high-conversion discovery, then hotel detail and user workspace capabilities, then money-safe checkout and booking lifecycle controls, and finally launch-grade admin analytics and operations guardrails.
 
 ## Phases
 
@@ -12,67 +12,87 @@ This roadmap hardens an existing booking product for production launch by lockin
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Security Boundary Lockdown** - Eliminate launch-blocking secret, authz, CSRF, and header risks.
-- [ ] **Phase 2: Booking and Checkout Integrity** - Guarantee booking/payment correctness and durable transactional behavior.
-- [ ] **Phase 3: Supplier Resilience for Search and Rates** - Make upstream failures predictable, bounded, and truthful to users.
-- [ ] **Phase 4: Monetization and Launch Operations Readiness** - Ensure finance visibility and operational proof for safe launch.
+- [x] **Phase 1: Platform Foundation and Security** - Stand up secure backend boundaries, environments, auth, and core data models. (completed 2026-02-23)
+- [ ] **Phase 2: Search and Discovery Experience** - Deliver responsive SSR search with filtering, sorting, and cache-backed supplier data.
+- [ ] **Phase 3: Hotel Detail and User Workspace** - Ship rich hotel pages, contextual AI Q&A, and wishlist-driven user value.
+- [ ] **Phase 4: Checkout and Booking Lifecycle Integrity** - Implement payment-safe checkout with idempotent booking state transitions.
+- [ ] **Phase 5: Admin Monetization and Launch Operations** - Operationalize revenue visibility, controls, analytics, and deployment readiness.
 
 ## Phase Details
 
-### Phase 1: Security Boundary Lockdown
-**Goal**: Travelers and operators use a platform with hardened secret handling and protected privileged/mutation paths.
+### Phase 1: Platform Foundation and Security
+**Goal**: The platform operates with secure API boundaries, production-safe auth controls, and canonical persistence ready for scale.
 **Depends on**: Nothing (first phase)
-**Requirements**: SECU-01, SECU-02, SECU-03, SECU-04, SECU-05
+**Requirements**: ARCH-01, ARCH-02, ARCH-03, ARCH-04, ARCH-05, AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05
 **Success Criteria** (what must be TRUE):
-  1. Release checks show no active leaked credentials in repository history and rotated production credentials are in use.
-  2. A signed-in non-admin user is denied access to admin APIs and admin UI actions.
-  3. Cookie-authenticated mutation requests without valid CSRF proof are rejected.
-  4. Browser responses include hardened CSP and security headers on production routes.
-  5. Internal booking-management endpoints reject requests when required API auth secrets are absent.
-**Plans**: TBD
+  1. LiteAPI keys are never visible in client traffic and all supplier calls flow through secured backend proxy routes.
+  2. Operators can run the application in sandbox or production mode with isolated credentials and settings.
+  3. Travelers can authenticate with email/password or Google OAuth and access protected account areas.
+  4. Non-admin users are denied admin actions, and mutation endpoints reject requests failing CSRF/rate/security policy checks.
+  5. Booking, payment, search, and admin domain records persist in canonical tables and are queryable via structured logs.
+**Plans**: 4 plans
 
-### Phase 2: Booking and Checkout Integrity
-**Goal**: Travelers can complete checkout once, with durable booking state and correct final amounts under retries and webhook churn.
+Plans:
+- [ ] 01-01-PLAN.md - Secure server-only LiteAPI proxy and multi-environment runtime boundary
+- [ ] 01-02-PLAN.md - Establish canonical schema coverage and structured observability foundations
+- [ ] 01-03-PLAN.md - Implement auth flows and enforce admin RBAC boundaries
+- [ ] 01-04-PLAN.md - Enforce CSRF/rate-limit/header hardening and payload sanitization
+
+### Phase 2: Search and Discovery Experience
+**Goal**: Travelers can quickly discover relevant stays through an SEO-friendly, high-performance search surface.
 **Depends on**: Phase 1
-**Requirements**: BOOK-01, BOOK-02, BOOK-03, BOOK-04, BOOK-05, MONE-03
+**Requirements**: DISC-01, DISC-02, DISC-03, DISC-04, DISC-05, DISC-06
 **Success Criteria** (what must be TRUE):
-  1. Repeating booking finalization with the same idempotency context results in one committed booking outcome.
-  2. Confirmed bookings persist required identity, stay, amount, payment, and confirmation fields for later retrieval.
-  3. The charged/confirmed booking amount matches the signed quote and checkout total shown to the traveler.
-  4. Duplicate or replayed supplier webhooks do not create duplicate state transitions and final status reconciles correctly.
-  5. Promo and discount application cannot be double-applied or abused to alter totals outside policy.
+  1. Travelers can search by destination, dates, guests, and vibe query from the home page on desktop and mobile.
+  2. Destination result pages are server-rendered and crawlable for SEO-critical search routes.
+  3. Travelers can filter and sort results, and switch between grid/map browse modes without broken state.
+  4. Search responses remain performant via TTL caching, and supplier outages return truthful degraded-state messages.
 **Plans**: TBD
 
-### Phase 3: Supplier Resilience for Search and Rates
-**Goal**: Travelers receive reliable search/rate behavior with bounded latency and honest failure signals during supplier instability.
+### Phase 3: Hotel Detail and User Workspace
+**Goal**: Travelers can confidently evaluate properties and manage saved stays in their account workspace.
 **Depends on**: Phase 2
-**Requirements**: SRCH-01, SRCH-02, SRCH-03
+**Requirements**: HOTL-01, HOTL-02, HOTL-03, HOTL-04
 **Success Criteria** (what must be TRUE):
-  1. Search requests with empty input or invalid date chronology are rejected with actionable validation errors.
-  2. Upstream supplier calls honor explicit timeout and retry policies and do not hang booking-critical user flows.
-  3. When live supplier data is unavailable, search/rate endpoints return truthful degraded-state responses instead of misleading success.
+  1. Hotel pages show complete supplier-backed content including amenities, gallery, policies, location, and reviews context.
+  2. Travelers can select rooms and understand cancellation implications from a sticky booking card.
+  3. Hotel AI Q&A returns contextual answers grounded in selected hotel data.
+  4. Authenticated users can save and remove wishlist hotels and view them in account workspace.
 **Plans**: TBD
 
-### Phase 4: Monetization and Launch Operations Readiness
-**Goal**: Finance and operations teams can trust revenue reporting and run the platform confidently at launch traffic.
+### Phase 4: Checkout and Booking Lifecycle Integrity
+**Goal**: Travelers can complete payment and receive one correct booking outcome with full lifecycle reliability.
 **Depends on**: Phase 3
-**Requirements**: MONE-01, MONE-02, OPER-01, OPER-02, OPER-03
+**Requirements**: BOOK-01, BOOK-02, BOOK-03, BOOK-04, BOOK-05, BOOK-06
 **Success Criteria** (what must be TRUE):
-  1. Revenue and commission outputs reconcile against canonical booking records for the same period.
-  2. Failed bookings and payment anomalies are captured with queryable records for finance/ops investigation.
-  3. Operators can monitor booking funnel SLIs with correlation IDs and receive actionable alerts on threshold breaches.
-  4. Runbooks for payment outage, supplier outage, webhook delay/replay, and partial data-store failures are executable end-to-end by on-call staff.
-  5. Load and resilience test results demonstrate expected launch traffic/concurrency can be handled within defined reliability targets.
+  1. Travelers complete a 3-step checkout and receive confirmation details after successful payment.
+  2. Stripe payment status is updated only through verified webhook events and reflected in booking records.
+  3. Booking states transition only through valid lifecycle states (`pending`, `payment_authorized`, `confirmed`, `failed`, `refunded`).
+  4. Retry or duplicate submit events do not create duplicate bookings or inconsistent confirmations.
+  5. Confirmation/cancellation emails and invoice state reflect the real booking/payment lifecycle.
+**Plans**: TBD
+
+### Phase 5: Admin Monetization and Launch Operations
+**Goal**: Operators can monitor business health, control monetization, and run production launch safely.
+**Depends on**: Phase 4
+**Requirements**: OPER-01, OPER-02, OPER-03, OPER-04, OPER-05
+**Success Criteria** (what must be TRUE):
+  1. Admin users can review bookings, failed payments, and search-performance metrics from a unified dashboard.
+  2. Commission percentage and environment mode controls update platform behavior with audit-safe constraints.
+  3. Revenue reports expose gross booking value and net commission that reconcile to canonical booking/payment records.
+  4. Analytics hooks emit funnel and lifecycle events needed for growth and operations monitoring.
+  5. Production deployment and webhook setup are executable from documented configs with domain-ready settings.
 **Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Boundary Lockdown | 0/TBD | Not started | - |
-| 2. Booking and Checkout Integrity | 0/TBD | Not started | - |
-| 3. Supplier Resilience for Search and Rates | 0/TBD | Not started | - |
-| 4. Monetization and Launch Operations Readiness | 0/TBD | Not started | - |
+| 1. Platform Foundation and Security | 0/4 | Complete    | 2026-02-23 |
+| 2. Search and Discovery Experience | 0/TBD | Not started | - |
+| 3. Hotel Detail and User Workspace | 0/TBD | Not started | - |
+| 4. Checkout and Booking Lifecycle Integrity | 0/TBD | Not started | - |
+| 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |

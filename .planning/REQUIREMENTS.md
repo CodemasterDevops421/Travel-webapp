@@ -1,45 +1,60 @@
-# Requirements: Hostel Stays Production Hardening
+# Requirements: Hostel Stays Production Platform
 
 **Defined:** 2026-02-23
-**Core Value:** A traveler can reliably find a stay and complete a trustworthy booking flow end-to-end without pricing, security, or confirmation failures.
+**Core Value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
 
 ## v1 Requirements
 
-Requirements for initial production launch hardening.
+Requirements for initial production SaaS launch.
 
-### Security
+### Architecture and Environment
 
-- [ ] **SECU-01**: Secrets are never committed in repository history and all leaked credentials are rotated before release
-- [ ] **SECU-02**: Admin APIs and admin UI require role-based authorization beyond basic authentication
-- [ ] **SECU-03**: Cookie-authenticated mutation endpoints enforce CSRF protection (token and/or strict same-origin checks)
-- [ ] **SECU-04**: Production security headers and CSP are hardened to reduce XSS and script-injection risk
-- [ ] **SECU-05**: Internal booking management endpoints fail closed when API auth secrets are missing
+- [ ] **ARCH-01**: All LiteAPI calls are routed through a secure backend proxy and never expose supplier keys to the frontend
+- [ ] **ARCH-02**: The platform supports isolated sandbox and production configurations with server-side mode control
+- [ ] **ARCH-03**: Backend APIs are stateless and reusable by future mobile clients without app-specific coupling
+- [ ] **ARCH-04**: Canonical data models exist for `Users`, `Bookings`, `SavedHotels`, `SearchLogs`, `PaymentLogs`, `AdminUsers`, `CommissionTracking`, and `ReviewsCache`
+- [ ] **ARCH-05**: Structured logging and centralized error tracking exist for booking-critical and supplier-critical paths
 
-### Booking Integrity
+### Authentication and Security
 
-- [ ] **BOOK-01**: Booking finalization is idempotent across retries and concurrent requests
-- [ ] **BOOK-02**: Booking/session/idempotency state is durable in production across restarts and horizontal scaling
-- [ ] **BOOK-03**: Booking records persist required identifiers and financial state (`user_id`, `hotel_id`, `room_id`, dates, total, payment status, confirmation code)
-- [ ] **BOOK-04**: Payment amount validation guarantees final charged/confirmed amount matches signed quote and displayed total
-- [ ] **BOOK-05**: Webhook processing is signature-verified, replay-safe, and reconciles external booking status into local state
+- [ ] **AUTH-01**: Users can sign up and sign in with email/password using bcrypt-hashed credentials and JWT sessions
+- [ ] **AUTH-02**: Users can authenticate with Google OAuth and access the same account profile when emails match
+- [ ] **AUTH-03**: Admin routes and tools enforce RBAC beyond basic authentication
+- [ ] **AUTH-04**: Mutation endpoints enforce CSRF protection, secure headers, and rate limiting in production
+- [ ] **AUTH-05**: User input and supplier responses are validated and sanitized against XSS/injection vectors
 
-### Search and Supplier Resilience
+### Search and Discovery Experience
 
-- [ ] **SRCH-01**: Upstream supplier/API calls enforce explicit timeouts and classified retry policies
-- [ ] **SRCH-02**: Search and rate endpoints return truthful degraded-state errors when live supplier data is unavailable
-- [ ] **SRCH-03**: Server-side validation enforces non-empty search requests and valid chronological stay dates
+- [ ] **DISC-01**: Home search supports destination autocomplete, stay dates, guest selection, and natural-language vibe input
+- [ ] **DISC-02**: Search results pages are server-rendered and SEO-friendly for destination queries
+- [ ] **DISC-03**: Search results support filters for price, star rating, amenities, property type, and distance from center
+- [ ] **DISC-04**: Search results support sorting by price, rating, and popularity with grid/map and pagination/infinite browsing
+- [ ] **DISC-05**: Supplier-backed search/rate responses use caching with 5-15 minute TTL and truthful degraded-state handling
+- [ ] **DISC-06**: Search and listing experiences are mobile-responsive and meet launch performance targets (Lighthouse 90+ on key pages)
 
-### Monetization and Reporting
+### Hotel Detail and User Workspace
 
-- [ ] **MONE-01**: Revenue and commission metrics are calculated from canonical persisted fields and reconcile with booking records
-- [ ] **MONE-02**: Failed bookings and payment anomalies are logged and queryable for finance/ops review
-- [ ] **MONE-03**: Promo/discount application is integrity-safe and prevents abuse or double-application
+- [ ] **HOTL-01**: Hotel detail pages present LiteAPI-backed details, amenities, gallery, policies, location, reviews, and pros/cons
+- [ ] **HOTL-02**: Hotel detail pages include sticky booking card, room selection, and visible cancellation policy context
+- [ ] **HOTL-03**: AI Q&A on hotel pages answers within hotel-data context without bypassing booking logic
+- [ ] **HOTL-04**: Authenticated users can save and manage wishlist hotels and retrieve them in their account workspace
 
-### Observability and Launch Ops
+### Checkout, Payment, and Booking Lifecycle
 
-- [ ] **OPER-01**: Booking funnel and reliability telemetry includes correlation IDs, structured logs, and alertable service-level indicators
-- [ ] **OPER-02**: Runbooks exist for payment outage, supplier outage, webhook delay/replay, and partial data-store failure scenarios
-- [ ] **OPER-03**: Load and resilience tests validate launch readiness at expected traffic and concurrency levels
+- [ ] **BOOK-01**: Checkout follows a 3-step flow (guest details, payment, confirmation) with persisted progress
+- [ ] **BOOK-02**: Stripe payments support sandbox testing and verified webhook handling for payment state updates
+- [ ] **BOOK-03**: Booking lifecycle transitions are enforced as `pending`, `payment_authorized`, `confirmed`, `failed`, `refunded`
+- [ ] **BOOK-04**: Booking finalization is idempotent and prevents duplicate confirmations on retries/concurrency
+- [ ] **BOOK-05**: Booking records persist `liteapi_booking_id`, confirmation code, payment status, totals, and commission amount
+- [ ] **BOOK-06**: Confirmation emails are sent with HTML templates and cancellation actions update booking/invoice state correctly
+
+### Admin, Monetization, and Operations
+
+- [ ] **OPER-01**: Admin dashboard provides booking visibility, failed payment logs, and search performance metrics
+- [ ] **OPER-02**: Admin tools can configure commission percentage and toggle sandbox/production operating mode safely
+- [ ] **OPER-03**: Revenue reporting tracks gross booking value and net commission from canonical persisted booking/payment data
+- [ ] **OPER-04**: Analytics hooks emit core funnel and booking lifecycle events with privacy-safe identifiers
+- [ ] **OPER-05**: Deployment artifacts include production build config, env management guidance, Stripe webhook endpoint setup, and domain-ready instructions
 
 ## v2 Requirements
 
@@ -47,10 +62,10 @@ Deferred to future release.
 
 ### Differentiators
 
-- **DIFF-01**: Revenue integrity command center with proactive anomaly triage UX
-- **DIFF-02**: Intelligent fallback orchestration with adaptive supplier routing
-- **DIFF-03**: Property reliability scoring integrated into ranking and recommendation
-- **DIFF-04**: Advanced incident communication automation for guest trust recovery
+- **DIFF-01**: Native mobile app shells (iOS/Android) consuming shared stateless APIs
+- **DIFF-02**: Intelligent supplier fallback orchestration and adaptive routing policies
+- **DIFF-03**: Revenue integrity command center with proactive anomaly triage UX
+- **DIFF-04**: Advanced incident communication automation for traveler trust recovery
 
 ## Out of Scope
 
@@ -58,10 +73,10 @@ Explicitly excluded from this milestone.
 
 | Feature | Reason |
 |---------|--------|
-| Native iOS/Android app builds | Web launch hardening is priority and mobile store packaging is a separate program |
-| New supplier/provider integrations | Reduces operational risk during stabilization milestone |
-| Major re-platform/rewrite of existing Next.js app | Brownfield hardening should preserve delivery velocity and reduce migration risk |
-| Large ML personalization platform | Not required to satisfy immediate production safety and launch goals |
+| New supplier contracts beyond LiteAPI primary integration | Increases launch risk and integration surface |
+| Full marketplace re-platform/rewrite | Current objective is production-grade hardening and scale-up |
+| App store publication workflows | APIs are made mobile-ready first; store release follows in v2 |
+| ML-first dynamic pricing platform | Not required for initial production readiness |
 
 ## Traceability
 
@@ -69,31 +84,43 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SECU-01 | Phase 1 | Pending |
-| SECU-02 | Phase 1 | Pending |
-| SECU-03 | Phase 1 | Pending |
-| SECU-04 | Phase 1 | Pending |
-| SECU-05 | Phase 1 | Pending |
-| BOOK-01 | Phase 2 | Pending |
-| BOOK-02 | Phase 2 | Pending |
-| BOOK-03 | Phase 2 | Pending |
-| BOOK-04 | Phase 2 | Pending |
-| BOOK-05 | Phase 2 | Pending |
-| SRCH-01 | Phase 3 | Pending |
-| SRCH-02 | Phase 3 | Pending |
-| SRCH-03 | Phase 3 | Pending |
-| MONE-01 | Phase 4 | Pending |
-| MONE-02 | Phase 4 | Pending |
-| MONE-03 | Phase 2 | Pending |
-| OPER-01 | Phase 4 | Pending |
-| OPER-02 | Phase 4 | Pending |
-| OPER-03 | Phase 4 | Pending |
+| ARCH-01 | Phase 1 | Pending |
+| ARCH-02 | Phase 1 | Pending |
+| ARCH-03 | Phase 1 | Pending |
+| ARCH-04 | Phase 1 | Pending |
+| ARCH-05 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| DISC-01 | Phase 2 | Pending |
+| DISC-02 | Phase 2 | Pending |
+| DISC-03 | Phase 2 | Pending |
+| DISC-04 | Phase 2 | Pending |
+| DISC-05 | Phase 2 | Pending |
+| DISC-06 | Phase 2 | Pending |
+| HOTL-01 | Phase 3 | Pending |
+| HOTL-02 | Phase 3 | Pending |
+| HOTL-03 | Phase 3 | Pending |
+| HOTL-04 | Phase 3 | Pending |
+| BOOK-01 | Phase 4 | Pending |
+| BOOK-02 | Phase 4 | Pending |
+| BOOK-03 | Phase 4 | Pending |
+| BOOK-04 | Phase 4 | Pending |
+| BOOK-05 | Phase 4 | Pending |
+| BOOK-06 | Phase 4 | Pending |
+| OPER-01 | Phase 5 | Pending |
+| OPER-02 | Phase 5 | Pending |
+| OPER-03 | Phase 5 | Pending |
+| OPER-04 | Phase 5 | Pending |
+| OPER-05 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 19 total
-- Mapped to phases: 19
+- v1 requirements: 31 total
+- Mapped to phases: 31
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after roadmap creation*
+*Last updated: 2026-02-23 after roadmap revision*
