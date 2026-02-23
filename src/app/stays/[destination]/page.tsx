@@ -1,5 +1,7 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { SearchResultsPage } from '@/features/search/components/search-results-page';
+import { buildDestinationMetadata, getDestinationBySlug } from '@/features/search/lib/destination-seo';
 import { parseListingSearchParams } from '@/features/search/lib/listing-search-params';
 
 type DestinationPageProps = {
@@ -7,36 +9,40 @@ type DestinationPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const DESTINATION_BY_SLUG: Record<string, string> = {
-  bali: 'Bali',
-  dubai: 'Dubai',
-  kyoto: 'Kyoto',
-  tokyo: 'Tokyo',
-  zurich: 'Zurich'
+type MetadataProps = {
+  params: Promise<{ destination: string }>;
 };
 
-const DESTINATION_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export async function generateMetadata({ params }: MetadataProps): Promise<Metadata> {
+  const { destination } = await params;
+  const resolvedDestination = getDestinationBySlug(destination);
 
-function resolveDestination(slug: string): string | null {
-  if (!DESTINATION_SLUG_PATTERN.test(slug)) {
-    return null;
+  if (!resolvedDestination) {
+    return {
+      title: 'Destination Not Found | Hostel Stays',
+      description: 'The destination route is unavailable.',
+      robots: {
+        index: false,
+        follow: false
+      }
+    };
   }
 
-  return DESTINATION_BY_SLUG[slug] ?? null;
+  return buildDestinationMetadata(resolvedDestination);
 }
 
 export default async function DestinationPage({ params, searchParams }: DestinationPageProps) {
   const { destination } = await params;
-  const destinationName = resolveDestination(destination.trim().toLowerCase());
+  const resolvedDestination = getDestinationBySlug(destination);
 
-  if (!destinationName) {
+  if (!resolvedDestination) {
     notFound();
   }
 
   const paramsInput = await searchParams;
   const listingParams = parseListingSearchParams({
     ...paramsInput,
-    q: destinationName
+    q: resolvedDestination.label
   });
 
   return (
