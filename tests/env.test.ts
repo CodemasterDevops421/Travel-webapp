@@ -26,7 +26,7 @@ describe('env parsing', () => {
   it('fails fast in production when critical config is missing', async () => {
     vi.resetModules();
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('LITEAPI_API_KEY', 'liteapi-placeholder-key');
+    vi.stubEnv('LITEAPI_API_KEY', 'test-live-key');
     vi.stubEnv('QUOTE_SIGNING_SECRET', '');
     vi.stubEnv('BOOKING_VIEW_TOKEN_SECRET', '');
     vi.stubEnv('LITEAPI_WEBHOOK_SECRET', '');

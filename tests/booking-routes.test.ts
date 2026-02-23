@@ -55,7 +55,8 @@ describe('booking route handlers', () => {
 
     const { POST } = await import('@/app/api/booking/prebook/route');
     const req = {
-      headers: new Headers(),
+      url: 'https://example.com/api/booking/prebook',
+      headers: new Headers({ origin: 'https://example.com' }),
       json: async () => ({
         hotelId: 'h1',
         roomId: 'r1',
@@ -81,6 +82,9 @@ describe('booking route handlers', () => {
   it('prebook route continues when quote persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('LITEAPI_ENV', 'production');
+    vi.stubEnv('LITEAPI_PRODUCTION_API_KEY', 'prod-key-1');
+    vi.stubEnv('LITEAPI_PRODUCTION_BASE_URL', 'https://api.example.com/v3');
+    vi.stubEnv('LITEAPI_PRODUCTION_BOOK_BASE_URL', 'https://book.example.com/v3');
     vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
     const savePrebookSession = vi.fn().mockResolvedValue(undefined);
     const persistQuote = vi.fn().mockResolvedValue(null);
@@ -116,7 +120,8 @@ describe('booking route handlers', () => {
 
     const { POST } = await import('@/app/api/booking/prebook/route');
     const req = {
-      headers: new Headers(),
+      url: 'https://example.com/api/booking/book',
+      headers: new Headers({ origin: 'https://example.com' }),
       json: async () => ({
         hotelId: 'h1',
         roomId: 'r1',
@@ -156,7 +161,8 @@ describe('booking route handlers', () => {
 
     const { POST } = await import('@/app/api/booking/book/route');
     const req = {
-      headers: new Headers(),
+      url: 'https://example.com/api/booking/book',
+      headers: new Headers({ origin: 'https://example.com' }),
       json: async () => ({
         prebookId: 'pb-1',
         transactionId: 'tx-2',
@@ -202,7 +208,8 @@ describe('booking route handlers', () => {
 
     const { POST } = await import('@/app/api/booking/book/route');
     const req = {
-      headers: new Headers(),
+      url: 'https://example.com/api/booking/book',
+      headers: new Headers({ origin: 'https://example.com' }),
       json: async () => ({
         prebookId: 'pb-1',
         transactionId: 'tx-1',
@@ -257,7 +264,8 @@ describe('booking route handlers', () => {
 
     const { POST } = await import('@/app/api/booking/book/route');
     const req = {
-      headers: new Headers(),
+      url: 'https://example.com/api/booking/book',
+      headers: new Headers({ origin: 'https://example.com' }),
       json: async () => ({
         prebookId: 'pb-1',
         transactionId: 'tx-2',
@@ -418,6 +426,9 @@ describe('booking route handlers', () => {
   it('book route fails closed in production when booking persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('LITEAPI_ENV', 'production');
+    vi.stubEnv('LITEAPI_PRODUCTION_API_KEY', 'prod-key-1');
+    vi.stubEnv('LITEAPI_PRODUCTION_BASE_URL', 'https://api.example.com/v3');
+    vi.stubEnv('LITEAPI_PRODUCTION_BOOK_BASE_URL', 'https://book.example.com/v3');
     vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
     const persistBooking = vi.fn().mockResolvedValue(null);
 
@@ -460,7 +471,8 @@ describe('booking route handlers', () => {
 
     const { POST } = await import('@/app/api/booking/book/route');
     const req = {
-      headers: new Headers(),
+      url: 'https://example.com/api/booking/book',
+      headers: new Headers({ origin: 'https://example.com' }),
       json: async () => ({
         prebookId: 'pb-1',
         transactionId: 'tx-3',

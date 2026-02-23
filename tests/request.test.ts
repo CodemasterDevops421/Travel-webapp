@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
-import { getClientIp, getCorrelationId } from '@/server/request';
+import { getClientIp, getCorrelationId, sanitizeRecord } from '@/server/request';
 
 describe('request helpers', () => {
   it('extracts first forwarded IP and prefers x-real-ip', () => {
@@ -30,5 +30,17 @@ describe('request helpers', () => {
 
     const requestWithoutId = new NextRequest('https://example.com/api/test');
     expect(getCorrelationId(requestWithoutId).length).toBeGreaterThan(10);
+  });
+
+  it('sanitizes unsafe string fields in request records', () => {
+    const payload = sanitizeRecord({
+      code: '  <SCRIPT>alert(1)</SCRIPT>  ',
+      notes: ['ok', '<b>unsafe</b>'],
+      count: 2
+    });
+
+    expect(payload.code).toBe('SCRIPTalert(1)/SCRIPT');
+    expect(payload.notes).toEqual(['ok', 'bunsafe/b']);
+    expect(payload.count).toBe(2);
   });
 });
