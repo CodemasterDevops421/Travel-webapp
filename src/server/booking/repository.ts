@@ -121,6 +121,23 @@ type FallbackBookingRecord = BookingRecord;
 const fallbackBookings = new Map<string, FallbackBookingRecord>();
 
 export async function persistBooking(input: PersistBookingInput): Promise<string | null> {
+  const itinerary = (input.metadata.itinerary as Record<string, unknown> | undefined) ?? {};
+  const stayDates = (input.metadata.stayDates as Record<string, unknown> | undefined) ?? {};
+  const pricing = (input.metadata.pricing as Record<string, unknown> | undefined) ?? {};
+
+  const hotelId = typeof itinerary.hotelId === 'string' ? itinerary.hotelId : null;
+  const roomId = typeof itinerary.roomId === 'string' ? itinerary.roomId : null;
+  const checkIn = typeof stayDates.checkIn === 'string' ? stayDates.checkIn : null;
+  const checkOut = typeof stayDates.checkOut === 'string' ? stayDates.checkOut : null;
+  const totalAmount = typeof itinerary.totalAmount === 'number'
+    ? itinerary.totalAmount
+    : typeof pricing.totalAmount === 'number'
+      ? pricing.totalAmount
+      : null;
+  const paymentStatus = typeof input.metadata.paymentStatus === 'string' ? input.metadata.paymentStatus : 'pending';
+  const confirmationCode = typeof input.metadata.confirmationCode === 'string' ? input.metadata.confirmationCode : null;
+  const commissionAmount = typeof input.metadata.commissionAmount === 'number' ? input.metadata.commissionAmount : null;
+
   const fallbackId = randomUUID();
   const fallbackRecord: FallbackBookingRecord = {
     id: fallbackId,
@@ -148,6 +165,14 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
       quote_id: input.quoteId,
       liteapi_booking_id: input.liteApiBookingId,
       status: input.status,
+      hotel_id: hotelId,
+      room_id: roomId,
+      check_in: checkIn,
+      check_out: checkOut,
+      total_amount: totalAmount,
+      payment_status: paymentStatus,
+      confirmation_code: confirmationCode,
+      commission_amount: commissionAmount,
       metadata: input.metadata
     })
     .select('id')

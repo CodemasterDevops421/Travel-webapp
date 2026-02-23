@@ -24,5 +24,8 @@ export function toHttpError(error: unknown): HttpError {
   if (error instanceof ZodError) {
     return new HttpError(400, 'Invalid request payload');
   }
+  if (error instanceof SyntaxError) {
+    return new HttpError(400, 'Malformed JSON payload');
+  }
   return new HttpError(500, 'Internal server error');
 }

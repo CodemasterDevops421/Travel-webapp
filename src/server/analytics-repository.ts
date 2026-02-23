@@ -30,14 +30,22 @@ export async function persistFunnelEvent(event: FunnelEvent): Promise<string | n
 
   const supabase = createAdminClient();
   const { data, error } = await supabase
-    .from('booking_events')
+    .from('search_logs')
     .insert({
-      event_name: event.name,
-      funnel_step: event.step,
-      properties: event.properties,
+      query_text: typeof event.properties.query === 'string' ? event.properties.query : null,
+      destination: typeof event.properties.destination === 'string' ? event.properties.destination : null,
+      filters: {
+        event: event.name,
+        funnel_step: event.step,
+        properties: event.properties
+      },
       correlation_id: event.correlationId,
-      occurred_at: new Date(event.ts).toISOString(),
-      client_ip: event.clientIp
+      result_count: typeof event.properties.resultCount === 'number' ? event.properties.resultCount : null,
+      degraded: Boolean(event.properties.degraded ?? false),
+      metadata: {
+        client_ip: event.clientIp,
+        occurred_at: new Date(event.ts).toISOString()
+      }
     })
     .select('id')
     .single();
@@ -45,7 +53,7 @@ export async function persistFunnelEvent(event: FunnelEvent): Promise<string | n
   if (error) {
     if (isSchemaMissingError(error)) {
       schemaUnavailable = true;
-      logger.warn({ error }, 'Supabase booking_events schema missing. Falling back to memory.');
+      logger.warn({ error }, 'Supabase search_logs schema missing. Falling back to memory.');
     } else {
       logger.error({ error }, 'Failed to persist funnel event');
     }
