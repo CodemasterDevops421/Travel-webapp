@@ -1,12 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { HotelDetails, HotelRateOption } from '@/server/liteapi';
 import { PreferenceLink } from '@/components/navigation/preference-link';
 import Image from 'next/image';
 import { cn } from '@/shared/lib/utils';
 import { useHotelDetails } from '@/features/hotels/hooks/use-hotel-details';
-import { useHotelRates } from '@/features/hotels/hooks/use-hotel-rates';
+import { useHotelRates, type HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
 
 type HotelDetailExperienceProps = {
   hotelId: string;
@@ -43,12 +43,71 @@ function formatMoney(currency: string, amount: number | null, compact = false): 
   }
 }
 
+function buildRateKey(rate: Pick<HotelRateOption, 'offerId' | 'roomId'>): string {
+  return `${rate.offerId}:${rate.roomId}`;
+}
+
+function buildBookingQuery(
+  rate: HotelRateWithCancellationContext,
+  context: { hotelId: string; checkin: string; checkout: string; adults: number; rooms: number }
+): URLSearchParams {
+  const bookingQuery = new URLSearchParams({
+    hotelId: context.hotelId,
+    roomId: rate.roomId,
+    offerId: rate.offerId,
+    amount: String(rate.amount),
+    currency: rate.currency,
+    checkIn: context.checkin,
+    checkOut: context.checkout,
+    adults: String(context.adults),
+    rooms: String(context.rooms),
+    isRefundable: rate.isRefundable === null ? 'unknown' : rate.isRefundable ? 'true' : 'false'
+  });
+
+  if (rate.cancellationDeadline) {
+    bookingQuery.set('cancellationDeadline', rate.cancellationDeadline);
+  }
+  if (rate.cancellationNote) {
+    bookingQuery.set('cancellationNote', rate.cancellationNote);
+  }
+
+  return bookingQuery;
+}
+
+function getCancellationCopy(rate: HotelRateWithCancellationContext): { status: string; detail: string } {
+  if (rate.isRefundable === false) {
+    return {
+      status: 'Non-refundable',
+      detail: rate.cancellationNote ?? 'This rate cannot be refunded after booking.'
+    };
+  }
+  if (rate.cancellationDeadline) {
+    return {
+      status: 'Free cancellation',
+      detail: `Cancel until ${rate.cancellationDeadline}`
+    };
+  }
+  if (rate.isRefundable === true) {
+    return {
+      status: 'Refundable',
+      detail: rate.cancellationNote ?? 'Cancellation deadline was not provided by the supplier.'
+    };
+  }
+  return {
+    status: 'Cancellation policy pending',
+    detail: 'Supplier has not provided cancellation policy details for this rate yet.'
+  };
+}
+
 export function HotelDetailExperience({ hotelId, checkin, checkout, adults, rooms, hotel: initialHotel, rates: initialRates }: HotelDetailExperienceProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [question, setQuestion] = useState('');
   const [askAnswer, setAskAnswer] = useState('');
   const [askLoading, setAskLoading] = useState(false);
+  const [selectedRateKey, setSelectedRateKey] = useState<string | null>(
+    initialRates[0] ? buildRateKey(initialRates[0]) : null
+  );
 
   const { data: hotel } = useHotelDetails(hotelId, undefined, initialRates[0]?.currency, {
     initialData: initialHotel ?? undefined
@@ -65,10 +124,43 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     initialData: initialRates
   });
 
+  useEffect(() => {
+    if (!rates.length) {
+      setSelectedRateKey(null);
+      return;
+    }
+
+    setSelectedRateKey((current) => {
+      if (current && rates.some((rate) => buildRateKey(rate) === current)) {
+        return current;
+      }
+      return buildRateKey(rates[0]);
+    });
+  }, [rates]);
+
   const photos = hotel?.photos?.length ? hotel.photos : hotel?.mainPhoto ? [hotel.mainPhoto as string] : [];
   const amenities = hotel?.facilities ?? [];
   const lowestRate = rates.reduce<number | null>((min, rate) => (min === null || rate.amount < min ? rate.amount : min), null);
   const currency = rates[0]?.currency ?? 'USD';
+  const selectedRate = useMemo(
+    () => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? rates[0] ?? null,
+    [rates, selectedRateKey]
+  );
+  const selectedCancellation = useMemo(
+    () => (selectedRate ? getCancellationCopy(selectedRate) : null),
+    [selectedRate]
+  );
+  const selectedBookingHref = useMemo(() => {
+    if (!selectedRate) return null;
+    const query = buildBookingQuery(selectedRate, {
+      hotelId,
+      checkin,
+      checkout,
+      adults,
+      rooms
+    });
+    return `/booking?${query.toString()}`;
+  }, [selectedRate, hotelId, checkin, checkout, adults, rooms]);
   const address = hotel?.address ?? `${hotel?.city ?? 'Unknown city'}${hotel?.countryCode ? `, ${hotel.countryCode}` : ''}`;
   const reviewBreakdown = hotel?.reviewBreakdown ?? [];
   const reviews = hotel?.reviews ?? [];
@@ -299,19 +391,16 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
               <p className="rounded-xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
             ) : (
               rates.map((rate) => {
-                const bookingQuery = new URLSearchParams({
-                  hotelId,
-                  roomId: rate.roomId,
-                  offerId: rate.offerId,
-                  amount: String(rate.amount),
-                  currency: rate.currency,
-                  checkIn: checkin,
-                  checkOut: checkout,
-                  adults: String(adults),
-                  rooms: String(rooms)
-                });
+                const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
+                const cancellationCopy = getCancellationCopy(rate);
                 return (
-                  <article key={`${rate.offerId}-${rate.roomId}`} className="border border-border p-6 transition-colors hover:bg-muted/20">
+                  <article
+                    key={`${rate.offerId}-${rate.roomId}`}
+                    className={cn(
+                      'border p-6 transition-colors',
+                      isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/20'
+                    )}
+                  >
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                       <div className="space-y-4 flex-1">
                         <h3 className="text-xl font-bold text-foreground">{rate.roomName}</h3>
@@ -322,9 +411,8 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
                           <span className="inline-flex w-fit items-center gap-1 bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 border border-blue-200">
                             ☕ {rate.boardName}
                           </span>
-                          {rate.cancelTime ? (
-                            <span className="text-xs font-medium text-muted-foreground">Cancel until {rate.cancelTime}</span>
-                          ) : null}
+                          <span className="text-xs font-medium text-foreground">{cancellationCopy.status}</span>
+                          <span className="text-xs text-muted-foreground">{cancellationCopy.detail}</span>
                         </div>
                       </div>
                       <div className="flex flex-col items-start md:items-end gap-4 min-w-[200px]">
@@ -332,12 +420,18 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
                           <p className="text-3xl font-bold text-foreground">{formatMoney(rate.currency, rate.amount)}</p>
                           <p className="text-xs text-muted-foreground mt-1 text-left md:text-right">Includes taxes and charges</p>
                         </div>
-                        <PreferenceLink
-                          href={`/booking?${bookingQuery.toString()}`}
-                          className="w-full text-center rounded-none bg-primary px-8 py-3 text-sm font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-md"
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRateKey(buildRateKey(rate))}
+                          className={cn(
+                            'w-full rounded-none px-8 py-3 text-sm font-bold transition-all',
+                            isSelected
+                              ? 'bg-primary text-primary-foreground'
+                              : 'border border-border bg-background text-foreground hover:bg-muted'
+                          )}
                         >
-                          Reserve
-                        </PreferenceLink>
+                          {isSelected ? 'Selected room' : 'Select room'}
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -493,7 +587,15 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
             </div>
 
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-semibold">Price per night</p>
-            <p className="mt-2 text-4xl font-bold text-foreground">{formatMoney(currency, lowestRate, true)}</p>
+            <p className="mt-2 text-4xl font-bold text-foreground">{formatMoney(selectedRate?.currency ?? currency, selectedRate?.amount ?? lowestRate, true)}</p>
+
+            {selectedRate ? (
+              <div className="mt-4 rounded-xl border border-border bg-background/70 p-3">
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Selected room</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{selectedRate.roomName}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{selectedRate.boardName}</p>
+              </div>
+            ) : null}
 
             <div className="mt-6 flex flex-col gap-1 border-t border-border pt-4">
               <div className="flex justify-between text-sm">
@@ -510,9 +612,21 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
               </div>
             </div>
 
-            <a href="#rooms" className="mt-8 flex w-full items-center justify-center rounded-none bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
-              See availability
-            </a>
+            <div className="mt-6 rounded-xl border border-border bg-background/70 p-3">
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Cancellation</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{selectedCancellation?.status ?? 'Select a room to view policy'}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{selectedCancellation?.detail ?? 'Cancellation details will follow the selected room.'}</p>
+            </div>
+
+            {selectedBookingHref ? (
+              <PreferenceLink href={selectedBookingHref} className="mt-8 flex w-full items-center justify-center rounded-none bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
+                Reserve selected room
+              </PreferenceLink>
+            ) : (
+              <a href="#rooms" className="mt-8 flex w-full items-center justify-center rounded-none bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
+                See availability
+              </a>
+            )}
 
             <ul className="mt-6 space-y-2 text-xs text-muted-foreground">
               <li className="flex items-center gap-2">✓ No booking fees</li>
