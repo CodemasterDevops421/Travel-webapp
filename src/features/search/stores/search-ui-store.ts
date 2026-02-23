@@ -13,7 +13,7 @@ export const useSearchUIStore = create<SearchUIState>((set) => ({
   activeMood: null,
   language: 'en',
   currency: 'USD',
-  setActiveMood: (activeMood) => set({ activeMood }),
+  setActiveMood: (activeMood) => set({ activeMood: activeMood?.trim() || null }),
   setLanguage: (language) => set({ language }),
   setCurrency: (currency) => set({ currency })
 }));
