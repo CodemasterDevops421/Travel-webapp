@@ -47,7 +47,13 @@ Plans:
   2. Destination result pages are server-rendered and crawlable for SEO-critical search routes.
   3. Travelers can filter and sort results, and switch between grid/map browse modes without broken state.
   4. Search responses remain performant via TTL caching, and supplier outages return truthful degraded-state messages.
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md - Establish canonical URL query contract and home search input flow
+- [ ] 02-02-PLAN.md - Ship crawlable SSR destination route and metadata wiring
+- [ ] 02-03-PLAN.md - Implement cache-backed supplier search envelope with degraded-state truthfulness
+- [ ] 02-04-PLAN.md - Deliver URL-synced filters/sort/map browsing and mobile performance hardening
 
 ### Phase 3: Hotel Detail and User Workspace
 **Goal**: Travelers can confidently evaluate properties and manage saved stays in their account workspace.
@@ -92,7 +98,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Platform Foundation and Security | 0/4 | Complete    | 2026-02-23 |
-| 2. Search and Discovery Experience | 0/TBD | Not started | - |
+| 2. Search and Discovery Experience | 0/4 | Not started | - |
 | 3. Hotel Detail and User Workspace | 0/TBD | Not started | - |
 | 4. Checkout and Booking Lifecycle Integrity | 0/TBD | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |
