@@ -63,11 +63,11 @@ function unavailableGuidance(topic: string): string {
 }
 
 function isAmenityQuestion(text: string): boolean {
-  return /amenit|parking|breakfast|wifi|pool|gym|spa|restaurant|bar|pet/.test(text);
+  return /amenit|parking|breakfast|wifi|pool|gym|spa|restaurant|bar|pet|sauna/.test(text);
 }
 
 function isLocationQuestion(text: string): boolean {
-  return /location|near|distance|airport|station|address|neighbo[u]?rhood|area/.test(text);
+  return /location|located|where|near|distance|airport|station|address|neighbo[u]?rhood|area/.test(text);
 }
 
 function isPolicyQuestion(text: string): boolean {
@@ -83,8 +83,14 @@ function answerAmenities(question: string, context: HotelAiContext): string {
     return unavailableGuidance('amenity information');
   }
 
-  const q = question.toLowerCase();
-  const matched = context.amenities.filter((item) => q.includes(item.toLowerCase()));
+  const trackedAmenityKeywords = ['parking', 'breakfast', 'wifi', 'pool', 'gym', 'spa', 'restaurant', 'bar', 'pet', 'sauna'];
+  const requestedAmenity = trackedAmenityKeywords.find((keyword) => question.includes(keyword));
+  const matched = context.amenities.filter((item) => question.includes(item.toLowerCase()));
+
+  if (requestedAmenity && matched.length === 0) {
+    return unavailableGuidance(`${requestedAmenity} availability`);
+  }
+
   if (matched.length > 0) {
     return `Yes, the listed amenities include: ${matched.slice(0, 4).join(', ')}. Availability can vary by room and stay dates.`;
   }
