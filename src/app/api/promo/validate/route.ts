@@ -2,7 +2,7 @@ import { createServerSupabaseClient } from '@/server/supabase/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertSameOrigin } from '@/server/csrf';
-import { assertRateLimit } from '@/server/ratelimit';
+import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
 import { getClientIp, sanitizeRecord } from '@/server/request';
 
 const promoSchema = z.object({
@@ -21,7 +21,7 @@ const promoSchema = z.object({
 export async function POST(request: Request) {
     try {
         assertSameOrigin(request);
-        await assertRateLimit(`promo-validate:${getClientIp(request)}`);
+        await assertRateLimit(createRateLimitKey('mutation', getClientIp(request), 'promo-validate'), 'mutation');
         const supabase = await createServerSupabaseClient();
         const {
             data: { user }

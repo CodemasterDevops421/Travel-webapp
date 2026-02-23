@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { assertRateLimit } from '@/server/ratelimit';
+import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
 import { assertSameOrigin } from '@/server/csrf';
 import { bookRate } from '@/server/liteapi';
 import { getPrebookSession } from '@/server/booking-store';
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { clientIp, correlationId } = getRequestContext(request);
-    await assertRateLimit(`booking-book:${clientIp}`);
+    await assertRateLimit(createRateLimitKey('booking', clientIp, 'finalize'), 'booking');
 
     const payload = await parseRequestBody(request, requestSchema);
     transactionIdForLock = payload.transactionId;

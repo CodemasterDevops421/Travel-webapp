@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { assertRateLimit } from '@/server/ratelimit';
+import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
 import { assertSameOrigin } from '@/server/csrf';
 import { buildPriceQuote } from '@/server/pricing';
 import { prebookRate } from '@/server/liteapi';
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     assertProductionReadiness();
     assertSameOrigin(request);
     const { clientIp, correlationId } = getRequestContext(request);
-    await assertRateLimit(`booking-prebook:${clientIp}`);
+    await assertRateLimit(createRateLimitKey('booking', clientIp, 'prebook'), 'booking');
 
     const payload = await parseRequestBody(request, requestSchema);
     if (new Date(payload.checkOut) <= new Date(payload.checkIn)) {

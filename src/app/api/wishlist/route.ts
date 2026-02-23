@@ -2,7 +2,7 @@ import { createServerSupabaseClient } from '@/server/supabase/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertSameOrigin } from '@/server/csrf';
-import { assertRateLimit } from '@/server/ratelimit';
+import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
 import { getClientIp, sanitizeRecord } from '@/server/request';
 
 const wishlistBodySchema = z.object({
@@ -43,7 +43,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         assertSameOrigin(request);
-        await assertRateLimit(`wishlist-post:${getClientIp(request)}`);
+        await assertRateLimit(createRateLimitKey('mutation', getClientIp(request), 'wishlist-post'), 'mutation');
         const supabase = await createServerSupabaseClient();
         const {
             data: { user }
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
     try {
         assertSameOrigin(request);
-        await assertRateLimit(`wishlist-delete:${getClientIp(request)}`);
+        await assertRateLimit(createRateLimitKey('mutation', getClientIp(request), 'wishlist-delete'), 'mutation');
         const supabase = await createServerSupabaseClient();
         const {
             data: { user }
