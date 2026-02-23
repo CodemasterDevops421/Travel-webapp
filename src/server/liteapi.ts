@@ -42,6 +42,16 @@ export type PropertyPreview = {
   amenities: string[];
 };
 
+export type SupplierDegradedReason = 'timeout' | 'partial' | 'unavailable';
+
+export type PropertyPreviewSearchResult = {
+  properties: PropertyPreview[];
+  degraded: boolean;
+  degradedReason: SupplierDegradedReason | null;
+  asOf: string;
+  freshness: 'fresh' | 'stale';
+};
+
 export type LiteApiPrebookResponse = {
   prebookId: string;
   transactionId: string;
@@ -122,15 +132,32 @@ import { Redis } from '@upstash/redis';
 
 const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN ? Redis.fromEnv() : null;
 
-async function fetchJsonWithBackoff<T>(url: string, init?: RequestInit, retries = 3, delay = 500): Promise<T | null> {
+type DetailedFetchResult<T> = {
+  data: T | null;
+  degradedReason: Exclude<SupplierDegradedReason, 'partial'> | null;
+};
+
+async function fetchJsonWithBackoffDetailed<T>(
+  url: string,
+  init?: RequestInit,
+  retries = 3,
+  delay = 500
+): Promise<DetailedFetchResult<T>> {
   try {
-    const response = await fetch(url, init);
+    const timeoutMs = Math.max(1_000, env.LITEAPI_TIMEOUT_MS);
+    const controller = new AbortController();
+    const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(url, {
+      ...init,
+      signal: init?.signal ?? controller.signal
+    });
+    clearTimeout(timeoutHandle);
     const text = await response.text();
     if (!response.ok) {
       if (response.status === 429 && retries > 0) {
         logger.warn({ url, retriesLeft: retries }, 'LiteAPI rate limited. Retrying...');
         await new Promise((resolve) => setTimeout(resolve, delay));
-        return fetchJsonWithBackoff<T>(url, init, retries - 1, delay * 2);
+        return fetchJsonWithBackoffDetailed<T>(url, init, retries - 1, delay * 2);
       }
       logger.warn(
         {
@@ -140,22 +167,33 @@ async function fetchJsonWithBackoff<T>(url: string, init?: RequestInit, retries 
         },
         'LiteAPI request failed'
       );
-      return null;
+      return {
+        data: null,
+        degradedReason: 'unavailable'
+      };
     }
-    return JSON.parse(text) as T;
+    return {
+      data: JSON.parse(text) as T,
+      degradedReason: null
+    };
   } catch (error) {
+    const isTimeoutError = error instanceof Error && /timeout|aborted/i.test(error.message);
     if (retries > 0) {
       logger.warn({ error, url, retriesLeft: retries }, 'LiteAPI request errored. Retrying...');
       await new Promise((resolve) => setTimeout(resolve, delay));
-      return fetchJsonWithBackoff<T>(url, init, retries - 1, delay * 2);
+      return fetchJsonWithBackoffDetailed<T>(url, init, retries - 1, delay * 2);
     }
     logger.warn({ error, url }, 'LiteAPI request errored');
-    return null;
+    return {
+      data: null,
+      degradedReason: isTimeoutError ? 'timeout' : 'unavailable'
+    };
   }
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> {
-  return fetchJsonWithBackoff<T>(url, init);
+  const result = await fetchJsonWithBackoffDetailed<T>(url, init);
+  return result.data;
 }
 
 function parseRateAmount(rate: Record<string, unknown>): { amount: number | null; currency: string | null } {
@@ -528,19 +566,29 @@ function mapRatesResponse(
   return Array.from(deduped.values());
 }
 
-async function searchRates(payload: RatesSearchPayload, fallbackCity: string): Promise<PropertyPreview[]> {
+type SearchRatesResult = {
+  items: PropertyPreview[];
+  degradedReason: Exclude<SupplierDegradedReason, 'partial'> | null;
+};
+
+async function searchRates(payload: RatesSearchPayload, fallbackCity: string): Promise<SearchRatesResult> {
   let cacheKey: string | null = null;
   if (redis) {
     try {
       cacheKey = `liteapi:rates:${Buffer.from(JSON.stringify(payload)).toString('base64')}`;
       const cached = await redis.get<PropertyPreview[]>(cacheKey);
-      if (cached) return cached;
+      if (cached) {
+        return {
+          items: cached,
+          degradedReason: null
+        };
+      }
     } catch {
       // ignore cache errors
     }
   }
 
-  const response = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+  const response = await fetchJsonWithBackoffDetailed<LiteApiResponse<Array<Record<string, unknown>>>>(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
@@ -551,11 +599,14 @@ async function searchRates(payload: RatesSearchPayload, fallbackCity: string): P
     next: { revalidate: 300 }
   });
 
-  if (!response) {
-    return [];
+  if (!response.data) {
+    return {
+      items: [],
+      degradedReason: response.degradedReason
+    };
   }
 
-  const mapped = mapRatesResponse(response, fallbackCity);
+  const mapped = mapRatesResponse(response.data, fallbackCity);
   if (redis && cacheKey && mapped.length > 0) {
     try {
       await redis.set(cacheKey, mapped, { ex: 300 });
@@ -563,7 +614,10 @@ async function searchRates(payload: RatesSearchPayload, fallbackCity: string): P
       // ignore
     }
   }
-  return mapped;
+  return {
+    items: mapped,
+    degradedReason: null
+  };
 }
 
 export async function autocomplete(query: string, language?: string): Promise<AutocompleteEntity[]> {
@@ -678,9 +732,21 @@ export async function searchPropertyPreviews(
     minGuestRating?: number;
     maxPrice?: number;
   }
-): Promise<PropertyPreview[]> {
+): Promise<PropertyPreviewSearchResult> {
+  const asOf = new Date().toISOString();
+  const toResult = (
+    properties: PropertyPreview[],
+    degradedReason: SupplierDegradedReason | null
+  ): PropertyPreviewSearchResult => ({
+    properties,
+    degraded: degradedReason !== null,
+    degradedReason,
+    asOf,
+    freshness: degradedReason ? 'stale' : 'fresh'
+  });
+
   if (!hasConfiguredLiteApiKey()) {
-    return fallbackProperties;
+    return toResult(fallbackProperties, 'unavailable');
   }
 
   try {
@@ -743,6 +809,8 @@ export async function searchPropertyPreviews(
       });
     };
 
+    let degradedReason: SupplierDegradedReason | null = null;
+
     if (trimmedBrief) {
       const byAiSearch = await searchRates(
         {
@@ -751,9 +819,12 @@ export async function searchPropertyPreviews(
         },
         query
       );
-      const filtered = applyFilters(byAiSearch);
+      if (byAiSearch.degradedReason) {
+        degradedReason = byAiSearch.degradedReason;
+      }
+      const filtered = applyFilters(byAiSearch.items);
       if (filtered.length > 0) {
-        return filtered.slice(0, 8);
+        return toResult(filtered.slice(0, 8), degradedReason === null ? null : 'partial');
       }
     }
 
@@ -765,9 +836,12 @@ export async function searchPropertyPreviews(
         },
         query
       );
-      const filtered = applyFilters(byPlace);
+      if (byPlace.degradedReason) {
+        degradedReason = byPlace.degradedReason;
+      }
+      const filtered = applyFilters(byPlace.items);
       if (filtered.length > 0) {
-        return filtered.slice(0, 8);
+        return toResult(filtered.slice(0, 8), degradedReason === null ? null : 'partial');
       }
     }
 
@@ -778,9 +852,12 @@ export async function searchPropertyPreviews(
       },
       query
     );
-    const filteredByCity = applyFilters(byCity);
+    if (byCity.degradedReason) {
+      degradedReason = byCity.degradedReason;
+    }
+    const filteredByCity = applyFilters(byCity.items);
     if (filteredByCity.length > 0) {
-      return filteredByCity.slice(0, 8);
+      return toResult(filteredByCity.slice(0, 8), degradedReason === null ? null : 'partial');
     }
 
     const byAiSearch = await searchRates(
@@ -790,9 +867,12 @@ export async function searchPropertyPreviews(
       },
       query
     );
-    const filteredByAiSearch = applyFilters(byAiSearch);
+    if (byAiSearch.degradedReason) {
+      degradedReason = byAiSearch.degradedReason;
+    }
+    const filteredByAiSearch = applyFilters(byAiSearch.items);
     if (filteredByAiSearch.length > 0) {
-      return filteredByAiSearch.slice(0, 8);
+      return toResult(filteredByAiSearch.slice(0, 8), degradedReason === null ? null : 'partial');
     }
 
     const placeRes = await fetch(
@@ -811,7 +891,7 @@ export async function searchPropertyPreviews(
     const fallbackPlaceResponse = (await placeRes.json()) as { data?: Array<{ id?: string }> };
     const fallbackPlaceId = fallbackPlaceResponse?.data?.[0]?.id;
     if (!fallbackPlaceId) {
-      return fallbackProperties;
+      return toResult(fallbackProperties, degradedReason ?? 'unavailable');
     }
 
     const ratesRes = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
@@ -841,10 +921,14 @@ export async function searchPropertyPreviews(
     const ratesResponse = (await ratesRes.json()) as LiteApiResponse<Array<Record<string, unknown>>>;
     const mapped = applyFilters(mapRatesResponse(ratesResponse, query)).slice(0, 8);
 
-    return mapped.length > 0 ? mapped : fallbackProperties;
+    if (mapped.length > 0) {
+      return toResult(mapped, degradedReason === null ? null : 'partial');
+    }
+
+    return toResult(fallbackProperties, degradedReason ?? 'unavailable');
   } catch (error) {
     logger.warn({ error }, 'LiteAPI property preview search failed');
-    return fallbackProperties;
+    return toResult(fallbackProperties, 'unavailable');
   }
 }
 

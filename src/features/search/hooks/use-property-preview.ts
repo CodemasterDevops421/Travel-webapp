@@ -14,6 +14,7 @@ export type PropertyPreview = {
   imageUrl?: string;
   price: number | null;
   currency: string;
+  amenities?: string[];
 };
 
 export type PropertyPreviewFilters = {
@@ -21,6 +22,15 @@ export type PropertyPreviewFilters = {
   minStars?: number;
   minGuestRating?: number;
   maxPrice?: number;
+};
+
+export type PropertyPreviewEnvelope = {
+  data: PropertyPreview[];
+  results: PropertyPreview[];
+  degraded: boolean;
+  degradedReason: 'timeout' | 'partial' | 'unavailable' | null;
+  asOf: string;
+  freshness: 'fresh' | 'stale';
 };
 
 async function fetchPropertyPreview(
@@ -58,7 +68,16 @@ async function fetchPropertyPreview(
 
   const response = await fetch(`/api/property-preview?${params.toString()}`);
   if (!response.ok) throw new Error('Property preview failed');
-  return response.json();
+  const payload = (await response.json()) as PropertyPreview[] | PropertyPreviewEnvelope;
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload.data)) {
+    return payload.data;
+  }
+
+  return payload.results;
 }
 
 export function usePropertyPreview(

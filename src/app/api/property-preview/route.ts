@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
 import { getOrSetRedisCache } from '@/server/cache';
-import { searchPropertyPreviews } from '@/server/liteapi';
+import { PropertyPreview, PropertyPreviewSearchResult, searchPropertyPreviews } from '@/server/liteapi';
 import { toHttpError } from '@/server/errors';
 import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
 import { getClientIp } from '@/server/request';
@@ -21,6 +21,26 @@ const querySchema = z.object({
   maxPrice: z.coerce.number().min(50).max(5000).optional()
 });
 
+type PropertyPreviewEnvelope = {
+  data: PropertyPreview[];
+  results: PropertyPreview[];
+  degraded: boolean;
+  degradedReason: PropertyPreviewSearchResult['degradedReason'];
+  asOf: string;
+  freshness: PropertyPreviewSearchResult['freshness'];
+};
+
+function toEnvelope(payload: PropertyPreviewSearchResult): PropertyPreviewEnvelope {
+  return {
+    data: payload.properties,
+    results: payload.properties,
+    degraded: payload.degraded,
+    degradedReason: payload.degradedReason,
+    asOf: payload.asOf,
+    freshness: payload.freshness
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const parsed = querySchema.safeParse({
@@ -37,7 +57,17 @@ export async function GET(request: NextRequest) {
       maxPrice: request.nextUrl.searchParams.get('maxPrice') ?? undefined
     });
     if (!parsed.success) {
-      return NextResponse.json([], { status: 200 });
+      return NextResponse.json(
+        {
+          data: [],
+          results: [],
+          degraded: false,
+          degradedReason: null,
+          asOf: new Date().toISOString(),
+          freshness: 'fresh'
+        } satisfies PropertyPreviewEnvelope,
+        { status: 200 }
+      );
     }
 
     const q = parsed.data.q;
@@ -73,7 +103,7 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    return NextResponse.json(payload, { status: 200 });
+    return NextResponse.json(toEnvelope(payload), { status: 200 });
   } catch (error) {
     const httpError = toHttpError(error);
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
