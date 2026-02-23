@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 2 of 5 (Search and Discovery Experience)
 Plan: 2 of 4 in current phase
 Status: In Progress
-Last activity: 2026-02-23 - Completed 02-03-PLAN.md
+Last activity: 2026-02-23 - Completed 02-02-PLAN.md
 
 Progress: [#####.....] 50%
 
@@ -44,6 +44,7 @@ Progress: [#####.....] 50%
 | Phase 01 P04 | 3 min | 3 tasks | 11 files |
 | Phase 02 P01 | 4 min | 3 tasks | 4 files |
 | Phase 02 P03 | 1 min | 3 tasks | 7 files |
+| Phase 02 P02 | 6 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -68,10 +69,12 @@ Recent decisions affecting current work:
 - [Phase 02]: Enforce fixed query param serialization order to keep equivalent search URLs stable.
 - [Phase 02]: Property preview API now always returns additive envelope metadata (data/results + degraded, degradedReason, asOf, freshness).
 - [Phase 02]: Recovered search results after supplier failures are labeled partial/stale rather than fresh.
+- [Phase 02]: Use a shared destination slug allowlist to enforce canonical destination routing and metadata consistency.
+- [Phase 02]: Redirect legacy /search requests to /stays/{destination} while preserving normalized discovery query params.
 
 ### Pending Todos
 
-- Continue Phase 2 execution with 02-02-PLAN.md (remaining before 02-04)
+- Continue Phase 2 execution with 02-04-PLAN.md
 
 ### Blockers/Concerns
 
@@ -80,5 +83,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23 04:12
-Stopped at: Completed 02-03-PLAN.md
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
