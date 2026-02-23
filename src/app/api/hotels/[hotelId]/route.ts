@@ -51,7 +51,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             return NextResponse.json({ error: 'Hotel not found' }, { status: 404 });
         }
 
-        return NextResponse.json(payload, { status: 200 });
+        const degraded = payload.completeness.isPartial;
+
+        return NextResponse.json(
+            {
+                ...payload,
+                degraded,
+                degradedReason: degraded ? 'partial' : null,
+                asOf: new Date().toISOString()
+            },
+            { status: 200 }
+        );
     } catch (error) {
         const httpError = toHttpError(error);
         return NextResponse.json({ error: httpError.message }, { status: httpError.status });

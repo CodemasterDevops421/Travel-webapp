@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { getHotelDetails, getHotelRates } from '@/server/liteapi';
 import { HotelDetailExperience } from '@/features/hotels/components/hotel-detail-experience';
 import { DEFAULT_CURRENCY, normalizeCurrency } from '@/shared/lib/preferences';
@@ -18,10 +19,10 @@ type PageProps = {
 export async function generateMetadata({ params }: Pick<PageProps, 'params'>): Promise<Metadata> {
   const { hotelId } = await params;
   return {
-    title: `Hotel Details | ${hotelId} | TravelApp`,
+    title: `Hotel Details | ${hotelId} | Hostel Stays`,
     description: `Compare rates, reviews, and full stay details for hotel ${hotelId}.`,
     openGraph: {
-      title: `Hotel Details | ${hotelId} | TravelApp`,
+      title: `Hotel Details | ${hotelId} | Hostel Stays`,
       description: `Compare rates, reviews, and full stay details for hotel ${hotelId}.`,
       url: `/hotels/${hotelId}`,
       type: 'website'
@@ -63,6 +64,10 @@ export default async function HotelRatesPage({ params, searchParams }: PageProps
       currency
     })
   ]);
+
+  if (!hotel) {
+    notFound();
+  }
 
   const lowestRate = rates.reduce<number | null>((min, rate) => (min === null || rate.amount < min ? rate.amount : min), null);
   const jsonLd = hotel
