@@ -42,7 +42,7 @@ async function fetchPropertyPreview(
   adults: number,
   rooms: number,
   filters?: PropertyPreviewFilters
-): Promise<PropertyPreview[]> {
+): Promise<PropertyPreviewEnvelope> {
   const brief = filters?.brief;
   const params = new URLSearchParams({
     q: query,
@@ -70,14 +70,30 @@ async function fetchPropertyPreview(
   if (!response.ok) throw new Error('Property preview failed');
   const payload = (await response.json()) as PropertyPreview[] | PropertyPreviewEnvelope;
   if (Array.isArray(payload)) {
+    const now = new Date().toISOString();
+    return {
+      data: payload,
+      results: payload,
+      degraded: false,
+      degradedReason: null,
+      asOf: now,
+      freshness: 'fresh'
+    };
+  }
+
+  if (Array.isArray(payload.data) && Array.isArray(payload.results)) {
     return payload;
   }
 
-  if (Array.isArray(payload.data)) {
-    return payload.data;
-  }
-
-  return payload.results;
+  const normalizedResults = Array.isArray(payload.results) ? payload.results : payload.data;
+  return {
+    data: normalizedResults,
+    results: normalizedResults,
+    degraded: payload.degraded,
+    degradedReason: payload.degradedReason,
+    asOf: payload.asOf,
+    freshness: payload.freshness
+  };
 }
 
 export function usePropertyPreview(

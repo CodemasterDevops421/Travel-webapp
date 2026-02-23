@@ -1,11 +1,19 @@
 'use client';
 
-import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { ListFilter, Map as MapIcon } from 'lucide-react';
+import type { Route } from 'next';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
+import {
+  DEFAULT_LISTING_FILTERS,
+  parseListingUiState,
+  serializeListingSearchParams,
+  type ListingUiState
+} from '@/features/search/lib/listing-search-params';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
-import { FiltersSidebar } from './filters-sidebar';
+import { FiltersSidebar, type FilterState } from './filters-sidebar';
 import { HorizontalHotelCard } from './horizontal-hotel-card';
 
 type SearchResultsPageProps = {
@@ -18,89 +26,256 @@ type SearchResultsPageProps = {
   currency: string;
 };
 
+const ITEMS_PER_PAGE = 10;
+
+function normalizeToken(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function inferPropertyType(name: string): string {
+  const token = normalizeToken(name);
+  if (token.includes('resort')) return 'resort';
+  if (token.includes('apartment') || token.includes('suite')) return 'apartment';
+  if (token.includes('hostel')) return 'hostel';
+  if (token.includes('villa')) return 'villa';
+  return 'hotel';
+}
+
+function computePopularityScore(price: number | null, reviewScore: number | null | undefined, starRating: number | null) {
+  return (reviewScore ?? 0) * 12 + (starRating ?? 0) * 6 - (price ?? 0) / 120;
+}
+
 export function SearchResultsPage({ query, checkin, checkout, adults, rooms, language, currency }: SearchResultsPageProps) {
-  const { data, isFetching } = usePropertyPreview(query, language, currency, checkin, checkout, adults, rooms);
-  const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating-desc'>('recommended');
-  const [minRating, setMinRating] = useState(0);
-  const [minStars, setMinStars] = useState(0);
-  const [maxPrice, setMaxPrice] = useState<number>(99999);
-  const [mapMode, setMapMode] = useState<'list' | 'split'>('list');
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [deferMapRender, setDeferMapRender] = useState(false);
+
+  const queryParams = useMemo(
+    () => ({ query, checkin, checkout, adults, rooms, language, currency }),
+    [query, checkin, checkout, adults, rooms, language, currency]
+  );
+
+  const urlState = useMemo(() => {
+    return parseListingUiState(Object.fromEntries(searchParams.entries()));
+  }, [searchParams]);
+
+  const apiFilters = useMemo(
+    () => ({
+      brief: urlState.filters.propertyName || undefined,
+      minStars: urlState.filters.minStars > 0 ? urlState.filters.minStars : undefined,
+      minGuestRating: urlState.filters.minGuestRating > 0 ? urlState.filters.minGuestRating : undefined,
+      maxPrice: urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? urlState.filters.maxPrice : undefined
+    }),
+    [urlState.filters]
+  );
+
+  const { data: previewEnvelope, isFetching } = usePropertyPreview(
+    query,
+    language,
+    currency,
+    checkin,
+    checkout,
+    adults,
+    rooms,
+    apiFilters
+  );
+
+  const updateUrlState = useCallback(
+    (updater: (previous: ListingUiState) => ListingUiState) => {
+      const nextState = updater(urlState);
+      const params = serializeListingSearchParams({
+        query: queryParams,
+        ui: nextState
+      });
+      router.replace(`${pathname}?${params.toString()}` as Route, { scroll: false });
+    },
+    [pathname, queryParams, router, urlState]
+  );
 
   const listings = useMemo(() => {
-    const source = [...(data ?? [])];
+    const source = [...(previewEnvelope?.data ?? [])];
     const filtered = source.filter((hotel) => {
       const price = hotel.price ?? 0;
       const review = hotel.reviewScore ?? 0;
       const stars = hotel.starRating ?? 0;
-      return price <= maxPrice && review >= minRating && stars >= minStars;
+      const name = (hotel.name ?? '').toLowerCase();
+
+      if (urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice && price > urlState.filters.maxPrice) {
+        return false;
+      }
+      if (urlState.filters.minGuestRating > 0 && review < urlState.filters.minGuestRating) {
+        return false;
+      }
+      if (urlState.filters.minStars > 0 && stars < urlState.filters.minStars) {
+        return false;
+      }
+      if (urlState.filters.propertyName && !name.includes(urlState.filters.propertyName.toLowerCase())) {
+        return false;
+      }
+
+      if (urlState.filters.amenities.length > 0) {
+        const hotelAmenities = (hotel.amenities ?? []).map(normalizeToken);
+        const hasAllAmenities = urlState.filters.amenities.every((amenity) => hotelAmenities.includes(amenity));
+        if (!hasAllAmenities) return false;
+      }
+
+      if (urlState.filters.propertyTypes.length > 0) {
+        const propertyType = inferPropertyType(hotel.name ?? '');
+        if (!urlState.filters.propertyTypes.includes(propertyType)) {
+          return false;
+        }
+      }
+
+      const distanceFromCenter = Number((hotel as { distanceFromCenterKm?: unknown }).distanceFromCenterKm);
+      if (
+        Number.isFinite(distanceFromCenter) &&
+        distanceFromCenter > 0 &&
+        distanceFromCenter > urlState.filters.maxDistanceKm
+      ) {
+        return false;
+      }
+
+      return true;
     });
 
     filtered.sort((a, b) => {
-      if (sortBy === 'price-asc') return (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER);
-      if (sortBy === 'price-desc') return (b.price ?? 0) - (a.price ?? 0);
-      if (sortBy === 'rating-desc') return (b.reviewScore ?? 0) - (a.reviewScore ?? 0);
-      const scoreA = (a.reviewScore ?? 0) * 10 + (a.starRating ?? 0) * 5 - (a.price ?? 0) / 100;
-      const scoreB = (b.reviewScore ?? 0) * 10 + (b.starRating ?? 0) * 5 - (b.price ?? 0) / 100;
-      return scoreB - scoreA;
+      if (urlState.sort === 'price') {
+        return (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER);
+      }
+      if (urlState.sort === 'rating') {
+        return (b.reviewScore ?? 0) - (a.reviewScore ?? 0);
+      }
+      return (
+        computePopularityScore(b.price, b.reviewScore, b.starRating) -
+        computePopularityScore(a.price, a.reviewScore, a.starRating)
+      );
     });
 
     return filtered;
-  }, [data, maxPrice, minRating, minStars, sortBy]);
+  }, [previewEnvelope, urlState.filters, urlState.sort]);
 
-  // Reset page when filters change
+  const totalPages = Math.max(1, Math.ceil(listings.length / ITEMS_PER_PAGE));
+  const currentPage = Math.min(urlState.page, totalPages);
+
   useEffect(() => {
-    setCurrentPage(1);
-  }, [data, maxPrice, minRating, minStars, sortBy]);
+    if (urlState.page > totalPages) {
+      updateUrlState((previous) => ({
+        ...previous,
+        page: totalPages
+      }));
+    }
+  }, [totalPages, updateUrlState, urlState.page]);
+
+  useEffect(() => {
+    if (urlState.view !== 'map') {
+      setDeferMapRender(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setDeferMapRender(true);
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [urlState.view]);
 
   const paginatedListings = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return listings.slice(start, start + ITEMS_PER_PAGE);
   }, [currentPage, listings]);
 
-  const totalPages = Math.ceil(listings.length / ITEMS_PER_PAGE);
+  const activeFilterCount =
+    (urlState.filters.propertyName ? 1 : 0) +
+    (urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? 1 : 0) +
+    (urlState.filters.minGuestRating > 0 ? 1 : 0) +
+    (urlState.filters.minStars > 0 ? 1 : 0) +
+    (urlState.filters.maxDistanceKm < DEFAULT_LISTING_FILTERS.maxDistanceKm ? 1 : 0) +
+    urlState.filters.amenities.length +
+    urlState.filters.propertyTypes.length;
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
-      {/* Sort & Map Toggle Bar */}
-      <div className="mb-4 flex flex-wrap items-center justify-between rounded-xl bg-white p-3 shadow-sm border border-border/50">
-        <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          Getting the best deals...
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-white p-3 shadow-sm dark:bg-card">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          {isFetching ? (
+            <>
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              Getting the best deals...
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-foreground">{listings.length}</span> properties found
+            </>
+          )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 lg:hidden"
+            onClick={() => setShowMobileFilters((previous) => !previous)}
+          >
+            <ListFilter className="h-3.5 w-3.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Sort By:</span>
+            <span className="hidden text-muted-foreground sm:inline">Sort by:</span>
             <select
-              className="bg-transparent font-semibold text-foreground outline-none cursor-pointer"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="cursor-pointer bg-transparent font-semibold text-foreground outline-none"
+              value={urlState.sort}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                updateUrlState((previous) => ({
+                  ...previous,
+                  sort: event.target.value as ListingUiState['sort'],
+                  page: 1
+                }));
+              }}
             >
-              <option value="recommended">our top picks</option>
-              <option value="price-asc">lowest price first</option>
-              <option value="price-desc">highest price first</option>
-              <option value="rating-desc">guest rating</option>
+              <option value="popularity">popularity</option>
+              <option value="price">price</option>
+              <option value="rating">guest rating</option>
             </select>
           </div>
 
-          <div className="flex rounded-lg border border-border/50 bg-slate-100 p-1">
+          <div className="flex rounded-lg border border-border/50 bg-slate-100 p-1 dark:bg-slate-800">
             <button
-              onClick={() => setMapMode('list')}
+              onClick={() => {
+                updateUrlState((previous) => ({ ...previous, view: 'grid' }));
+              }}
               className={cn(
-                "flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-all",
-                mapMode === 'list' ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                'flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                urlState.view === 'grid'
+                  ? 'bg-white text-primary shadow-sm dark:bg-card'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <ListFilter className="h-3 w-3" />
-              List
+              Grid
             </button>
             <button
-              onClick={() => setMapMode('split')}
+              onClick={() => {
+                updateUrlState((previous) => ({ ...previous, view: 'map' }));
+              }}
               className={cn(
-                "flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-all",
-                mapMode !== 'list' ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                'flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                urlState.view === 'map'
+                  ? 'bg-white text-primary shadow-sm dark:bg-card'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <MapIcon className="h-3 w-3" />
@@ -110,29 +285,69 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
         </div>
       </div>
 
+      {previewEnvelope?.degraded && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Live inventory is partially degraded</p>
+          <p>
+            Showing {previewEnvelope.freshness} results as of {new Date(previewEnvelope.asOf).toLocaleString()}.
+            {previewEnvelope.degradedReason ? ` Reason: ${previewEnvelope.degradedReason}.` : ''}
+          </p>
+        </div>
+      )}
+
+      {showMobileFilters && (
+        <div className="lg:hidden">
+          <FiltersSidebar
+            filters={urlState.filters}
+            onFilterChange={(nextFilters: FilterState) => {
+              updateUrlState((previous) => ({
+                ...previous,
+                filters: nextFilters,
+                page: 1
+              }));
+            }}
+            query={query}
+          />
+        </div>
+      )}
+
       <div className="grid gap-8 lg:grid-cols-[300px,1fr]">
-        {/* Sidebar Filters */}
-        <div className="hidden lg:block sticky top-24 self-start">
-          <FiltersSidebar />
+        <div className="sticky top-24 hidden self-start lg:block">
+          <FiltersSidebar
+            filters={urlState.filters}
+            onFilterChange={(nextFilters: FilterState) => {
+              updateUrlState((previous) => ({
+                ...previous,
+                filters: nextFilters,
+                page: 1
+              }));
+            }}
+            query={query}
+          />
         </div>
 
-        {/* Results List */}
         <div className="space-y-4">
-          {mapMode === 'split' && (
-            <article className="overflow-hidden rounded-xl border border-border shadow-sm mb-4">
-              <iframe
-                title="Map view"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=12&output=embed`}
-                className="h-[320px] w-full"
-                loading="lazy"
-              />
+          {urlState.view === 'map' && (
+            <article className="mb-4 overflow-hidden rounded-xl border border-border shadow-sm">
+              {deferMapRender ? (
+                <iframe
+                  title="Map view"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=12&output=embed`}
+                  className="h-[320px] w-full"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex h-[320px] items-center justify-center bg-slate-100 text-sm text-muted-foreground dark:bg-slate-800">
+                  Preparing map view...
+                </div>
+              )}
             </article>
           )}
 
           {isFetching ? (
             <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-48 w-full animate-pulse rounded-xl bg-gray-100" />
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="h-48 w-full animate-pulse rounded-xl bg-gray-100 dark:bg-slate-800" />
               ))}
             </div>
           ) : listings.length > 0 ? (
@@ -155,7 +370,10 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setCurrentPage((p) => Math.max(1, p - 1));
+                      updateUrlState((previous) => ({
+                        ...previous,
+                        page: Math.max(1, currentPage - 1)
+                      }));
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     disabled={currentPage === 1}
@@ -169,7 +387,10 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setCurrentPage((p) => Math.min(totalPages, p + 1));
+                      updateUrlState((previous) => ({
+                        ...previous,
+                        page: Math.min(totalPages, currentPage + 1)
+                      }));
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     disabled={currentPage === totalPages}
@@ -180,14 +401,20 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
               )}
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-border p-12 text-center text-muted-foreground bg-slate-50">
-              <p className="text-lg font-medium text-foreground mb-2">No properties found</p>
+            <div className="rounded-xl border border-dashed border-border bg-slate-50 p-12 text-center text-muted-foreground dark:bg-slate-900">
+              <p className="mb-2 text-lg font-medium text-foreground">No properties found</p>
               <p className="text-sm">Try adjusting your filters or search criteria.</p>
-              <Button variant="link" onClick={() => {
-                setMinRating(0);
-                setMinStars(0);
-                setMaxPrice(99999);
-              }} className="mt-4">
+              <Button
+                variant="link"
+                onClick={() => {
+                  updateUrlState((previous) => ({
+                    ...previous,
+                    filters: { ...DEFAULT_LISTING_FILTERS },
+                    page: 1
+                  }));
+                }}
+                className="mt-4"
+              >
                 Clear all filters
               </Button>
             </div>
