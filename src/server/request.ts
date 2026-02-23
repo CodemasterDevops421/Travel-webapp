@@ -85,3 +85,26 @@ export function sanitizeRecord<T extends Record<string, unknown>>(input: T): T {
   }
   return output as T;
 }
+
+const SUPPLIER_SECRET_KEY_PATTERN = /(api[_-]?key|secret)/i;
+
+export function stripSupplierSecrets<T>(input: T): T {
+  if (Array.isArray(input)) {
+    return input.map((item) => stripSupplierSecrets(item)) as T;
+  }
+
+  if (!input || typeof input !== 'object') {
+    return input;
+  }
+
+  const output: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (SUPPLIER_SECRET_KEY_PATTERN.test(key)) {
+      continue;
+    }
+
+    output[key] = stripSupplierSecrets(value);
+  }
+
+  return output as T;
+}

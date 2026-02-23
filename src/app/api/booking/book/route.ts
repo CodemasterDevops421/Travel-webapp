@@ -17,7 +17,7 @@ import {
 } from '@/server/booking-idempotency';
 import { assertProductionReadiness, env } from '@/server/env';
 import { logger } from '@/server/logger';
-import { getRequestContext, parseRequestBody } from '@/server/request';
+import { getRequestContext, parseRequestBody, stripSupplierSecrets } from '@/server/request';
 
 const requestSchema = z.object({
   prebookId: z.string().trim().min(1),
@@ -55,6 +55,10 @@ export async function POST(request: NextRequest) {
   try {
     assertProductionReadiness();
     assertSameOrigin(request);
+    if (!env.LITEAPI_API_KEY || env.LITEAPI_API_KEY.toLowerCase().includes('placeholder')) {
+      throw new HttpError(503, 'Booking is temporarily unavailable. Please retry shortly.');
+    }
+
     const { clientIp, correlationId } = getRequestContext(request);
     await assertRateLimit(`booking-book:${clientIp}`);
 
@@ -183,7 +187,7 @@ export async function POST(request: NextRequest) {
     );
 
     const responsePayload = {
-      booking,
+      booking: stripSupplierSecrets(booking),
       localBookingId,
       bookingViewToken,
       liteApiBookingId,

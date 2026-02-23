@@ -5,7 +5,8 @@ import { getHotelRates } from '@/server/liteapi';
 import { getOrSetRedisCache } from '@/server/cache';
 import { toHttpError } from '@/server/errors';
 import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
-import { getRequestContext } from '@/server/request';
+import { env } from '@/server/env';
+import { getRequestContext, stripSupplierSecrets } from '@/server/request';
 
 const querySchema = z.object({
     hotelId: z.string().trim().min(1),
@@ -19,6 +20,10 @@ const querySchema = z.object({
 
 export async function GET(request: NextRequest) {
     try {
+        if (!env.LITEAPI_API_KEY || env.LITEAPI_API_KEY.toLowerCase().includes('placeholder')) {
+            return NextResponse.json({ error: 'Live hotel rates are temporarily unavailable.' }, { status: 503 });
+        }
+
         const searchParams = Object.fromEntries(request.nextUrl.searchParams);
         const result = querySchema.safeParse(searchParams);
 
@@ -47,7 +52,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        return NextResponse.json(payload, { status: 200 });
+        return NextResponse.json(stripSupplierSecrets(payload), { status: 200 });
     } catch (error) {
         const httpError = toHttpError(error);
         return NextResponse.json({ error: httpError.message }, { status: httpError.status });
