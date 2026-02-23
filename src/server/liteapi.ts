@@ -137,21 +137,25 @@ type DetailedFetchResult<T> = {
   degradedReason: Exclude<SupplierDegradedReason, 'partial'> | null;
 };
 
+function isTimeoutLikeError(error: unknown): boolean {
+  return error instanceof Error && (error.name === 'AbortError' || /timeout|aborted/i.test(error.message));
+}
+
 async function fetchJsonWithBackoffDetailed<T>(
   url: string,
   init?: RequestInit,
   retries = 3,
   delay = 500
 ): Promise<DetailedFetchResult<T>> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   try {
     const timeoutMs = Math.max(1_000, env.LITEAPI_TIMEOUT_MS);
     const controller = new AbortController();
-    const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+    timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
     const response = await fetch(url, {
       ...init,
       signal: init?.signal ?? controller.signal
     });
-    clearTimeout(timeoutHandle);
     const text = await response.text();
     if (!response.ok) {
       if (response.status === 429 && retries > 0) {
@@ -177,7 +181,6 @@ async function fetchJsonWithBackoffDetailed<T>(
       degradedReason: null
     };
   } catch (error) {
-    const isTimeoutError = error instanceof Error && /timeout|aborted/i.test(error.message);
     if (retries > 0) {
       logger.warn({ error, url, retriesLeft: retries }, 'LiteAPI request errored. Retrying...');
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -186,8 +189,12 @@ async function fetchJsonWithBackoffDetailed<T>(
     logger.warn({ error, url }, 'LiteAPI request errored');
     return {
       data: null,
-      degradedReason: isTimeoutError ? 'timeout' : 'unavailable'
+      degradedReason: isTimeoutLikeError(error) ? 'timeout' : 'unavailable'
     };
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
   }
 }
 
@@ -928,7 +935,7 @@ export async function searchPropertyPreviews(
     return toResult(fallbackProperties, degradedReason ?? 'unavailable');
   } catch (error) {
     logger.warn({ error }, 'LiteAPI property preview search failed');
-    return toResult(fallbackProperties, 'unavailable');
+    return toResult(fallbackProperties, isTimeoutLikeError(error) ? 'timeout' : 'unavailable');
   }
 }
 
