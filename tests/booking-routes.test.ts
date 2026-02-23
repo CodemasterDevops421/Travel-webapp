@@ -80,6 +80,7 @@ describe('booking route handlers', () => {
 
   it('prebook route continues when quote persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LITEAPI_ENV', 'production');
     vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
     const savePrebookSession = vi.fn().mockResolvedValue(undefined);
     const persistQuote = vi.fn().mockResolvedValue(null);
@@ -416,6 +417,7 @@ describe('booking route handlers', () => {
 
   it('book route fails closed in production when booking persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LITEAPI_ENV', 'production');
     vi.stubEnv('STRICT_PERSISTENCE_MODE', 'true');
     const persistBooking = vi.fn().mockResolvedValue(null);
 
