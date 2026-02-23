@@ -60,29 +60,71 @@ export type LiteApiPrebookResponse = {
   currency: string;
 };
 
+export type HotelGuestReview = {
+  author: string | null;
+  travelerType: string | null;
+  comment: string;
+  score: number | null;
+  createdAt: string | null;
+  pros: string | null;
+  cons: string | null;
+};
+
+export type HotelPolicyDetails = {
+  checkInFrom: string | null;
+  checkInUntil: string | null;
+  checkOutFrom: string | null;
+  checkOutUntil: string | null;
+  cancellation: string[];
+  payment: string[];
+  pets: string[];
+  children: string[];
+  extra: string[];
+};
+
+export type HotelLocationContext = {
+  addressLine: string | null;
+  city: string | null;
+  countryCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  neighborhood: string | null;
+  transit: string[];
+  nearbyLandmarks: string[];
+};
+
+export type HotelProsAndCons = {
+  pros: string[];
+  cons: string[];
+};
+
+export type HotelDetailCompleteness = {
+  isPartial: boolean;
+  missingSections: string[];
+  message: string;
+};
+
 export type HotelDetails = {
   id: string;
   name: string;
   city: string;
-  countryCode?: string;
-  address?: string;
-  mainPhoto?: string;
-  photos?: string[];
-  facilities?: string[];
-  description?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  starRating?: number | null;
-  reviewScore?: number | null;
-  reviewCount?: number | null;
-  reviewBreakdown?: Array<{ label: string; score: number }>;
-  reviews?: Array<{
-    author?: string;
-    travelerType?: string;
-    comment: string;
-    score?: number | null;
-    createdAt?: string;
-  }>;
+  countryCode: string | null;
+  address: string | null;
+  mainPhoto: string | null;
+  photos: string[];
+  facilities: string[];
+  description: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  starRating: number | null;
+  reviewScore: number | null;
+  reviewCount: number | null;
+  reviewBreakdown: Array<{ label: string; score: number }>;
+  reviews: HotelGuestReview[];
+  policies: HotelPolicyDetails;
+  locationContext: HotelLocationContext;
+  prosAndCons: HotelProsAndCons;
+  completeness: HotelDetailCompleteness;
 };
 
 export type HotelRateOption = {
@@ -227,6 +269,45 @@ function parseNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function cleanString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function pickStringValue(data: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = cleanString(data[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
+function pickStringList(data: Record<string, unknown>, keys: string[]): string[] {
+  for (const key of keys) {
+    const candidate = data[key];
+    if (!Array.isArray(candidate)) continue;
+    const list = candidate
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (!item || typeof item !== 'object') return '';
+        const row = item as Record<string, unknown>;
+        return (
+          cleanString(row.text) ??
+          cleanString(row.label) ??
+          cleanString(row.name) ??
+          cleanString(row.value) ??
+          ''
+        );
+      })
+      .filter(Boolean);
+    if (list.length > 0) {
+      return list;
+    }
+  }
+  return [];
+}
+
 function pickImageUrl(hotel: Record<string, unknown>): string | undefined {
   const directKeys = [
     hotel.main_photo,
@@ -358,7 +439,7 @@ function pickReviewBreakdown(data: Record<string, unknown>): Array<{ label: stri
   return [];
 }
 
-function pickGuestReviews(data: Record<string, unknown>) {
+function pickGuestReviews(data: Record<string, unknown>): HotelGuestReview[] {
   const candidates = [
     data.reviews,
     (data.reviewData as Record<string, unknown> | undefined)?.reviews,
@@ -380,41 +461,140 @@ function pickGuestReviews(data: Record<string, unknown>) {
                 ? row.text
                 : '';
         if (!comment.trim()) return null;
+        const pros = cleanString(row.pros) ?? cleanString(row.positive);
+        const cons = cleanString(row.cons) ?? cleanString(row.negative);
+
         return {
-          author:
-            typeof row.author === 'string'
-              ? row.author
-              : typeof row.userName === 'string'
-                ? row.userName
-                : typeof row.guest === 'string'
-                  ? row.guest
-                  : undefined,
-          travelerType:
-            typeof row.travelerType === 'string'
-              ? row.travelerType
-              : typeof row.tripType === 'string'
-                ? row.tripType
-                : undefined,
+          author: cleanString(row.author) ?? cleanString(row.userName) ?? cleanString(row.guest),
+          travelerType: cleanString(row.travelerType) ?? cleanString(row.tripType),
           comment: comment.trim(),
           score: parseNumber(row.score) ?? parseNumber(row.rating),
-          createdAt:
-            typeof row.createdAt === 'string'
-              ? row.createdAt
-              : typeof row.date === 'string'
-                ? row.date
-                : undefined
-        } as {
-          author?: string;
-          travelerType?: string;
-          comment: string;
-          score?: number | null;
-          createdAt?: string;
-        };
+          createdAt: cleanString(row.createdAt) ?? cleanString(row.date),
+          pros,
+          cons
+        } satisfies HotelGuestReview;
       })
       .filter((item) => item !== null);
     if (mapped.length > 0) return mapped.slice(0, 20);
   }
   return [];
+}
+
+function pickPolicies(data: Record<string, unknown>): HotelPolicyDetails {
+  const policyRoot =
+    (data.policies as Record<string, unknown> | undefined) ??
+    (data.policy as Record<string, unknown> | undefined) ??
+    {};
+
+  const checkIn =
+    (policyRoot.checkIn as Record<string, unknown> | undefined) ??
+    (data.checkIn as Record<string, unknown> | undefined) ??
+    {};
+  const checkOut =
+    (policyRoot.checkOut as Record<string, unknown> | undefined) ??
+    (data.checkOut as Record<string, unknown> | undefined) ??
+    {};
+
+  return {
+    checkInFrom:
+      cleanString(checkIn.from) ??
+      cleanString(checkIn.start) ??
+      pickStringValue(policyRoot, ['checkInFrom', 'checkinFrom', 'checkInStart']),
+    checkInUntil:
+      cleanString(checkIn.until) ??
+      cleanString(checkIn.end) ??
+      pickStringValue(policyRoot, ['checkInUntil', 'checkinUntil', 'checkInEnd']),
+    checkOutFrom:
+      cleanString(checkOut.from) ??
+      cleanString(checkOut.start) ??
+      pickStringValue(policyRoot, ['checkOutFrom', 'checkoutFrom', 'checkOutStart']),
+    checkOutUntil:
+      cleanString(checkOut.until) ??
+      cleanString(checkOut.end) ??
+      pickStringValue(policyRoot, ['checkOutUntil', 'checkoutUntil', 'checkOutEnd']),
+    cancellation: pickStringList(policyRoot, ['cancellation', 'cancellationPolicies', 'cancellationPolicy'])
+      .concat(pickStringList(data, ['cancellationPolicy']))
+      .slice(0, 8),
+    payment: pickStringList(policyRoot, ['payment', 'paymentTerms']).slice(0, 8),
+    pets: pickStringList(policyRoot, ['pets', 'petPolicy']).slice(0, 8),
+    children: pickStringList(policyRoot, ['children', 'childPolicy', 'childrenPolicy']).slice(0, 8),
+    extra: pickStringList(policyRoot, ['other', 'extra', 'importantNotes']).slice(0, 8)
+  };
+}
+
+function pickLocationContext(data: Record<string, unknown>, city: string, countryCode: string | null): HotelLocationContext {
+  const { latitude, longitude } = pickCoordinates(data);
+  const locationRoot =
+    (data.location as Record<string, unknown> | undefined) ??
+    (data.area as Record<string, unknown> | undefined) ??
+    {};
+
+  return {
+    addressLine: cleanString(data.address),
+    city: cleanString(data.city) ?? city,
+    countryCode,
+    latitude,
+    longitude,
+    neighborhood: pickStringValue(locationRoot, ['neighborhood', 'district', 'areaName']),
+    transit: pickStringList(locationRoot, ['transit', 'transport', 'publicTransport']).slice(0, 8),
+    nearbyLandmarks: pickStringList(locationRoot, ['nearby', 'landmarks', 'pointsOfInterest']).slice(0, 8)
+  };
+}
+
+function pickProsAndCons(reviews: HotelGuestReview[]): HotelProsAndCons {
+  const pros = new Set<string>();
+  const cons = new Set<string>();
+
+  for (const review of reviews) {
+    if (review.pros) pros.add(review.pros);
+    if (review.cons) cons.add(review.cons);
+    if (pros.size >= 6 && cons.size >= 6) break;
+  }
+
+  return {
+    pros: Array.from(pros).slice(0, 6),
+    cons: Array.from(cons).slice(0, 6)
+  };
+}
+
+function buildCompleteness(details: {
+  photos: string[];
+  facilities: string[];
+  policies: HotelPolicyDetails;
+  locationContext: HotelLocationContext;
+  reviews: HotelGuestReview[];
+  prosAndCons: HotelProsAndCons;
+}): HotelDetailCompleteness {
+  const missingSections: string[] = [];
+  if (details.photos.length === 0) missingSections.push('gallery');
+  if (details.facilities.length === 0) missingSections.push('amenities');
+  if (
+    details.policies.cancellation.length === 0 &&
+    details.policies.checkInFrom === null &&
+    details.policies.checkOutUntil === null
+  ) {
+    missingSections.push('policies');
+  }
+  if (
+    details.locationContext.addressLine === null &&
+    details.locationContext.latitude === null &&
+    details.locationContext.nearbyLandmarks.length === 0
+  ) {
+    missingSections.push('location');
+  }
+  if (details.reviews.length === 0) missingSections.push('reviews');
+  if (details.prosAndCons.pros.length === 0 && details.prosAndCons.cons.length === 0) {
+    missingSections.push('pros-cons');
+  }
+
+  return {
+    isPartial: missingSections.length > 0,
+    missingSections,
+    message:
+      missingSections.length > 0
+        ? `Some supplier details are currently unavailable: ${missingSections.join(', ')}.`
+        : 'Supplier content for key hotel sections is available.'
+  };
 }
 
 function pickReviewScore(data: Record<string, unknown>): number | null {
@@ -439,7 +619,7 @@ function shouldEnrichReviews(
   reviewScore: number | null,
   reviewCount: number | null,
   reviewBreakdown: Array<{ label: string; score: number }>,
-  reviews: Array<{ author?: string; travelerType?: string; comment: string; score?: number | null; createdAt?: string }>
+  reviews: HotelGuestReview[]
 ): boolean {
   return reviewScore === null || reviewCount === null || reviewBreakdown.length === 0 || reviews.length === 0;
 }
@@ -451,7 +631,7 @@ async function fetchReviewEnrichmentFromRates(
   reviewScore: number | null;
   reviewCount: number | null;
   reviewBreakdown: Array<{ label: string; score: number }>;
-  reviews: Array<{ author?: string; travelerType?: string; comment: string; score?: number | null; createdAt?: string }>;
+  reviews: HotelGuestReview[];
 } | null> {
   try {
     const stayWindow = nextStayWindow();
@@ -1127,42 +1307,58 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
 
     const json = (await response.json()) as { data?: Record<string, unknown> };
     const data = json.data ?? {};
+    const city = String(data.city ?? '');
+    const countryCode = cleanString(data.countryCode);
     const photos = pickImageUrls(data);
-    const mainPhoto = typeof data.main_photo === 'string' ? data.main_photo : photos[0];
+    const mainPhoto = cleanString(data.main_photo) ?? photos[0] ?? null;
     const { latitude, longitude } = pickCoordinates(data);
     const reviewBreakdown = pickReviewBreakdown(data);
-    const reviews = await getGuestReviews(hotelId) ?? [];
+    const reviews = (await getGuestReviews(hotelId)) ?? [];
     const reviewScore = pickReviewScore(data);
     const reviewCount = pickReviewCount(data);
 
     // If we have no reviews from /data/hotel or /data/reviews, try enrichment as a last resort
     // but prefer the dedicated reviews endpoint data if available
-    const enrichment = (reviews.length === 0 && (reviewScore === null || reviewCount === null))
+    const enrichment = shouldEnrichReviews(reviewScore, reviewCount, reviewBreakdown, reviews)
       ? await fetchReviewEnrichmentFromRates(hotelId, currency)
       : null;
+
+    const resolvedReviews = reviews.length > 0 ? reviews : (enrichment?.reviews ?? []);
+    const policies = pickPolicies(data);
+    const locationContext = pickLocationContext(data, city, countryCode);
+    const prosAndCons = pickProsAndCons(resolvedReviews);
+    const completeness = buildCompleteness({
+      photos,
+      facilities: pickFacilities(data),
+      policies,
+      locationContext,
+      reviews: resolvedReviews,
+      prosAndCons
+    });
 
     return {
       id: String(data.id ?? hotelId),
       name: String(data.name ?? 'Hotel'),
-      city: String(data.city ?? ''),
-      countryCode: typeof data.countryCode === 'string' ? data.countryCode : undefined,
-      address: typeof data.address === 'string' ? data.address : undefined,
+      city,
+      countryCode,
+      address: cleanString(data.address),
       mainPhoto,
       photos,
       facilities: pickFacilities(data),
       description:
-        typeof data.description === 'string'
-          ? data.description
-          : typeof data.overview === 'string'
-            ? data.overview
-            : undefined,
+        cleanString(data.description) ??
+        cleanString(data.overview),
       latitude,
       longitude,
       starRating: parseNumber(data.starRating),
       reviewScore: reviewScore ?? enrichment?.reviewScore ?? null,
       reviewCount: reviewCount ?? enrichment?.reviewCount ?? null,
       reviewBreakdown: reviewBreakdown.length > 0 ? reviewBreakdown : (enrichment?.reviewBreakdown ?? []),
-      reviews: reviews.length > 0 ? reviews : (enrichment?.reviews ?? [])
+      reviews: resolvedReviews,
+      policies,
+      locationContext,
+      prosAndCons,
+      completeness
     };
   } catch (error) {
     logger.warn({ error, hotelId }, 'LiteAPI hotel details failed');
@@ -1201,11 +1397,13 @@ export async function getGuestReviews(hotelId: string, limit: number = 10): Prom
         : headline;
 
       return {
-        author: String(item.name ?? 'Guest'),
-        travelerType: String(item.type ?? 'Traveler'),
+        author: cleanString(item.name) ?? 'Guest',
+        travelerType: cleanString(item.type) ?? 'Traveler',
         comment,
         score: parseNumber(item.averageScore),
-        createdAt: String(item.date ?? '')
+        createdAt: cleanString(item.date),
+        pros: pros || null,
+        cons: cons || null
       };
     }).filter(r => r.comment.length > 0);
   } catch (error) {
