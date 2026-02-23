@@ -17,7 +17,7 @@ import {
 } from '@/server/booking-idempotency';
 import { assertProductionReadiness, env } from '@/server/env';
 import { logger } from '@/server/logger';
-import { getRequestContext, parseRequestBody, stripSupplierSecrets } from '@/server/request';
+import { getRequestContext, parseRequestBody, sanitizeRecord, sanitizeUnknown, stripSupplierSecrets } from '@/server/request';
 
 const requestSchema = z.object({
   prebookId: z.string().trim().min(1),
@@ -47,6 +47,15 @@ const requestSchema = z.object({
     })
   ).min(1)
 });
+
+const supplierBookingSchema = z.object({
+  data: z.object({
+    bookingId: z.string().trim().min(1).optional(),
+    status: z.string().trim().min(1).optional()
+  }).passthrough().optional(),
+  bookingId: z.string().trim().min(1).optional(),
+  status: z.string().trim().min(1).optional()
+}).passthrough();
 
 export async function POST(request: NextRequest) {
   let lockAcquired = false;
@@ -132,13 +141,21 @@ export async function POST(request: NextRequest) {
       throw new HttpError(400, 'Invalid quote signature');
     }
 
-    const booking = await bookRate({
+    const safeHolder = sanitizeRecord(payload.holder);
+    const safeGuests = payload.guests.map((guest) => sanitizeRecord(guest));
+
+    const supplierBooking = sanitizeUnknown(await bookRate({
       prebookId: payload.prebookId,
       transactionId: payload.transactionId,
       clientReference: session.clientReference,
-      holder: payload.holder,
-      guests: payload.guests
-    });
+      holder: safeHolder,
+      guests: safeGuests
+    }));
+    const parsedBooking = supplierBookingSchema.safeParse(supplierBooking);
+    if (!parsedBooking.success) {
+      throw new HttpError(502, 'Supplier booking payload is invalid');
+    }
+    const booking = parsedBooking.data;
 
     const bookingData = booking as {
       data?: {
@@ -166,8 +183,8 @@ export async function POST(request: NextRequest) {
           currency: quoteToVerify.currency,
           quoteSignature: quoteToVerify.signature
         },
-        holder: payload.holder,
-        guests: payload.guests
+        holder: safeHolder,
+        guests: safeGuests
       }
     });
     if (!localBookingId && env.NODE_ENV === 'production' && env.STRICT_PERSISTENCE_MODE) {

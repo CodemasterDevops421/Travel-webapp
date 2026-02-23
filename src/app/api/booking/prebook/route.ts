@@ -5,11 +5,11 @@ import { assertSameOrigin } from '@/server/csrf';
 import { buildPriceQuote } from '@/server/pricing';
 import { prebookRate } from '@/server/liteapi';
 import { savePrebookSession } from '@/server/booking-store';
-import { toHttpError } from '@/server/errors';
+import { HttpError, toHttpError } from '@/server/errors';
 import { persistQuote } from '@/server/booking/repository';
 import { signCheckoutSession } from '@/server/booking-session';
 import { logger } from '@/server/logger';
-import { getRequestContext, parseRequestBody } from '@/server/request';
+import { getRequestContext, parseRequestBody, sanitizeUnknown } from '@/server/request';
 import { assertProductionReadiness } from '@/server/env';
 
 const requestSchema = z.object({
@@ -24,6 +24,14 @@ const requestSchema = z.object({
       children: z.number().int().min(0).optional()
     })
   ).min(1)
+});
+
+const supplierPrebookSchema = z.object({
+  prebookId: z.string().trim().min(1),
+  transactionId: z.string().trim().min(1),
+  secretKey: z.string().trim().min(1),
+  price: z.number().nonnegative(),
+  currency: z.string().trim().length(3)
 });
 
 function createClientReference(input: { hotelId: string; roomId: string; offerId: string }): string {
@@ -44,7 +52,12 @@ export async function POST(request: NextRequest) {
     if (new Date(payload.checkOut) <= new Date(payload.checkIn)) {
       return NextResponse.json({ error: 'checkOut must be after checkIn' }, { status: 400 });
     }
-    const prebook = await prebookRate(payload.offerId);
+    const supplierPrebook = sanitizeUnknown(await prebookRate(payload.offerId));
+    const parsedPrebook = supplierPrebookSchema.safeParse(supplierPrebook);
+    if (!parsedPrebook.success) {
+      throw new HttpError(502, 'Supplier prebook payload is invalid');
+    }
+    const prebook = parsedPrebook.data;
     const quote = buildPriceQuote({
       hotelId: payload.hotelId,
       roomId: payload.roomId,

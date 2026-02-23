@@ -70,20 +70,28 @@ function sanitizeString(value: string): string {
     .trim();
 }
 
-export function sanitizeRecord<T extends Record<string, unknown>>(input: T): T {
+export function sanitizeUnknown<T>(input: T): T {
+  if (typeof input === 'string') {
+    return sanitizeString(input) as T;
+  }
+
+  if (Array.isArray(input)) {
+    return input.map((item) => sanitizeUnknown(item)) as T;
+  }
+
+  if (!input || typeof input !== 'object') {
+    return input;
+  }
+
   const output: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(input)) {
-    if (typeof value === 'string') {
-      output[key] = sanitizeString(value);
-      continue;
-    }
-    if (Array.isArray(value)) {
-      output[key] = value.map((item) => (typeof item === 'string' ? sanitizeString(item) : item));
-      continue;
-    }
-    output[key] = value;
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    output[key] = sanitizeUnknown(value);
   }
   return output as T;
+}
+
+export function sanitizeRecord<T extends Record<string, unknown>>(input: T): T {
+  return sanitizeUnknown(input);
 }
 
 const SUPPLIER_SECRET_KEY_PATTERN = /(api[_-]?key|secret)/i;
