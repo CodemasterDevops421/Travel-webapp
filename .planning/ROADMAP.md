@@ -64,7 +64,13 @@ Plans:
   2. Travelers can select rooms and understand cancellation implications from a sticky booking card.
   3. Hotel AI Q&A returns contextual answers grounded in selected hotel data.
   4. Authenticated users can save and remove wishlist hotels and view them in account workspace.
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md - Formalize hotel detail content contract and truthful completeness fallbacks
+- [ ] 03-02-PLAN.md - Bind sticky booking card, room selection, and cancellation-context hand-off
+- [ ] 03-03-PLAN.md - Enforce grounded, booking-safe hotel AI Q&A behavior
+- [ ] 03-04-PLAN.md - Integrate authenticated wishlist flows into account workspace retrieval
 
 ### Phase 4: Checkout and Booking Lifecycle Integrity
 **Goal**: Travelers can complete payment and receive one correct booking outcome with full lifecycle reliability.
@@ -99,6 +105,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Platform Foundation and Security | 0/4 | Complete    | 2026-02-23 |
 | 2. Search and Discovery Experience | 0/4 | Not started | - |
-| 3. Hotel Detail and User Workspace | 0/TBD | Not started | - |
+| 3. Hotel Detail and User Workspace | 0/4 | Not started | - |
 | 4. Checkout and Booking Lifecycle Integrity | 0/TBD | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |
