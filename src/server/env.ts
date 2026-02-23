@@ -10,10 +10,17 @@ const emptyStringToUndefined = <TSchema extends z.ZodTypeAny>(schema: TSchema) =
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  LITEAPI_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
   NEXT_PUBLIC_APP_URL: emptyStringToUndefined(z.string().url().default('http://localhost:3000')),
   LITEAPI_API_KEY: emptyStringToUndefined(z.string().min(1).default('liteapi-placeholder-key')),
+  LITEAPI_SANDBOX_API_KEY: emptyStringToUndefined(z.string().optional()),
+  LITEAPI_PRODUCTION_API_KEY: emptyStringToUndefined(z.string().optional()),
   LITEAPI_BASE_URL: emptyStringToUndefined(z.string().url().default('https://api.liteapi.travel/v3.0')),
+  LITEAPI_SANDBOX_BASE_URL: emptyStringToUndefined(z.string().url().optional()),
+  LITEAPI_PRODUCTION_BASE_URL: emptyStringToUndefined(z.string().url().optional()),
   LITEAPI_BOOK_BASE_URL: emptyStringToUndefined(z.string().url().default('https://book.liteapi.travel/v3.0')),
+  LITEAPI_SANDBOX_BOOK_BASE_URL: emptyStringToUndefined(z.string().url().optional()),
+  LITEAPI_PRODUCTION_BOOK_BASE_URL: emptyStringToUndefined(z.string().url().optional()),
   LITEAPI_DASHBOARD_BASE_URL: emptyStringToUndefined(z.string().url().default('https://da.liteapi.travel')),
   LITEAPI_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
   LITEAPI_WEBHOOK_SECRET: emptyStringToUndefined(z.string().optional()),
@@ -39,6 +46,29 @@ const envSchema = z.object({
 
 const parsedEnv = envSchema.parse(process.env);
 
+export type LiteApiRuntimeConfig = {
+  mode: 'sandbox' | 'production';
+  apiKey: string;
+  baseUrl: string;
+  bookBaseUrl: string;
+};
+
+export function getLiteApiRuntimeConfig(): LiteApiRuntimeConfig {
+  const mode = parsedEnv.LITEAPI_ENV;
+  const selectedApiKey = mode === 'production' ? parsedEnv.LITEAPI_PRODUCTION_API_KEY : parsedEnv.LITEAPI_SANDBOX_API_KEY;
+  const selectedBaseUrl = mode === 'production' ? parsedEnv.LITEAPI_PRODUCTION_BASE_URL : parsedEnv.LITEAPI_SANDBOX_BASE_URL;
+  const selectedBookBaseUrl = mode === 'production'
+    ? parsedEnv.LITEAPI_PRODUCTION_BOOK_BASE_URL
+    : parsedEnv.LITEAPI_SANDBOX_BOOK_BASE_URL;
+
+  return {
+    mode,
+    apiKey: selectedApiKey ?? parsedEnv.LITEAPI_API_KEY,
+    baseUrl: selectedBaseUrl ?? parsedEnv.LITEAPI_BASE_URL,
+    bookBaseUrl: selectedBookBaseUrl ?? parsedEnv.LITEAPI_BOOK_BASE_URL
+  };
+}
+
 function isPlaceholderValue(value: string | undefined, patterns: string[]): boolean {
   if (!value) return true;
   const normalized = value.trim().toLowerCase();
@@ -53,7 +83,10 @@ export function assertProductionReadiness(): void {
   const problems: string[] = [];
 
   if (isPlaceholderValue(parsedEnv.LITEAPI_API_KEY, ['placeholder', 'your_liteapi_api_key'])) {
-    problems.push('LITEAPI_API_KEY must be set to a real key in production.');
+    const selectedKey = getLiteApiRuntimeConfig().apiKey;
+    if (isPlaceholderValue(selectedKey, ['placeholder', 'your_liteapi_api_key'])) {
+      problems.push('LiteAPI key for selected LITEAPI_ENV must be set to a real key in production.');
+    }
   }
   if (!parsedEnv.QUOTE_SIGNING_SECRET) {
     problems.push('QUOTE_SIGNING_SECRET is required in production.');
@@ -73,6 +106,9 @@ export function assertProductionReadiness(): void {
   if (!parsedEnv.BOOKING_API_AUTH_SECRET) {
     problems.push('BOOKING_API_AUTH_SECRET is required in production to protect booking APIs.');
   }
+  if (parsedEnv.LITEAPI_ENV === 'sandbox') {
+    problems.push('LITEAPI_ENV must be set to production for production runtime.');
+  }
   if (!parsedEnv.STRICT_PERSISTENCE_MODE) {
     problems.push('STRICT_PERSISTENCE_MODE must be true in production.');
   }
@@ -82,4 +118,11 @@ export function assertProductionReadiness(): void {
   }
 }
 
-export const env = parsedEnv;
+const runtimeConfig = getLiteApiRuntimeConfig();
+
+export const env = {
+  ...parsedEnv,
+  LITEAPI_API_KEY: runtimeConfig.apiKey,
+  LITEAPI_BASE_URL: runtimeConfig.baseUrl,
+  LITEAPI_BOOK_BASE_URL: runtimeConfig.bookBaseUrl
+};

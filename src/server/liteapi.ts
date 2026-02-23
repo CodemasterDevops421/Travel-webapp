@@ -1,12 +1,17 @@
 import 'server-only';
 import LiteAPI from 'liteapi-node-sdk';
-import { env } from '@/server/env';
+import { env, getLiteApiRuntimeConfig } from '@/server/env';
 import { logger } from '@/server/logger';
 import { HttpError } from '@/server/errors';
 
+const liteApiRuntime = getLiteApiRuntimeConfig();
+const LITEAPI_API_KEY = liteApiRuntime.apiKey;
+const LITEAPI_BASE_URL = liteApiRuntime.baseUrl;
+const LITEAPI_BOOK_BASE_URL = liteApiRuntime.bookBaseUrl;
+
 const liteApiClient = new LiteAPI({
-  apiKey: env.LITEAPI_API_KEY,
-  baseURL: env.LITEAPI_BASE_URL,
+  apiKey: LITEAPI_API_KEY,
+  baseURL: LITEAPI_BASE_URL,
   timeout: env.LITEAPI_TIMEOUT_MS
 } as never);
 
@@ -33,6 +38,7 @@ export type PropertyPreview = {
   imageUrl?: string;
   price: number | null;
   currency: string;
+  amenities: string[];
 };
 
 export type LiteApiPrebookResponse = {
@@ -111,11 +117,20 @@ function nextStayWindow(): { checkin: string; checkout: string } {
   };
 }
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> {
+import { Redis } from '@upstash/redis';
+
+const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN ? Redis.fromEnv() : null;
+
+async function fetchJsonWithBackoff<T>(url: string, init?: RequestInit, retries = 3, delay = 500): Promise<T | null> {
   try {
     const response = await fetch(url, init);
     const text = await response.text();
     if (!response.ok) {
+      if (response.status === 429 && retries > 0) {
+        logger.warn({ url, retriesLeft: retries }, 'LiteAPI rate limited. Retrying...');
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return fetchJsonWithBackoff<T>(url, init, retries - 1, delay * 2);
+      }
       logger.warn(
         {
           url,
@@ -128,9 +143,18 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> 
     }
     return JSON.parse(text) as T;
   } catch (error) {
+    if (retries > 0) {
+      logger.warn({ error, url, retriesLeft: retries }, 'LiteAPI request errored. Retrying...');
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return fetchJsonWithBackoff<T>(url, init, retries - 1, delay * 2);
+    }
     logger.warn({ error, url }, 'LiteAPI request errored');
     return null;
   }
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> {
+  return fetchJsonWithBackoff<T>(url, init);
 }
 
 function parseRateAmount(rate: Record<string, unknown>): { amount: number | null; currency: string | null } {
@@ -486,7 +510,8 @@ function mapRatesResponse(
       reviewCount,
       imageUrl: pickImageUrl(hotel),
       price: amountInfo.amount,
-      currency: amountInfo.currency ?? env.DEFAULT_CURRENCY
+      currency: amountInfo.currency ?? env.DEFAULT_CURRENCY,
+      amenities: pickFacilities(hotel)
     } satisfies PropertyPreview;
   });
 
@@ -503,6 +528,17 @@ function mapRatesResponse(
 }
 
 async function searchRates(payload: RatesSearchPayload, fallbackCity: string): Promise<PropertyPreview[]> {
+  let cacheKey: string | null = null;
+  if (redis) {
+    try {
+      cacheKey = `liteapi:rates:${Buffer.from(JSON.stringify(payload)).toString('base64')}`;
+      const cached = await redis.get<PropertyPreview[]>(cacheKey);
+      if (cached) return cached;
+    } catch {
+      // ignore cache errors
+    }
+  }
+
   const response = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
     method: 'POST',
     headers: {
@@ -517,7 +553,16 @@ async function searchRates(payload: RatesSearchPayload, fallbackCity: string): P
   if (!response) {
     return [];
   }
-  return mapRatesResponse(response, fallbackCity);
+
+  const mapped = mapRatesResponse(response, fallbackCity);
+  if (redis && cacheKey && mapped.length > 0) {
+    try {
+      await redis.set(cacheKey, mapped, { ex: 300 });
+    } catch {
+      // ignore
+    }
+  }
+  return mapped;
 }
 
 export async function autocomplete(query: string, language?: string): Promise<AutocompleteEntity[]> {
@@ -589,7 +634,8 @@ const fallbackProperties: PropertyPreview[] = [
     countryCode: 'AE',
     starRating: 5,
     price: 249,
-    currency: 'USD'
+    currency: 'USD',
+    amenities: []
   },
   {
     hotelId: 'fallback-bali-1',
@@ -598,7 +644,8 @@ const fallbackProperties: PropertyPreview[] = [
     countryCode: 'ID',
     starRating: 4,
     price: 138,
-    currency: 'USD'
+    currency: 'USD',
+    amenities: []
   },
   {
     hotelId: 'fallback-zurich-1',
@@ -607,7 +654,8 @@ const fallbackProperties: PropertyPreview[] = [
     countryCode: 'CH',
     starRating: 4,
     price: 201,
-    currency: 'USD'
+    currency: 'USD',
+    amenities: []
   }
 ];
 
