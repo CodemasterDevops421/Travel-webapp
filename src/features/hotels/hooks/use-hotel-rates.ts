@@ -4,6 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { CACHE_STALE_TIME_MS } from '@/shared/lib/cache-ttl';
 import { type HotelRateOption } from '@/server/liteapi';
 
+export type HotelRateWithCancellationContext = HotelRateOption & {
+    isRefundable: boolean | null;
+    cancellationDeadline: string | null;
+    cancellationNote: string | null;
+};
+
 type UseHotelRatesParams = {
     hotelId: string;
     checkin: string;
@@ -14,7 +20,34 @@ type UseHotelRatesParams = {
     guestNationality?: string;
 };
 
-async function fetchHotelRates(params: UseHotelRatesParams): Promise<HotelRateOption[]> {
+function toRefundableStatus(refundableTag: string): boolean | null {
+    const normalized = refundableTag.trim().toLowerCase();
+    if (!normalized) return null;
+    if (normalized.includes('non-refund')) return false;
+    if (normalized.includes('refund')) return true;
+    return null;
+}
+
+function normalizeRate(rate: HotelRateOption): HotelRateWithCancellationContext {
+    const cancellationDeadline = typeof rate.cancelTime === 'string' ? rate.cancelTime : null;
+    const isRefundable = toRefundableStatus(rate.refundableTag ?? '');
+
+    return {
+        ...rate,
+        cancellationDeadline,
+        isRefundable,
+        cancellationNote:
+            isRefundable === false
+                ? 'Non-refundable'
+                : cancellationDeadline
+                    ? `Free cancellation until ${cancellationDeadline}`
+                    : isRefundable === true
+                        ? 'Refundable (deadline not provided by supplier)'
+                        : null
+    };
+}
+
+async function fetchHotelRates(params: UseHotelRatesParams): Promise<HotelRateWithCancellationContext[]> {
     const searchParams = new URLSearchParams({
         hotelId: params.hotelId,
         checkin: params.checkin,
@@ -31,7 +64,8 @@ async function fetchHotelRates(params: UseHotelRatesParams): Promise<HotelRateOp
         if (response.status === 404) return [];
         throw new Error('Failed to fetch hotel rates');
     }
-    return response.json();
+    const json = (await response.json()) as HotelRateOption[];
+    return json.map(normalizeRate);
 }
 
 export function useHotelRates(
@@ -52,6 +86,6 @@ export function useHotelRates(
         queryFn: () => fetchHotelRates(params),
         enabled: !!params.hotelId && !!params.checkin && !!params.checkout,
         staleTime: CACHE_STALE_TIME_MS.hotelRates,
-        initialData: options?.initialData,
+        initialData: options?.initialData?.map(normalizeRate),
     });
 }
