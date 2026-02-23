@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/server/supabase/server';
 import { assertAdminAuthorized } from '@/server/authz';
+import { HttpError } from '@/server/errors';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -13,7 +14,7 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        await assertAdminAuthorized(supabase, user.id);
+        await assertAdminAuthorized(supabase, user);
 
         // Fetch stats in parallel
         const [bookingsResult, usersResult, revenueResult] = await Promise.allSettled([
@@ -54,11 +55,11 @@ export async function GET() {
             },
             recentBookings: recentBookings || []
         });
-    } catch (err) {
-        const message = err instanceof Error ? err.message : 'Internal server error';
-        const isForbidden = message === 'Forbidden';
-        const isUnauthorized = message === 'Unauthorized';
-        const status = isForbidden ? 403 : isUnauthorized ? 401 : 500;
-        return NextResponse.json({ error: message }, { status });
+    } catch (error) {
+        if (error instanceof HttpError) {
+            return NextResponse.json({ error: error.message }, { status: error.status });
+        }
+
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

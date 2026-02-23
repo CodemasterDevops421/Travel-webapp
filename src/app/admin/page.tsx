@@ -27,18 +27,22 @@ export default function AdminPage() {
     const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [forbidden, setForbidden] = useState(false);
 
     useEffect(() => {
         async function fetchStats() {
             try {
                 const res = await fetch('/api/admin/stats');
                 if (res.status === 403) {
-                    throw new Error('forbidden');
+                    setForbidden(true);
+                    setError('You do not have permission to view admin data.');
+                    return;
                 }
                 if (!res.ok) throw new Error('failed');
                 const data = await res.json();
                 setStats(data.stats);
                 setRecentBookings(data.recentBookings || []);
+                setForbidden(false);
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'failed';
                 setError(message === 'forbidden' ? 'You do not have permission to view admin data.' : 'Could not load admin data.');
@@ -67,6 +71,25 @@ export default function AdminPage() {
                     <a href="/auth/login?redirect=/admin">
                         <Button>Sign in</Button>
                     </a>
+                </div>
+            </main>
+        );
+    }
+
+    if (forbidden) {
+        return (
+            <main className="flex min-h-[60vh] items-center justify-center px-4">
+                <div className="max-w-md space-y-4 text-center">
+                    <h1 className="font-heading text-2xl font-bold">Admin Access Denied</h1>
+                    <p className="text-muted-foreground">Your account is signed in, but it does not have an active admin role.</p>
+                    <div className="flex items-center justify-center gap-3">
+                        <Link href="/">
+                            <Button variant="outline">Back to home</Button>
+                        </Link>
+                        <a href="/auth/login?redirect=/admin">
+                            <Button>Sign in as admin</Button>
+                        </a>
+                    </div>
                 </div>
             </main>
         );
