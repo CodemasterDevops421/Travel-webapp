@@ -1,9 +1,4 @@
-import {
-  DEFAULT_CURRENCY,
-  DEFAULT_LANGUAGE,
-  normalizeCurrency,
-  normalizeLanguage
-} from '@/shared/lib/preferences';
+import { parseDiscoveryQuery } from '@/features/search/lib/discovery-query';
 
 type ListingDefaults = {
   defaultQuery?: string;
@@ -22,35 +17,24 @@ export type ListingQueryParams = {
   currency: string;
 };
 
-function pickParam(params: Record<string, string | string[] | undefined>, key: string): string | undefined {
-  const value = params[key];
-  if (typeof value === 'string') return value;
-  return Array.isArray(value) ? value[0] : undefined;
-}
-
-function defaultDates() {
-  const checkinDate = new Date();
-  checkinDate.setDate(checkinDate.getDate() + 14);
-  const checkoutDate = new Date(checkinDate);
-  checkoutDate.setDate(checkoutDate.getDate() + 2);
-  return {
-    checkin: checkinDate.toISOString().slice(0, 10),
-    checkout: checkoutDate.toISOString().slice(0, 10)
-  };
-}
-
 export function parseListingSearchParams(
   params: Record<string, string | string[] | undefined>,
   defaults: ListingDefaults = {}
 ): ListingQueryParams {
-  const dateDefaults = defaultDates();
+  const query = parseDiscoveryQuery(params, {
+    defaultDestination: defaults.defaultQuery,
+    defaultGuests: defaults.defaultAdults,
+    defaultRooms: defaults.defaultRooms,
+    defaultCurrency: defaults.defaultCurrency
+  });
+
   return {
-    query: (pickParam(params, 'q') ?? defaults.defaultQuery ?? '').trim(),
-    checkin: pickParam(params, 'checkin') ?? dateDefaults.checkin,
-    checkout: pickParam(params, 'checkout') ?? dateDefaults.checkout,
-    adults: Number(pickParam(params, 'adults') ?? String(defaults.defaultAdults ?? 2)) || (defaults.defaultAdults ?? 2),
-    rooms: Number(pickParam(params, 'rooms') ?? String(defaults.defaultRooms ?? 1)) || (defaults.defaultRooms ?? 1),
-    language: normalizeLanguage(pickParam(params, 'language')) ?? DEFAULT_LANGUAGE,
-    currency: normalizeCurrency(pickParam(params, 'currency') ?? defaults.defaultCurrency) ?? DEFAULT_CURRENCY
+    query: query.destination,
+    checkin: query.checkin,
+    checkout: query.checkout,
+    adults: query.guests,
+    rooms: query.rooms,
+    language: query.language,
+    currency: query.currency
   };
 }
