@@ -88,6 +88,21 @@ function parseBoundedNumber(value: string | undefined, fallback: number, min: nu
   return Math.min(max, Math.max(min, parsed));
 }
 
+function parseBoundedInteger(value: string | undefined, fallback: number, min: number, max: number): number {
+  const bounded = parseBoundedNumber(value, fallback, min, max);
+  return Math.trunc(bounded);
+}
+
+function normalizeText(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function readParamValue(value: string | string[] | undefined): string | undefined {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && value.length > 0) return value[0];
+  return undefined;
+}
+
 function parseTokenList(value: string | undefined): string[] {
   if (!value) return [];
   return Array.from(
@@ -111,14 +126,14 @@ function normalizeView(value: string | undefined): ListingView {
 }
 
 export function parseListingUiState(params: ListingUiInput): ListingUiState {
-  const propertyName = (typeof params.propertyName === 'string' ? params.propertyName : '').trim();
-  const amenities = parseTokenList(typeof params.amenities === 'string' ? params.amenities : undefined);
-  const propertyTypes = parseTokenList(typeof params.propertyType === 'string' ? params.propertyType : undefined);
+  const propertyName = normalizeText(readParamValue(params.propertyName) ?? '');
+  const amenities = parseTokenList(readParamValue(params.amenities));
+  const propertyTypes = parseTokenList(readParamValue(params.propertyType) ?? readParamValue(params.propertyTypes));
 
   return {
     sort: normalizeSort(typeof params.sort === 'string' ? params.sort : undefined),
     view: normalizeView(typeof params.view === 'string' ? params.view : undefined),
-    page: parseBoundedNumber(typeof params.page === 'string' ? params.page : undefined, 1, 1, 999),
+    page: parseBoundedInteger(typeof params.page === 'string' ? params.page : undefined, 1, 1, 999),
     filters: {
       propertyName,
       maxPrice: parseBoundedNumber(typeof params.maxPrice === 'string' ? params.maxPrice : undefined, DEFAULT_MAX_PRICE, 50, 5000),

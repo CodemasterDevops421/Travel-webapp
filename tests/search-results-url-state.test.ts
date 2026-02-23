@@ -41,14 +41,14 @@ describe('search results URL state contract', () => {
     const restored = parseListingUiState({
       sort: 'price',
       view: 'map',
-      page: '4',
-      propertyName: ' boutique  ',
+      page: '4.7',
+      propertyName: '  boutique   central ',
       maxPrice: '255',
       minGuestRating: '8',
       minStars: '3.5',
       maxDistanceKm: '7',
       amenities: 'wifi,parking,parking',
-      propertyType: 'resort,hotel'
+      propertyTypes: 'resort,hotel'
     });
 
     expect(restored).toEqual({
@@ -56,7 +56,7 @@ describe('search results URL state contract', () => {
       view: 'map',
       page: 4,
       filters: {
-        propertyName: 'boutique',
+        propertyName: 'boutique central',
         maxPrice: 255,
         minGuestRating: 8,
         minStars: 3.5,
