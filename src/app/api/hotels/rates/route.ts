@@ -5,7 +5,7 @@ import { getHotelRates } from '@/server/liteapi';
 import { getOrSetRedisCache } from '@/server/cache';
 import { toHttpError } from '@/server/errors';
 import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
-import { getClientIp } from '@/server/request';
+import { getRequestContext } from '@/server/request';
 
 const querySchema = z.object({
     hotelId: z.string().trim().min(1),
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         }
 
         const { hotelId, checkin, checkout, adults, rooms, currency, guestNationality } = result.data;
-        const clientIp = getClientIp(request);
+        const { clientIp } = getRequestContext(request);
         await assertRateLimit(`hotel-rates:${clientIp}`);
 
         const cacheKey = `hotel-rates:${hotelId}:${checkin}:${checkout}:${adults}:${rooms}:${currency ?? 'USD'}:${guestNationality ?? 'US'}`;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
+import { assertSameOrigin } from '@/server/csrf';
 import { bookRate } from '@/server/liteapi';
 import { getPrebookSession } from '@/server/booking-store';
 import { HttpError, toHttpError } from '@/server/errors';
@@ -16,7 +17,7 @@ import {
 } from '@/server/booking-idempotency';
 import { assertProductionReadiness, env } from '@/server/env';
 import { logger } from '@/server/logger';
-import { getClientIp, getCorrelationId } from '@/server/request';
+import { getRequestContext, parseRequestBody } from '@/server/request';
 
 const requestSchema = z.object({
   prebookId: z.string().trim().min(1),
@@ -53,12 +54,11 @@ export async function POST(request: NextRequest) {
 
   try {
     assertProductionReadiness();
-    const clientIp = getClientIp(request);
-    const correlationId = getCorrelationId(request);
+    assertSameOrigin(request);
+    const { clientIp, correlationId } = getRequestContext(request);
     await assertRateLimit(`booking-book:${clientIp}`);
 
-    const raw = await request.json();
-    const payload = requestSchema.parse(raw);
+    const payload = await parseRequestBody(request, requestSchema);
     transactionIdForLock = payload.transactionId;
 
     const cachedResult = await getFinalizedBookingResult(payload.transactionId);

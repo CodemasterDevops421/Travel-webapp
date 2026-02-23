@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
+import { assertSameOrigin } from '@/server/csrf';
 import { buildPriceQuote } from '@/server/pricing';
 import { prebookRate } from '@/server/liteapi';
 import { savePrebookSession } from '@/server/booking-store';
@@ -8,7 +9,7 @@ import { toHttpError } from '@/server/errors';
 import { persistQuote } from '@/server/booking/repository';
 import { signCheckoutSession } from '@/server/booking-session';
 import { logger } from '@/server/logger';
-import { getClientIp, getCorrelationId } from '@/server/request';
+import { getRequestContext, parseRequestBody } from '@/server/request';
 import { assertProductionReadiness } from '@/server/env';
 
 const requestSchema = z.object({
@@ -35,12 +36,11 @@ function createClientReference(input: { hotelId: string; roomId: string; offerId
 export async function POST(request: NextRequest) {
   try {
     assertProductionReadiness();
-    const clientIp = getClientIp(request);
-    const correlationId = getCorrelationId(request);
+    assertSameOrigin(request);
+    const { clientIp, correlationId } = getRequestContext(request);
     await assertRateLimit(`booking-prebook:${clientIp}`);
 
-    const raw = await request.json();
-    const payload = requestSchema.parse(raw);
+    const payload = await parseRequestBody(request, requestSchema);
     if (new Date(payload.checkOut) <= new Date(payload.checkIn)) {
       return NextResponse.json({ error: 'checkOut must be after checkIn' }, { status: 400 });
     }
