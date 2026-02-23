@@ -75,9 +75,11 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
       brief: urlState.filters.propertyName || undefined,
       minStars: urlState.filters.minStars > 0 ? urlState.filters.minStars : undefined,
       minGuestRating: urlState.filters.minGuestRating > 0 ? urlState.filters.minGuestRating : undefined,
-      maxPrice: urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? urlState.filters.maxPrice : undefined
+      maxPrice: urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? urlState.filters.maxPrice : undefined,
+      page: urlState.page,
+      limit: ITEMS_PER_PAGE
     }),
-    [urlState.filters]
+    [urlState.filters, urlState.page]
   );
 
   const { data: previewEnvelope, isFetching } = usePropertyPreview(
