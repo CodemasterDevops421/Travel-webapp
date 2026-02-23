@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Heart, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
@@ -13,6 +14,7 @@ interface HorizontalHotelCardProps {
     adults: number;
     rooms: number;
     currency: string;
+    discoveryContext?: string;
 }
 
 function formatMoney(currency: string, amount: number | null): string {
@@ -38,23 +40,41 @@ function getReviewLabel(score: number): string {
     return 'Good';
 }
 
-export function HorizontalHotelCard({ hotel, checkin, checkout, adults, rooms, currency }: HorizontalHotelCardProps) {
+export function HorizontalHotelCard({
+    hotel,
+    checkin,
+    checkout,
+    adults,
+    rooms,
+    currency,
+    discoveryContext
+}: HorizontalHotelCardProps) {
     const reviewScore = hotel.reviewScore ?? 7.5;
+    const detailsParams = new URLSearchParams({
+        checkin,
+        checkout,
+        adults: String(adults),
+        rooms: String(rooms),
+        currency
+    });
+
+    if (discoveryContext) {
+        detailsParams.set('returnTo', discoveryContext);
+    }
 
     return (
         <Link
-            href={`/hotels/${hotel.hotelId}?checkin=${checkin}&checkout=${checkout}&adults=${adults}&rooms=${rooms}&currency=${currency}`}
+            href={`/hotels/${hotel.hotelId}?${detailsParams.toString()}`}
             className="group flex flex-col md:flex-row gap-4 rounded-xl border border-border bg-white p-4 transition-all hover:shadow-lg hover:border-primary/20"
         >
             {/* Image Section */}
-            <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-lg md:h-auto md:w-72">
+            <div className="relative h-48 w-full shrink-0 overflow-hidden md:h-auto md:w-72">
                 {hotel.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={hotel.imageUrl} alt={hotel.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <Image src={hotel.imageUrl} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, 288px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
                 ) : (
                     <div className="h-full w-full bg-slate-100" />
                 )}
-                <button className="absolute left-3 top-3 rounded-full bg-white p-2 text-muted-foreground shadow-sm hover:text-red-500 hover:scale-110 transition-all">
+                <button className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-muted-foreground shadow-sm hover:text-red-500 hover:scale-110 transition-all">
                     <Heart className="h-4 w-4" />
                 </button>
             </div>
@@ -69,14 +89,20 @@ export function HorizontalHotelCard({ hotel, checkin, checkout, adults, rooms, c
                             ))}
                         </div>
                         <h3 className="mt-1 text-xl font-bold text-foreground group-hover:text-primary transition-colors">{hotel.name}</h3>
-                        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="mt-1 flex items-center gap-2 text-sm text-foreground underline underline-offset-2">
                             <span className="line-clamp-1">{hotel.city}, {hotel.countryCode}</span>
-                            <span>•</span>
-                            <span>2 km from centre</span>
+                            <span className="text-muted-foreground no-underline">•</span>
+                            <span className="text-muted-foreground no-underline">Map view</span>
                         </div>
 
-                        {/* Badges/Facilities (Mocked for now based on screenshot) */}
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        {/* Trust Badges */}
+                        <div className="mt-3 flex flex-col gap-1 items-start">
+                            <span className="rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700 border border-green-200">
+                                Free cancellation
+                            </span>
+                            <span className="rounded bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700 border border-red-200 flex items-center gap-1">
+                                🔥 Limited supply for your dates
+                            </span>
                         </div>
                     </div>
 
@@ -94,26 +120,25 @@ export function HorizontalHotelCard({ hotel, checkin, checkout, adults, rooms, c
                     </div>
                 </div>
 
-                {/* Bottom Section: Price & Action */}
-                <div className="mt-4 flex items-end justify-between">
-                    <div className="hidden sm:block">
-                        {/* Optional descriptive text or location specifics can go here */}
+                <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+                    <div className="text-xs text-muted-foreground max-w-[60%]">
+                        <p className="font-semibold text-foreground">Top highlight:</p>
+                        <p className="line-clamp-2">&quot;Guests consistently praise the incredible location and seamless check-in experience.&quot;</p>
                     </div>
 
-                    <div className="flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-2">
-                            <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">8% off</span>
+                    <div className="flex flex-col items-end gap-0 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white shadow-sm">Early Booker Deal</span>
                         </div>
                         <div className="text-right">
-                            <div className="flex items-baseline justify-end gap-1">
-                                <span className="text-xs text-muted-foreground line-through">{formatMoney(hotel.currency, (hotel.price ?? 0) * 1.08)}</span>
-                                <span className="text-2xl font-bold">{formatMoney(hotel.currency, hotel.price)}</span>
-                                <span className="text-xs font-medium text-muted-foreground">/ night</span>
+                            <div className="flex items-baseline justify-end gap-1.5">
+                                <span className="text-sm text-muted-foreground line-through decoration-red-500/50">{formatMoney(hotel.currency, (hotel.price ?? 0) * 1.08)}</span>
+                                <span className="text-2xl font-bold text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
                             </div>
-                            <p className="text-[10px] text-muted-foreground">1 night, 1 room, incl. taxes & fees</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">Includes taxes and charges</p>
                         </div>
-                        <Button className="mt-2 h-10 rounded-full bg-[#aa15ef] px-6 font-semibold shadow-md hover:bg-[#9013cb] hover:shadow-lg">
-                            See availability &gt;
+                        <Button className="mt-3 h-10 w-full rounded bg-primary px-8 font-bold shadow-none transition-all hover:bg-primary/90 hover:shadow-md sm:w-auto">
+                            See availability
                         </Button>
                     </div>
                 </div>

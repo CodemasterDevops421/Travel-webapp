@@ -65,6 +65,11 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
     return parseListingUiState(Object.fromEntries(searchParams.entries()));
   }, [searchParams]);
 
+  const discoveryContext = useMemo(() => {
+    const queryString = searchParams.toString();
+    return queryString ? `${pathname}?${queryString}` : pathname;
+  }, [pathname, searchParams]);
+
   const apiFilters = useMemo(
     () => ({
       brief: urlState.filters.propertyName || undefined,
@@ -361,6 +366,7 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
                   adults={adults}
                   rooms={rooms}
                   currency={currency}
+                  discoveryContext={discoveryContext}
                 />
               ))}
 
