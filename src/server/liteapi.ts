@@ -1,10 +1,11 @@
 import 'server-only';
 import LiteAPI from 'liteapi-node-sdk';
-import { env, getLiteApiRuntimeConfig } from '@/server/env';
+import { assertLiteApiRuntimeConfig, env, getLiteApiRuntimeConfig } from '@/server/env';
 import { logger } from '@/server/logger';
 import { HttpError } from '@/server/errors';
 
 const liteApiRuntime = getLiteApiRuntimeConfig();
+assertLiteApiRuntimeConfig(liteApiRuntime);
 const LITEAPI_API_KEY = liteApiRuntime.apiKey;
 const LITEAPI_BASE_URL = liteApiRuntime.baseUrl;
 const LITEAPI_BOOK_BASE_URL = liteApiRuntime.bookBaseUrl;

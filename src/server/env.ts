@@ -1,3 +1,4 @@
+import 'server-only';
 import { z } from 'zod';
 
 const emptyStringToUndefined = <TSchema extends z.ZodTypeAny>(schema: TSchema) =>
@@ -53,20 +54,62 @@ export type LiteApiRuntimeConfig = {
   bookBaseUrl: string;
 };
 
+function getModeValue(
+  mode: 'sandbox' | 'production',
+  modeValue: string | undefined,
+  fallbackValue: string
+): string {
+  if (typeof modeValue === 'string' && modeValue.trim().length > 0) {
+    return modeValue;
+  }
+
+  if (mode === 'production' && parsedEnv.NODE_ENV === 'production') {
+    throw new Error('LiteAPI production mode requires dedicated production configuration in production runtime.');
+  }
+
+  return fallbackValue;
+}
+
+export function assertLiteApiRuntimeConfig(config: LiteApiRuntimeConfig): void {
+  const problems: string[] = [];
+
+  if (parsedEnv.NODE_ENV === 'production') {
+    if (config.mode === 'production') {
+      if (isPlaceholderValue(config.apiKey, ['placeholder', 'your_liteapi_api_key', 'liteapi-placeholder-key'])) {
+        problems.push('LITEAPI_PRODUCTION_API_KEY must be set to a real key when LITEAPI_ENV=production.');
+      }
+    } else if (isPlaceholderValue(config.apiKey, ['placeholder', 'your_liteapi_api_key', 'liteapi-placeholder-key'])) {
+      problems.push('LiteAPI key for selected LITEAPI_ENV must be set to a real key in production.');
+    }
+  }
+
+  if (problems.length > 0) {
+    throw new Error(`LiteAPI runtime configuration invalid:\n- ${problems.join('\n- ')}`);
+  }
+}
+
 export function getLiteApiRuntimeConfig(): LiteApiRuntimeConfig {
   const mode = parsedEnv.LITEAPI_ENV;
-  const selectedApiKey = mode === 'production' ? parsedEnv.LITEAPI_PRODUCTION_API_KEY : parsedEnv.LITEAPI_SANDBOX_API_KEY;
-  const selectedBaseUrl = mode === 'production' ? parsedEnv.LITEAPI_PRODUCTION_BASE_URL : parsedEnv.LITEAPI_SANDBOX_BASE_URL;
+  const selectedApiKey = mode === 'production'
+    ? getModeValue(mode, parsedEnv.LITEAPI_PRODUCTION_API_KEY, parsedEnv.LITEAPI_API_KEY)
+    : getModeValue(mode, parsedEnv.LITEAPI_SANDBOX_API_KEY, parsedEnv.LITEAPI_API_KEY);
+  const selectedBaseUrl = mode === 'production'
+    ? getModeValue(mode, parsedEnv.LITEAPI_PRODUCTION_BASE_URL, parsedEnv.LITEAPI_BASE_URL)
+    : getModeValue(mode, parsedEnv.LITEAPI_SANDBOX_BASE_URL, parsedEnv.LITEAPI_BASE_URL);
   const selectedBookBaseUrl = mode === 'production'
-    ? parsedEnv.LITEAPI_PRODUCTION_BOOK_BASE_URL
-    : parsedEnv.LITEAPI_SANDBOX_BOOK_BASE_URL;
+    ? getModeValue(mode, parsedEnv.LITEAPI_PRODUCTION_BOOK_BASE_URL, parsedEnv.LITEAPI_BOOK_BASE_URL)
+    : getModeValue(mode, parsedEnv.LITEAPI_SANDBOX_BOOK_BASE_URL, parsedEnv.LITEAPI_BOOK_BASE_URL);
 
-  return {
+  const config: LiteApiRuntimeConfig = {
     mode,
-    apiKey: selectedApiKey ?? parsedEnv.LITEAPI_API_KEY,
-    baseUrl: selectedBaseUrl ?? parsedEnv.LITEAPI_BASE_URL,
-    bookBaseUrl: selectedBookBaseUrl ?? parsedEnv.LITEAPI_BOOK_BASE_URL
+    apiKey: selectedApiKey,
+    baseUrl: selectedBaseUrl,
+    bookBaseUrl: selectedBookBaseUrl
   };
+
+  assertLiteApiRuntimeConfig(config);
+
+  return config;
 }
 
 function isPlaceholderValue(value: string | undefined, patterns: string[]): boolean {
