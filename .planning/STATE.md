@@ -10,36 +10,37 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 1 of 5 (Platform Foundation and Security)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-23 - Completed 01-02-PLAN.md
+Last activity: 2026-02-23 - Completed 01-03-PLAN.md
 
-Progress: [#####-----] 50%
+Progress: [#######---] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: 4 min
-- Total execution time: 0.1 hours
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Platform Foundation and Security | 2 | 7 min | 4 min |
+| 1. Platform Foundation and Security | 3 | 12 min | 4 min |
 | 2. Search and Discovery Experience | 0 | 0 min | 0 min |
 | 3. Hotel Detail and User Workspace | 0 | 0 min | 0 min |
 | 4. Checkout and Booking Lifecycle Integrity | 0 | 0 min | 0 min |
 | 5. Admin Monetization and Launch Operations | 0 | 0 min | 0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (6 min), 01-02 (1 min)
+- Last 5 plans: 01-01 (6 min), 01-02 (1 min), 01-03 (5 min)
 - Trend: Stable
 
 *Updated after each plan completion*
 | Phase 01 P01 | 6 min | 3 tasks | 9 files |
 | Phase 01 P02 | 1 min | 3 tasks | 5 files |
+| Phase 01 P03 | 5 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -55,10 +56,12 @@ Recent decisions affecting current work:
 - [Phase 01]: Redact supplier API/secret fields at response boundaries instead of trusting upstream payload shape
 - [Phase 01]: Kept migration semantics additive/idempotent only to avoid destructive behavior in brownfield environments.
 - [Phase 01]: Promoted centralized error capture in toHttpError so critical routes emit structured diagnostics with safe public messages.
+- [Phase 01]: Map Supabase auth/provider failures to safe public-facing messages to prevent leaking internals.
+- [Phase 01]: Fail closed on OAuth callback when state is missing or redirect target is not a safe relative path.
+- [Phase 01]: Authorize admins via explicit role claims first, then active admin_users table fallback.
 
 ### Pending Todos
 
-- Execute 01-03-PLAN.md
 - Execute 01-04-PLAN.md
 
 ### Blockers/Concerns
@@ -67,6 +70,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-23 11:08
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-02-23 11:17
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
