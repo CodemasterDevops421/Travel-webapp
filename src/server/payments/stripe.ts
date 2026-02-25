@@ -22,6 +22,17 @@ type StripeCheckoutIntentResult = {
   idempotencyKey: string;
 };
 
+type StripeRefundInput = {
+  paymentIntentId: string;
+  metadata?: Record<string, string>;
+};
+
+type StripeRefundResult = {
+  refundId: string;
+  status: string;
+  paymentIntentId: string;
+};
+
 let client: Stripe | null = null;
 
 const ZERO_DECIMAL_CURRENCIES = new Set([
@@ -145,4 +156,26 @@ export function constructStripeEvent(rawBody: string, signature: string): Stripe
   }
 
   return getStripeClient().webhooks.constructEvent(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
+}
+
+export async function createStripeRefund(input: StripeRefundInput): Promise<StripeRefundResult> {
+  const stripe = getStripeClient();
+  const idempotencyKey = createStripeIdempotencyKey(['refund', input.paymentIntentId]);
+
+  const refund = await stripe.refunds.create(
+    {
+      payment_intent: input.paymentIntentId,
+      reason: 'requested_by_customer',
+      metadata: input.metadata
+    },
+    {
+      idempotencyKey
+    }
+  );
+
+  return {
+    refundId: refund.id,
+    status: refund.status ?? 'pending',
+    paymentIntentId: input.paymentIntentId
+  };
 }
