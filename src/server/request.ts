@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { env } from '@/server/env';
 
@@ -43,9 +43,31 @@ function canTrustForwardedHeaders(): boolean {
   return env.TRUST_PROXY_HEADERS;
 }
 
+function buildUntrustedFingerprint(request: NextRequest): string {
+  const components = [
+    normalizeHeaderValue(request.headers.get('user-agent')),
+    normalizeHeaderValue(request.headers.get('accept-language')),
+    normalizeHeaderValue(request.headers.get('sec-ch-ua')),
+    normalizeHeaderValue(request.headers.get('sec-ch-ua-platform')),
+    normalizeHeaderValue(request.headers.get('accept')),
+    normalizeHeaderValue(request.headers.get('host'))
+  ].filter((value): value is string => value !== null);
+
+  if (components.length === 0) {
+    return 'anonymous';
+  }
+
+  const digest = createHash('sha256')
+    .update(components.join('|'))
+    .digest('hex')
+    .slice(0, 24);
+
+  return `anon:${digest}`;
+}
+
 export function getClientIp(request: NextRequest): string {
   if (!canTrustForwardedHeaders()) {
-    return 'anonymous';
+    return buildUntrustedFingerprint(request);
   }
 
   const xRealIp = parseIp(request.headers.get('x-real-ip'));

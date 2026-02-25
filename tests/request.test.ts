@@ -47,7 +47,7 @@ describe('request helpers', () => {
     expect(getClientIp(request)).toBe('anonymous');
   });
 
-  it('does not trust forwarded headers in production when trust flag is disabled', async () => {
+  it('uses deterministic fingerprint in production when trust flag is disabled', async () => {
     vi.resetModules();
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('TRUST_PROXY_HEADERS', 'false');
@@ -64,14 +64,44 @@ describe('request helpers', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon');
 
     const { getClientIp } = await import('@/server/request');
-    const request = new NextRequest('https://example.com/api/test', {
+    const requestA = new NextRequest('https://example.com/api/test', {
       headers: {
         'x-real-ip': '9.9.9.9',
-        'x-forwarded-for': '1.2.3.4'
+        'x-forwarded-for': '1.2.3.4',
+        'user-agent': 'agent-a',
+        'accept-language': 'en-US',
+        accept: 'application/json',
+        host: 'example.com'
       }
     });
 
-    expect(getClientIp(request)).toBe('anonymous');
+    const requestB = new NextRequest('https://example.com/api/test', {
+      headers: {
+        'x-real-ip': '8.8.8.8',
+        'x-forwarded-for': '7.7.7.7',
+        'user-agent': 'agent-a',
+        'accept-language': 'en-US',
+        accept: 'application/json',
+        host: 'example.com'
+      }
+    });
+
+    const requestC = new NextRequest('https://example.com/api/test', {
+      headers: {
+        'user-agent': 'agent-b',
+        'accept-language': 'fr-FR',
+        accept: 'application/json',
+        host: 'example.com'
+      }
+    });
+
+    const keyA = getClientIp(requestA);
+    const keyB = getClientIp(requestB);
+    const keyC = getClientIp(requestC);
+
+    expect(keyA).toMatch(/^anon:[a-f0-9]{24}$/);
+    expect(keyA).toBe(keyB);
+    expect(keyC).not.toBe(keyA);
   });
 
   it('uses request correlation id headers or generates one', async () => {
