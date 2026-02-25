@@ -179,6 +179,8 @@ type PersistBookingInput = {
   correlationId?: string | null;
   searchLogId?: string | null;
   latestPaymentLogId?: string | null;
+  stripePaymentIntentId?: string | null;
+  stripeCheckoutSessionId?: string | null;
 };
 
 type FallbackBookingRecord = BookingRecord;
@@ -214,6 +216,16 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
     : typeof input.metadata.paymentLogId === 'string'
       ? input.metadata.paymentLogId
       : null;
+  const stripePaymentIntentId = typeof input.stripePaymentIntentId === 'string'
+    ? input.stripePaymentIntentId
+    : typeof input.metadata.stripePaymentIntentId === 'string'
+      ? input.metadata.stripePaymentIntentId
+      : null;
+  const stripeCheckoutSessionId = typeof input.stripeCheckoutSessionId === 'string'
+    ? input.stripeCheckoutSessionId
+    : typeof input.metadata.stripeCheckoutSessionId === 'string'
+      ? input.metadata.stripeCheckoutSessionId
+      : null;
   const currency = typeof itinerary.currency === 'string'
     ? itinerary.currency
     : typeof pricing.currency === 'string'
@@ -239,6 +251,8 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
     correlation_id: input.correlationId ?? null,
     search_log_id: input.searchLogId ?? searchLogIdFromMetadata,
     latest_payment_log_id: input.latestPaymentLogId ?? latestPaymentLogIdFromMetadata,
+    stripe_payment_intent_id: stripePaymentIntentId,
+    stripe_checkout_session_id: stripeCheckoutSessionId,
     metadata: input.metadata,
     created_at: new Date().toISOString()
   };
@@ -271,10 +285,12 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
       confirmation_code: confirmationCode,
       commission_amount: commissionAmount,
       correlation_id: input.correlationId ?? null,
-      search_log_id: input.searchLogId ?? searchLogIdFromMetadata,
-      latest_payment_log_id: input.latestPaymentLogId ?? latestPaymentLogIdFromMetadata,
-      metadata: input.metadata
-    })
+       search_log_id: input.searchLogId ?? searchLogIdFromMetadata,
+       latest_payment_log_id: input.latestPaymentLogId ?? latestPaymentLogIdFromMetadata,
+       stripe_payment_intent_id: stripePaymentIntentId,
+       stripe_checkout_session_id: stripeCheckoutSessionId,
+       metadata: input.metadata
+     })
     .select('id')
     .single();
 
@@ -313,6 +329,8 @@ export type BookingRecord = {
   correlation_id: string | null;
   search_log_id: string | null;
   latest_payment_log_id: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_checkout_session_id: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
 };
@@ -329,7 +347,7 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
   const { data, error } = await supabase
     .from('bookings')
     .select(
-      'id, user_id, liteapi_booking_id, status, quote_id, hotel_id, room_id, check_in, check_out, total_amount, currency, commission_amount, payment_status, confirmation_code, correlation_id, search_log_id, latest_payment_log_id, metadata, created_at'
+      'id, user_id, liteapi_booking_id, status, quote_id, hotel_id, room_id, check_in, check_out, total_amount, currency, commission_amount, payment_status, confirmation_code, correlation_id, search_log_id, latest_payment_log_id, stripe_payment_intent_id, stripe_checkout_session_id, metadata, created_at'
     )
     .eq('id', id)
     .single();
@@ -365,6 +383,12 @@ export async function updateBookingStatusByLiteApiId(
       }
 
       const mergedMetadata = mergeMetadata(booking.metadata, metadata);
+      const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
+        ? mergedMetadata.stripePaymentIntentId
+        : booking.stripe_payment_intent_id;
+      const stripeCheckoutSessionId = typeof mergedMetadata.stripeCheckoutSessionId === 'string'
+        ? mergedMetadata.stripeCheckoutSessionId
+        : booking.stripe_checkout_session_id;
       const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
       fallbackBookings.set(id, {
         ...booking,
@@ -373,6 +397,8 @@ export async function updateBookingStatusByLiteApiId(
         commission_amount: fields.commissionAmount,
         payment_status: fields.paymentStatus,
         confirmation_code: fields.confirmationCode,
+        stripe_payment_intent_id: stripePaymentIntentId,
+        stripe_checkout_session_id: stripeCheckoutSessionId,
         metadata: mergedMetadata
       });
       return true;
@@ -386,7 +412,7 @@ export async function updateBookingStatusByLiteApiId(
   const supabase = createAdminClient();
   const { data, error: lookupError } = await supabase
     .from('bookings')
-    .select('id, status, metadata, total_amount, commission_amount, payment_status, confirmation_code')
+    .select('id, status, metadata, total_amount, commission_amount, payment_status, confirmation_code, stripe_payment_intent_id, stripe_checkout_session_id')
     .eq('liteapi_booking_id', liteApiBookingId)
     .limit(1)
     .single();
@@ -412,6 +438,12 @@ export async function updateBookingStatusByLiteApiId(
     data.metadata as Record<string, unknown> | null | undefined,
     metadata
   );
+  const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
+    ? mergedMetadata.stripePaymentIntentId
+    : (data.stripe_payment_intent_id as string | null);
+  const stripeCheckoutSessionId = typeof mergedMetadata.stripeCheckoutSessionId === 'string'
+    ? mergedMetadata.stripeCheckoutSessionId
+    : (data.stripe_checkout_session_id as string | null);
   const fields = deriveBookingCanonicalFields(
     {
       total_amount: data.total_amount as number | null,
@@ -429,6 +461,8 @@ export async function updateBookingStatusByLiteApiId(
       commission_amount: fields.commissionAmount,
       payment_status: fields.paymentStatus,
       confirmation_code: fields.confirmationCode,
+      stripe_payment_intent_id: stripePaymentIntentId,
+      stripe_checkout_session_id: stripeCheckoutSessionId,
       metadata: mergedMetadata
     })
     .eq('id', data.id);
@@ -464,6 +498,12 @@ export async function updateBookingStatusByTransactionId(
       }
 
       const mergedMetadata = mergeMetadata(booking.metadata, metadata);
+      const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
+        ? mergedMetadata.stripePaymentIntentId
+        : booking.stripe_payment_intent_id;
+      const stripeCheckoutSessionId = typeof mergedMetadata.stripeCheckoutSessionId === 'string'
+        ? mergedMetadata.stripeCheckoutSessionId
+        : booking.stripe_checkout_session_id;
       const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
       fallbackBookings.set(id, {
         ...booking,
@@ -472,6 +512,8 @@ export async function updateBookingStatusByTransactionId(
         commission_amount: fields.commissionAmount,
         payment_status: fields.paymentStatus,
         confirmation_code: fields.confirmationCode,
+        stripe_payment_intent_id: stripePaymentIntentId,
+        stripe_checkout_session_id: stripeCheckoutSessionId,
         metadata: mergedMetadata
       });
       return true;
@@ -485,7 +527,7 @@ export async function updateBookingStatusByTransactionId(
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, status, metadata, total_amount, commission_amount, payment_status, confirmation_code')
+    .select('id, status, metadata, total_amount, commission_amount, payment_status, confirmation_code, stripe_payment_intent_id, stripe_checkout_session_id')
     .contains('metadata', { transactionId })
     .limit(1)
     .single();
@@ -511,6 +553,12 @@ export async function updateBookingStatusByTransactionId(
     data.metadata as Record<string, unknown> | null | undefined,
     metadata
   );
+  const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
+    ? mergedMetadata.stripePaymentIntentId
+    : (data.stripe_payment_intent_id as string | null);
+  const stripeCheckoutSessionId = typeof mergedMetadata.stripeCheckoutSessionId === 'string'
+    ? mergedMetadata.stripeCheckoutSessionId
+    : (data.stripe_checkout_session_id as string | null);
   const fields = deriveBookingCanonicalFields(
     {
       total_amount: data.total_amount as number | null,
@@ -528,6 +576,8 @@ export async function updateBookingStatusByTransactionId(
       commission_amount: fields.commissionAmount,
       payment_status: fields.paymentStatus,
       confirmation_code: fields.confirmationCode,
+      stripe_payment_intent_id: stripePaymentIntentId,
+      stripe_checkout_session_id: stripeCheckoutSessionId,
       metadata: mergedMetadata
     })
     .eq('id', data.id);

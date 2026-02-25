@@ -7,13 +7,18 @@ const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
 
 const fallbackEvents = new Map<string, number>();
 
-function key(eventId: string): string {
-  return `webhook:event:${eventId}`;
+function key(source: string, eventId: string): string {
+  return `webhook:${source}:event:${eventId}`;
 }
 
-export async function markWebhookEventProcessed(eventId: string, ttlSeconds = 7 * 24 * 60 * 60): Promise<boolean> {
+export async function markWebhookEventProcessed(
+  eventId: string,
+  ttlSeconds = 7 * 24 * 60 * 60,
+  source = 'default'
+): Promise<boolean> {
+  const eventKey = key(source, eventId);
   if (redis) {
-    const result = await redis.set(key(eventId), '1', { nx: true, ex: ttlSeconds });
+    const result = await redis.set(eventKey, '1', { nx: true, ex: ttlSeconds });
     return result === 'OK';
   }
 
@@ -24,7 +29,6 @@ export async function markWebhookEventProcessed(eventId: string, ttlSeconds = 7 
     }
   }
 
-  const eventKey = key(eventId);
   if (fallbackEvents.has(eventKey)) {
     return false;
   }

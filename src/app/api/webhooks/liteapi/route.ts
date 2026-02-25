@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     const correlationId = getCorrelationId(request);
     const eventId = String(event.id ?? createHash('sha256').update(rawBody).digest('hex'));
-    const firstSeen = await markWebhookEventProcessed(eventId);
+    const firstSeen = await markWebhookEventProcessed(eventId, 7 * 24 * 60 * 60, 'liteapi');
     if (!firstSeen) {
       logger.info({ correlationId, eventId }, 'Duplicate LiteAPI webhook ignored');
       return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
