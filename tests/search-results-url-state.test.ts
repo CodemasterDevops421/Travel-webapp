@@ -22,6 +22,7 @@ describe('search results URL state contract', () => {
         page: 3,
         filters: {
           propertyName: 'Hilton',
+          minPrice: 120,
           maxPrice: 420,
           minGuestRating: 8.5,
           minStars: 4,
@@ -33,7 +34,7 @@ describe('search results URL state contract', () => {
     });
 
     expect(params.toString()).toBe(
-      'q=Paris&checkin=2026-07-10&checkout=2026-07-13&guests=2&rooms=1&language=en&currency=EUR&view=map&sort=rating&page=3&propertyName=Hilton&maxPrice=420&minGuestRating=8.5&minStars=4&maxDistanceKm=5&amenities=parking%2Cwifi&propertyType=hotel%2Cresort'
+      'q=Paris&checkin=2026-07-10&checkout=2026-07-13&guests=2&rooms=1&language=en&currency=EUR&view=map&sort=rating&page=3&propertyName=Hilton&minPrice=120&maxPrice=420&minGuestRating=8.5&minStars=4&maxDistanceKm=5&amenities=parking%2Cwifi&propertyType=hotel%2Cresort'
     );
   });
 
@@ -43,6 +44,7 @@ describe('search results URL state contract', () => {
       view: 'map',
       page: '4.7',
       propertyName: '  boutique   central ',
+      minPrice: '180',
       maxPrice: '255',
       minGuestRating: '8',
       minStars: '3.5',
@@ -57,6 +59,7 @@ describe('search results URL state contract', () => {
       page: 4,
       filters: {
         propertyName: 'boutique central',
+        minPrice: 180,
         maxPrice: 255,
         minGuestRating: 8,
         minStars: 3.5,
@@ -72,6 +75,7 @@ describe('search results URL state contract', () => {
       sort: 'unsupported',
       view: 'split',
       page: '-8',
+      minPrice: '-10',
       maxPrice: 'abc',
       minGuestRating: '100',
       minStars: '-2',
@@ -84,6 +88,7 @@ describe('search results URL state contract', () => {
       page: 1,
       filters: {
         propertyName: '',
+        minPrice: 0,
         maxPrice: 1000,
         minGuestRating: 10,
         minStars: 0,
@@ -92,5 +97,15 @@ describe('search results URL state contract', () => {
         maxDistanceKm: 100
       }
     });
+  });
+
+  it('normalizes minimum price when it exceeds the maximum', () => {
+    const restored = parseListingUiState({
+      minPrice: '900',
+      maxPrice: '450'
+    });
+
+    expect(restored.filters.minPrice).toBe(450);
+    expect(restored.filters.maxPrice).toBe(450);
   });
 });

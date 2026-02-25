@@ -73,6 +73,7 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
   const apiFilters = useMemo(
     () => ({
       brief: urlState.filters.propertyName || undefined,
+      minPrice: urlState.filters.minPrice > 0 ? urlState.filters.minPrice : undefined,
       minStars: urlState.filters.minStars > 0 ? urlState.filters.minStars : undefined,
       minGuestRating: urlState.filters.minGuestRating > 0 ? urlState.filters.minGuestRating : undefined,
       maxPrice: urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? urlState.filters.maxPrice : undefined,
@@ -114,6 +115,9 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
       const name = (hotel.name ?? '').toLowerCase();
 
       if (urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice && price > urlState.filters.maxPrice) {
+        return false;
+      }
+      if (urlState.filters.minPrice > 0 && price < urlState.filters.minPrice) {
         return false;
       }
       if (urlState.filters.minGuestRating > 0 && review < urlState.filters.minGuestRating) {
@@ -201,6 +205,7 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
 
   const activeFilterCount =
     (urlState.filters.propertyName ? 1 : 0) +
+    (urlState.filters.minPrice > 0 ? 1 : 0) +
     (urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? 1 : 0) +
     (urlState.filters.minGuestRating > 0 ? 1 : 0) +
     (urlState.filters.minStars > 0 ? 1 : 0) +

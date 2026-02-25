@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 export interface FilterState {
     propertyName: string;
+    minPrice: number;
     maxPrice: number;
     minGuestRating: number;
     minStars: number;
@@ -78,6 +79,7 @@ export function FiltersSidebar({ filters, onFilterChange, query }: FiltersSideba
     const clearAllFilters = useCallback(() => {
         onFilterChange({
             propertyName: '',
+            minPrice: 0,
             maxPrice: 1000,
             minGuestRating: 0,
             minStars: 0,
@@ -89,6 +91,7 @@ export function FiltersSidebar({ filters, onFilterChange, query }: FiltersSideba
 
     const hasActiveFilters =
         filters.propertyName !== '' ||
+        filters.minPrice > 0 ||
         filters.maxPrice < 1000 ||
         filters.minGuestRating > 0 ||
         filters.minStars > 0 ||
@@ -147,15 +150,36 @@ export function FiltersSidebar({ filters, onFilterChange, query }: FiltersSideba
                 <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold">Price (per night)</h4>
                     <span className="text-xs font-medium text-primary">
-                        Up to ${filters.maxPrice}
+                        ${filters.minPrice} - ${filters.maxPrice}
                     </span>
                 </div>
                 <div className="px-2 pt-2">
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">Minimum</p>
+                    <Slider
+                        value={filters.minPrice}
+                        max={1000}
+                        step={10}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                            const minPrice = Number(e.target.value);
+                            updateFilter({
+                                minPrice,
+                                maxPrice: Math.max(minPrice, filters.maxPrice)
+                            });
+                        }}
+                    />
+                    <div className="mt-2" />
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">Maximum</p>
                     <Slider
                         value={filters.maxPrice}
                         max={1000}
                         step={10}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => updateFilter({ maxPrice: Number(e.target.value) })}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                            const maxPrice = Number(e.target.value);
+                            updateFilter({
+                                minPrice: Math.min(filters.minPrice, maxPrice),
+                                maxPrice
+                            });
+                        }}
                     />
                     <div className="mt-4 flex justify-between text-xs text-muted-foreground font-medium">
                         <span>$0</span>

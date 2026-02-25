@@ -22,6 +22,7 @@ export type ListingView = 'grid' | 'map';
 
 export type ListingFilters = {
   propertyName: string;
+  minPrice: number;
   maxPrice: number;
   minGuestRating: number;
   minStars: number;
@@ -55,6 +56,7 @@ const SERIALIZE_ORDER = [
   'sort',
   'page',
   'propertyName',
+  'minPrice',
   'maxPrice',
   'minGuestRating',
   'minStars',
@@ -67,6 +69,7 @@ type ListingUiInput = Record<string, string | string[] | undefined>;
 
 export const DEFAULT_LISTING_FILTERS: ListingFilters = {
   propertyName: '',
+  minPrice: 0,
   maxPrice: DEFAULT_MAX_PRICE,
   minGuestRating: 0,
   minStars: 0,
@@ -129,29 +132,23 @@ export function parseListingUiState(params: ListingUiInput): ListingUiState {
   const propertyName = normalizeText(readParamValue(params.propertyName) ?? '');
   const amenities = parseTokenList(readParamValue(params.amenities));
   const propertyTypes = parseTokenList(readParamValue(params.propertyType) ?? readParamValue(params.propertyTypes));
+  const minPrice = parseBoundedNumber(readParamValue(params.minPrice), 0, 0, 5000);
+  const maxPrice = parseBoundedNumber(readParamValue(params.maxPrice), DEFAULT_MAX_PRICE, 50, 5000);
+  const normalizedMinPrice = Math.min(minPrice, maxPrice);
 
   return {
-    sort: normalizeSort(typeof params.sort === 'string' ? params.sort : undefined),
-    view: normalizeView(typeof params.view === 'string' ? params.view : undefined),
-    page: parseBoundedInteger(typeof params.page === 'string' ? params.page : undefined, 1, 1, 999),
+    sort: normalizeSort(readParamValue(params.sort)),
+    view: normalizeView(readParamValue(params.view)),
+    page: parseBoundedInteger(readParamValue(params.page), 1, 1, 999),
     filters: {
       propertyName,
-      maxPrice: parseBoundedNumber(typeof params.maxPrice === 'string' ? params.maxPrice : undefined, DEFAULT_MAX_PRICE, 50, 5000),
-      minGuestRating: parseBoundedNumber(
-        typeof params.minGuestRating === 'string' ? params.minGuestRating : undefined,
-        0,
-        0,
-        10
-      ),
-      minStars: parseBoundedNumber(typeof params.minStars === 'string' ? params.minStars : undefined, 0, 0, 5),
+      minPrice: normalizedMinPrice,
+      maxPrice,
+      minGuestRating: parseBoundedNumber(readParamValue(params.minGuestRating), 0, 0, 10),
+      minStars: parseBoundedNumber(readParamValue(params.minStars), 0, 0, 5),
       amenities,
       propertyTypes,
-      maxDistanceKm: parseBoundedNumber(
-        typeof params.maxDistanceKm === 'string' ? params.maxDistanceKm : undefined,
-        DEFAULT_MAX_DISTANCE_KM,
-        1,
-        100
-      )
+      maxDistanceKm: parseBoundedNumber(readParamValue(params.maxDistanceKm), DEFAULT_MAX_DISTANCE_KM, 1, 100)
     }
   };
 }
@@ -177,6 +174,9 @@ export function serializeListingSearchParams({ query, ui }: SerializeListingInpu
 
   if (ui.filters.propertyName) {
     entries.set('propertyName', ui.filters.propertyName);
+  }
+  if (ui.filters.minPrice > 0) {
+    entries.set('minPrice', String(ui.filters.minPrice));
   }
   if (ui.filters.maxPrice < DEFAULT_MAX_PRICE) {
     entries.set('maxPrice', String(ui.filters.maxPrice));
