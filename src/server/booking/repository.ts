@@ -4,6 +4,7 @@ import { createAdminClient } from '@/server/supabase/admin';
 import { env } from '@/server/env';
 import type { PriceQuote } from '@/server/pricing';
 import { logger } from '@/server/logger';
+import { assertValidBookingTransition, canTransitionBookingState } from '@/server/booking/lifecycle';
 
 type GuestInput = {
   adults: number;
@@ -53,6 +54,54 @@ function mergeMetadata(
   return {
     ...(existing ?? {}),
     ...incoming
+  };
+}
+
+function assertCanonicalBookingState(state: string): void {
+  if (!canTransitionBookingState(state, state)) {
+    throw new Error(`Invalid booking lifecycle state: ${state}`);
+  }
+}
+
+function readNestedNumber(record: Record<string, unknown>, key: string): number | null {
+  const value = record[key];
+  return typeof value === 'number' ? value : null;
+}
+
+function readNestedString(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function deriveBookingCanonicalFields(
+  booking: Pick<
+    BookingRecord,
+    'total_amount' | 'commission_amount' | 'payment_status' | 'confirmation_code'
+  >,
+  metadata: Record<string, unknown>
+): {
+  totalAmount: number | null;
+  commissionAmount: number | null;
+  paymentStatus: string | null;
+  confirmationCode: string | null;
+} {
+  const itinerary = (metadata.itinerary as Record<string, unknown> | undefined) ?? {};
+  const pricing = (metadata.pricing as Record<string, unknown> | undefined) ?? {};
+
+  const totalAmount =
+    readNestedNumber(metadata, 'totalAmount') ??
+    readNestedNumber(itinerary, 'totalAmount') ??
+    readNestedNumber(pricing, 'totalAmount') ??
+    booking.total_amount;
+  const commissionAmount = readNestedNumber(metadata, 'commissionAmount') ?? booking.commission_amount;
+  const paymentStatus = readNestedString(metadata, 'paymentStatus') ?? booking.payment_status;
+  const confirmationCode = readNestedString(metadata, 'confirmationCode') ?? booking.confirmation_code;
+
+  return {
+    totalAmount,
+    commissionAmount,
+    paymentStatus,
+    confirmationCode
   };
 }
 
@@ -136,6 +185,13 @@ type FallbackBookingRecord = BookingRecord;
 const fallbackBookings = new Map<string, FallbackBookingRecord>();
 
 export async function persistBooking(input: PersistBookingInput): Promise<string | null> {
+  try {
+    assertCanonicalBookingState(input.status);
+  } catch (error) {
+    logger.warn({ error, status: input.status }, 'Rejected booking persist with invalid lifecycle status');
+    return null;
+  }
+
   const itinerary = (input.metadata.itinerary as Record<string, unknown> | undefined) ?? {};
   const stayDates = (input.metadata.stayDates as Record<string, unknown> | undefined) ?? {};
   const pricing = (input.metadata.pricing as Record<string, unknown> | undefined) ?? {};
@@ -301,10 +357,23 @@ export async function updateBookingStatusByLiteApiId(
 ): Promise<boolean> {
   for (const [id, booking] of fallbackBookings) {
     if (booking.liteapi_booking_id === liteApiBookingId) {
+      try {
+        assertValidBookingTransition(booking.status, status);
+      } catch (error) {
+        logger.warn({ error, liteApiBookingId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
+        return false;
+      }
+
+      const mergedMetadata = mergeMetadata(booking.metadata, metadata);
+      const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
       fallbackBookings.set(id, {
         ...booking,
         status,
-        metadata: mergeMetadata(booking.metadata, metadata)
+        total_amount: fields.totalAmount,
+        commission_amount: fields.commissionAmount,
+        payment_status: fields.paymentStatus,
+        confirmation_code: fields.confirmationCode,
+        metadata: mergedMetadata
       });
       return true;
     }
@@ -317,7 +386,7 @@ export async function updateBookingStatusByLiteApiId(
   const supabase = createAdminClient();
   const { data, error: lookupError } = await supabase
     .from('bookings')
-    .select('id, metadata')
+    .select('id, status, metadata, total_amount, commission_amount, payment_status, confirmation_code')
     .eq('liteapi_booking_id', liteApiBookingId)
     .limit(1)
     .single();
@@ -332,14 +401,34 @@ export async function updateBookingStatusByLiteApiId(
     return false;
   }
 
+  try {
+    assertValidBookingTransition(data.status, status);
+  } catch (error) {
+    logger.warn({ error, liteApiBookingId, from: data.status, to: status }, 'Rejected invalid booking lifecycle transition');
+    return false;
+  }
+
   const mergedMetadata = mergeMetadata(
     data.metadata as Record<string, unknown> | null | undefined,
     metadata
+  );
+  const fields = deriveBookingCanonicalFields(
+    {
+      total_amount: data.total_amount as number | null,
+      commission_amount: data.commission_amount as number | null,
+      payment_status: data.payment_status as string | null,
+      confirmation_code: data.confirmation_code as string | null
+    },
+    mergedMetadata
   );
   const { error } = await supabase
     .from('bookings')
     .update({
       status,
+      total_amount: fields.totalAmount,
+      commission_amount: fields.commissionAmount,
+      payment_status: fields.paymentStatus,
+      confirmation_code: fields.confirmationCode,
       metadata: mergedMetadata
     })
     .eq('id', data.id);
@@ -367,10 +456,23 @@ export async function updateBookingStatusByTransactionId(
       ? booking.metadata.transactionId
       : null;
     if (existingTransactionId === transactionId) {
+      try {
+        assertValidBookingTransition(booking.status, status);
+      } catch (error) {
+        logger.warn({ error, transactionId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
+        return false;
+      }
+
+      const mergedMetadata = mergeMetadata(booking.metadata, metadata);
+      const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
       fallbackBookings.set(id, {
         ...booking,
         status,
-        metadata: mergeMetadata(booking.metadata, metadata)
+        total_amount: fields.totalAmount,
+        commission_amount: fields.commissionAmount,
+        payment_status: fields.paymentStatus,
+        confirmation_code: fields.confirmationCode,
+        metadata: mergedMetadata
       });
       return true;
     }
@@ -383,7 +485,7 @@ export async function updateBookingStatusByTransactionId(
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, metadata')
+    .select('id, status, metadata, total_amount, commission_amount, payment_status, confirmation_code')
     .contains('metadata', { transactionId })
     .limit(1)
     .single();
@@ -398,14 +500,34 @@ export async function updateBookingStatusByTransactionId(
     return false;
   }
 
+  try {
+    assertValidBookingTransition(data.status, status);
+  } catch (transitionError) {
+    logger.warn({ error: transitionError, transactionId, from: data.status, to: status }, 'Rejected invalid booking lifecycle transition');
+    return false;
+  }
+
   const mergedMetadata = mergeMetadata(
     data.metadata as Record<string, unknown> | null | undefined,
     metadata
+  );
+  const fields = deriveBookingCanonicalFields(
+    {
+      total_amount: data.total_amount as number | null,
+      commission_amount: data.commission_amount as number | null,
+      payment_status: data.payment_status as string | null,
+      confirmation_code: data.confirmation_code as string | null
+    },
+    mergedMetadata
   );
   const { error: updateError } = await supabase
     .from('bookings')
     .update({
       status,
+      total_amount: fields.totalAmount,
+      commission_amount: fields.commissionAmount,
+      payment_status: fields.paymentStatus,
+      confirmation_code: fields.confirmationCode,
       metadata: mergedMetadata
     })
     .eq('id', data.id);

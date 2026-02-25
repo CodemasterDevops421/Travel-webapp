@@ -98,7 +98,7 @@ describe('booking repository fallback mode', () => {
 
     const updated = await repo.updateBookingStatusByLiteApiId(
       'lite-booking-1',
-      'confirmed',
+      'payment_authorized',
       { source: 'webhook' }
     );
     const booking = await repo.getBookingById(id as string);
@@ -106,7 +106,7 @@ describe('booking repository fallback mode', () => {
     expect(updated).toBe(true);
     expect(booking).toMatchObject({
       id,
-      status: 'confirmed',
+      status: 'payment_authorized',
       liteapi_booking_id: 'lite-booking-1'
     });
     expect(booking?.metadata).toMatchObject({
@@ -207,5 +207,102 @@ describe('booking repository fallback mode', () => {
     expect(createAdminClient).toHaveBeenCalledTimes(1);
     expect(loggerWarn).toHaveBeenCalledTimes(1);
     expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('rejects illegal lifecycle status transitions in fallback records', async () => {
+    const loggerWarn = vi.fn();
+    const createAdminClient = vi.fn(() => ({
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST205', message: 'missing booking schema' }
+            })
+          }))
+        }))
+      }))
+    }));
+
+    vi.doMock('@/server/supabase/admin', () => ({ createAdminClient }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { warn: loggerWarn, error: vi.fn() }
+    }));
+
+    const repo = await import('@/server/booking/repository');
+    const id = await repo.persistBooking(buildBookingInput());
+
+    expect(id).toBeTypeOf('string');
+
+    const updated = await repo.updateBookingStatusByLiteApiId(
+      'lite-booking-1',
+      'confirmed',
+      { source: 'webhook' }
+    );
+    const booking = await repo.getBookingById(id as string);
+
+    expect(updated).toBe(false);
+    expect(booking?.status).toBe('pending');
+    expect(loggerWarn).toHaveBeenCalledTimes(2);
+  });
+
+  it('updates canonical booking fields on valid transitions', async () => {
+    const createAdminClient = vi.fn(() => ({
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST205', message: 'missing booking schema' }
+            })
+          }))
+        }))
+      }))
+    }));
+
+    vi.doMock('@/server/supabase/admin', () => ({ createAdminClient }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { warn: vi.fn(), error: vi.fn() }
+    }));
+
+    const repo = await import('@/server/booking/repository');
+    const id = await repo.persistBooking(
+      buildBookingInput({
+        metadata: {
+          transactionId: 'txn-1',
+          itinerary: { totalAmount: 500 },
+          paymentStatus: 'pending'
+        }
+      })
+    );
+
+    expect(id).toBeTypeOf('string');
+
+    const authorized = await repo.updateBookingStatusByLiteApiId(
+      'lite-booking-1',
+      'payment_authorized',
+      {
+        paymentStatus: 'authorized',
+        totalAmount: 525,
+        commissionAmount: 52.5
+      }
+    );
+    expect(authorized).toBe(true);
+
+    const confirmed = await repo.updateBookingStatusByTransactionId('txn-1', 'confirmed', {
+      paymentStatus: 'captured',
+      confirmationCode: 'CONF-123'
+    });
+
+    const booking = await repo.getBookingById(id as string);
+
+    expect(confirmed).toBe(true);
+    expect(booking).toMatchObject({
+      status: 'confirmed',
+      payment_status: 'captured',
+      total_amount: 525,
+      commission_amount: 52.5,
+      confirmation_code: 'CONF-123'
+    });
   });
 });
