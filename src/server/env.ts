@@ -36,6 +36,11 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: emptyStringToUndefined(z.string().min(1).default('supabase-service-role-placeholder')),
   UPSTASH_REDIS_REST_URL: emptyStringToUndefined(z.string().url().optional()),
   UPSTASH_REDIS_REST_TOKEN: emptyStringToUndefined(z.string().optional()),
+  STRIPE_SECRET_KEY: emptyStringToUndefined(z.string().optional()),
+  STRIPE_WEBHOOK_SECRET: emptyStringToUndefined(z.string().optional()),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: emptyStringToUndefined(z.string().optional()),
+  RESEND_API_KEY: emptyStringToUndefined(z.string().optional()),
+  BOOKING_FROM_EMAIL: emptyStringToUndefined(z.string().email().optional()),
   STRICT_PERSISTENCE_MODE: z.coerce.boolean().default(false),
   SENTRY_DSN: emptyStringToUndefined(z.string().optional()),
   OPENAI_API_KEY: emptyStringToUndefined(z.string().optional()),
@@ -148,6 +153,15 @@ export function assertProductionReadiness(): void {
   }
   if (!parsedEnv.BOOKING_API_AUTH_SECRET) {
     problems.push('BOOKING_API_AUTH_SECRET is required in production to protect booking APIs.');
+  }
+  if (!parsedEnv.STRIPE_SECRET_KEY) {
+    problems.push('STRIPE_SECRET_KEY is required in production.');
+  }
+  if (!parsedEnv.STRIPE_WEBHOOK_SECRET) {
+    problems.push('STRIPE_WEBHOOK_SECRET is required in production.');
+  }
+  if (!parsedEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+    problems.push('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is required in production.');
   }
   if (parsedEnv.LITEAPI_ENV === 'sandbox') {
     problems.push('LITEAPI_ENV must be set to production for production runtime.');
