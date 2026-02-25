@@ -166,15 +166,18 @@ export async function POST(request: NextRequest) {
       status?: string;
     };
     const liteApiBookingId = bookingData.data?.bookingId ?? bookingData.bookingId ?? null;
-    const status = bookingData.data?.status ?? bookingData.status ?? 'unknown';
+    const supplierStatus = bookingData.data?.status ?? bookingData.status ?? 'unknown';
+    const lifecycleStatus = 'pending';
     const localBookingId = await persistBooking({
       quoteId: session.quoteId,
       liteApiBookingId,
-      status,
+      status: lifecycleStatus,
       metadata: {
         clientReference: session.clientReference,
         transactionId: payload.transactionId,
         prebookId: payload.prebookId,
+        supplierStatus,
+        paymentStatus: 'pending',
         itinerary: {
           hotelId: quoteToVerify.hotelId,
           roomId: quoteToVerify.roomId,
@@ -198,7 +201,8 @@ export async function POST(request: NextRequest) {
         transactionId: payload.transactionId,
         localBookingId,
         liteApiBookingId,
-        status
+        supplierStatus,
+        lifecycleStatus
       },
       'Booking finalized'
     );
@@ -208,7 +212,8 @@ export async function POST(request: NextRequest) {
       localBookingId,
       bookingViewToken,
       liteApiBookingId,
-      status,
+      status: lifecycleStatus,
+      supplierStatus,
       clientReference: session.clientReference,
       quoteSignature: quoteToVerify.signature
     };
