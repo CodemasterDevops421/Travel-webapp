@@ -309,34 +309,41 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
 
       {showMobileFilters && (
         <div className="lg:hidden">
-          <FiltersSidebar
-            filters={urlState.filters}
-            onFilterChange={(nextFilters: FilterState) => {
-              updateUrlState((previous) => ({
-                ...previous,
-                filters: nextFilters,
-                page: 1
-              }));
-            }}
-            query={query}
-          />
-        </div>
-      )}
+            <FiltersSidebar
+              filters={urlState.filters}
+              onFilterChange={(nextFilters: FilterState) => {
+                updateUrlState((previous) => ({
+                  ...previous,
+                  filters: nextFilters,
+                  page: 1
+                }));
+              }}
+              onShowMap={() => {
+                updateUrlState((previous) => ({ ...previous, view: 'map' }));
+                setShowMobileFilters(false);
+              }}
+              query={query}
+            />
+          </div>
+        )}
 
       <div className="grid gap-8 lg:grid-cols-[300px,1fr]">
         <div className="sticky top-24 hidden self-start lg:block">
-          <FiltersSidebar
-            filters={urlState.filters}
-            onFilterChange={(nextFilters: FilterState) => {
-              updateUrlState((previous) => ({
-                ...previous,
-                filters: nextFilters,
-                page: 1
-              }));
-            }}
-            query={query}
-          />
-        </div>
+            <FiltersSidebar
+              filters={urlState.filters}
+              onFilterChange={(nextFilters: FilterState) => {
+                updateUrlState((previous) => ({
+                  ...previous,
+                  filters: nextFilters,
+                  page: 1
+                }));
+              }}
+              onShowMap={() => {
+                updateUrlState((previous) => ({ ...previous, view: 'map' }));
+              }}
+              query={query}
+            />
+          </div>
 
         <div className="space-y-4">
           {urlState.view === 'map' && (

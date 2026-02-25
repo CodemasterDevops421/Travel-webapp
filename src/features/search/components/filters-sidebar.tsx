@@ -22,6 +22,7 @@ interface FiltersSidebarProps {
     filters: FilterState;
     onFilterChange: (filters: FilterState) => void;
     query?: string;
+    onShowMap?: () => void;
 }
 
 const AMENITY_OPTIONS = [
@@ -43,7 +44,7 @@ const PROPERTY_TYPE_OPTIONS = [
     { value: 'villa', label: 'Villa' }
 ];
 
-export function FiltersSidebar({ filters, onFilterChange, query }: FiltersSidebarProps) {
+export function FiltersSidebar({ filters, onFilterChange, query, onShowMap }: FiltersSidebarProps) {
     const updateFilter = useCallback(
         (patch: Partial<FilterState>) => {
             onFilterChange({ ...filters, ...patch });
@@ -112,6 +113,7 @@ export function FiltersSidebar({ filters, onFilterChange, query }: FiltersSideba
                     <Button
                         variant="secondary"
                         className="gap-2 shadow-md rounded-full bg-white/90 hover:bg-white text-primary font-semibold dark:bg-gray-900/90 dark:hover:bg-gray-900"
+                        onClick={onShowMap}
                     >
                         <Map className="h-4 w-4" />
                         Show on map

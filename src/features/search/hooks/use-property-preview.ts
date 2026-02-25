@@ -19,6 +19,7 @@ export type PropertyPreview = {
 
 export type PropertyPreviewFilters = {
   brief?: string;
+  minPrice?: number;
   minStars?: number;
   minGuestRating?: number;
   maxPrice?: number;
@@ -60,6 +61,9 @@ async function fetchPropertyPreview(
   }
   if (typeof filters?.minStars === 'number') {
     params.set('minStars', String(filters.minStars));
+  }
+  if (typeof filters?.minPrice === 'number') {
+    params.set('minPrice', String(filters.minPrice));
   }
   if (typeof filters?.minGuestRating === 'number') {
     params.set('minGuestRating', String(filters.minGuestRating));
@@ -119,6 +123,7 @@ export function usePropertyPreview(
   filters?: PropertyPreviewFilters
 ) {
   const resolvedBrief = filters?.brief?.trim() ?? '';
+  const resolvedMinPrice = filters?.minPrice ?? null;
   const resolvedMinStars = filters?.minStars ?? null;
   const resolvedMinGuestRating = filters?.minGuestRating ?? null;
   const resolvedMaxPrice = filters?.maxPrice ?? null;
@@ -135,6 +140,7 @@ export function usePropertyPreview(
       adults,
       rooms,
       resolvedBrief,
+      resolvedMinPrice,
       resolvedMinStars,
       resolvedMinGuestRating,
       resolvedMaxPrice,
