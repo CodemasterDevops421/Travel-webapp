@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Platform Foundation and Security** - Stand up secure backend boundaries, environments, auth, and core data models. (completed 2026-02-23)
 - [ ] **Phase 2: Search and Discovery Experience** - Deliver responsive SSR search with filtering, sorting, and cache-backed supplier data.
-- [ ] **Phase 3: Hotel Detail and User Workspace** - Ship rich hotel pages, contextual AI Q&A, and wishlist-driven user value.
+- [x] **Phase 3: Hotel Detail and User Workspace** - Ship rich hotel pages, contextual AI Q&A, and wishlist-driven user value. (completed 2026-02-25)
 - [ ] **Phase 4: Checkout and Booking Lifecycle Integrity** - Implement payment-safe checkout with idempotent booking state transitions.
 - [ ] **Phase 5: Admin Monetization and Launch Operations** - Operationalize revenue visibility, controls, analytics, and deployment readiness.
 
@@ -82,7 +82,13 @@ Plans:
   3. Booking states transition only through valid lifecycle states (`pending`, `payment_authorized`, `confirmed`, `failed`, `refunded`).
   4. Retry or duplicate submit events do not create duplicate bookings or inconsistent confirmations.
   5. Confirmation/cancellation emails and invoice state reflect the real booking/payment lifecycle.
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md - Enforce canonical booking lifecycle transitions with additive DB and repository guards
+- [ ] 04-02-PLAN.md - Make Stripe webhook events authoritative with layered idempotent finalization
+- [ ] 04-03-PLAN.md - Deliver persisted 3-step checkout UX and lifecycle-gated confirmation rendering
+- [ ] 04-04-PLAN.md - Add lifecycle-driven email/outbox notifications and cancellation-invoice synchronization
 
 ### Phase 5: Admin Monetization and Launch Operations
 **Goal**: Operators can monitor business health, control monetization, and run production launch safely.
@@ -105,6 +111,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Platform Foundation and Security | 0/4 | Complete    | 2026-02-23 |
 | 2. Search and Discovery Experience | 0/4 | Not started | - |
-| 3. Hotel Detail and User Workspace | 0/4 | Not started | - |
-| 4. Checkout and Booking Lifecycle Integrity | 0/TBD | Not started | - |
+| 3. Hotel Detail and User Workspace | 4/4 | Complete | 2026-02-25 |
+| 4. Checkout and Booking Lifecycle Integrity | 0/4 | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |

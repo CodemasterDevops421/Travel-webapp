@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 4 of 5 (Checkout and Booking Lifecycle Integrity)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In Progress
-Last activity: 2026-02-25 - Completed 04-01-PLAN.md
+Last activity: 2026-02-25 - Completed 04-02-PLAN.md
 
-Progress: [#########.] 85%
+Progress: [#########.] 90%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 4 min
-- Total execution time: 0.7 hours
+- Total execution time: 0.8 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [#########.] 85%
 | 1. Platform Foundation and Security | 4 | 15 min | 4 min |
 | 2. Search and Discovery Experience | 2 | 5 min | 3 min |
 | 3. Hotel Detail and User Workspace | 4 | 39 min | 10 min |
-| 4. Checkout and Booking Lifecycle Integrity | 1 | 5 min | 5 min |
+| 4. Checkout and Booking Lifecycle Integrity | 2 | 10 min | 5 min |
 | 5. Admin Monetization and Launch Operations | 0 | 0 min | 0 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (8 min), 03-02 (5 min), 03-03 (8 min), 03-04 (18 min), 04-01 (5 min)
+- Last 5 plans: 03-02 (5 min), 03-03 (8 min), 03-04 (18 min), 04-01 (5 min), 04-02 (5 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -50,6 +50,7 @@ Progress: [#########.] 85%
 | Phase 03-hotel-detail-and-user-workspace P03 | 8 min | 3 tasks | 4 files |
 | Phase 03-hotel-detail-and-user-workspace P04 | 18 min | 3 tasks | 7 files |
 | Phase 04-checkout-and-booking-lifecycle-integrity P01 | 5 min | 3 tasks | 5 files |
+| Phase 04 P02 | 5 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -87,10 +88,13 @@ Recent decisions affecting current work:
 - [Phase 04]: Centralized booking lifecycle transitions in a shared guard module and enforced repository writes against that contract.
 - [Phase 04]: Added additive DB booking lifecycle backstops (canonical check constraints, transition trigger, and unique identifiers for LiteAPI/Stripe idempotency).
 - [Phase 04]: Preserve canonical booking commercial fields from merged metadata on valid lifecycle transitions to prevent reconciliation drift.
+- [Phase 04]: Stripe webhook events are the only authority for payment-authorized/confirmed/refunded lifecycle changes.
+- [Phase 04]: Webhook idempotency keys are provider-scoped to prevent cross-provider event-id collisions.
+- [Phase 04]: Finalize persists pending lifecycle state and tracks supplier status as non-authoritative metadata.
 
 ### Pending Todos
 
-- Execute 04-02-PLAN.md (Stripe checkout/payment intent lifecycle wiring)
+- Execute 04-03-PLAN.md (booking return state consistency and confirmation authority)
 
 ### Blockers/Concerns
 
@@ -98,6 +102,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-25 18:44
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-02-25 19:03
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
