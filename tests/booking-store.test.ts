@@ -89,6 +89,8 @@ describe('booking prebook session fallback store', () => {
     await saveCheckoutProgressSession({
       transactionId: 'tx-progress-1',
       prebookId: 'pb-progress-1',
+      clientReference: 'client-ref-1',
+      quoteId: 'quote-1',
       sessionSignature: 'session-signature-1',
       quoteSignature: 'quote-signature-1',
       holderEmail: 'traveler@example.com',

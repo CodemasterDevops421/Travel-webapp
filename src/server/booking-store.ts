@@ -28,6 +28,8 @@ export type CheckoutProgressState = (typeof CHECKOUT_PROGRESS_STATES)[number];
 export type CheckoutProgressSession = {
   transactionId: string;
   prebookId: string;
+  clientReference: string;
+  quoteId: string | null;
   sessionSignature: string;
   quoteSignature: string;
   holderEmail: string;
