@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Phase 3 - Hotel Detail and User Workspace
+**Current focus:** Phase 4 - Checkout and Booking Lifecycle Integrity
 
 ## Current Position
 
-Phase: 3 of 5 (Hotel Detail and User Workspace)
-Plan: 3 of 4 in current phase
+Phase: 4 of 5 (Checkout and Booking Lifecycle Integrity)
+Plan: 2 of 4 in current phase
 Status: In Progress
-Last activity: 2026-02-23 - Completed 03-02-PLAN.md
+Last activity: 2026-02-25 - Completed 04-01-PLAN.md
 
-Progress: [#######...] 67%
+Progress: [#########.] 85%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 11
 - Average duration: 4 min
-- Total execution time: 0.6 hours
+- Total execution time: 0.7 hours
 
 **By Phase:**
 
@@ -29,12 +29,12 @@ Progress: [#######...] 67%
 |-------|-------|-------|----------|
 | 1. Platform Foundation and Security | 4 | 15 min | 4 min |
 | 2. Search and Discovery Experience | 2 | 5 min | 3 min |
-| 3. Hotel Detail and User Workspace | 2 | 13 min | 7 min |
-| 4. Checkout and Booking Lifecycle Integrity | 0 | 0 min | 0 min |
+| 3. Hotel Detail and User Workspace | 4 | 39 min | 10 min |
+| 4. Checkout and Booking Lifecycle Integrity | 1 | 5 min | 5 min |
 | 5. Admin Monetization and Launch Operations | 0 | 0 min | 0 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (4 min), 02-03 (1 min), 02-02 (6 min), 03-01 (8 min), 03-02 (5 min)
+- Last 5 plans: 03-01 (8 min), 03-02 (5 min), 03-03 (8 min), 03-04 (18 min), 04-01 (5 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -47,6 +47,9 @@ Progress: [#######...] 67%
 | Phase 02 P02 | 6 min | 3 tasks | 8 files |
 | Phase 03 P01 | 8 min | 3 tasks | 5 files |
 | Phase 03-hotel-detail-and-user-workspace P02 | 5 min | 3 tasks | 4 files |
+| Phase 03-hotel-detail-and-user-workspace P03 | 8 min | 3 tasks | 4 files |
+| Phase 03-hotel-detail-and-user-workspace P04 | 18 min | 3 tasks | 7 files |
+| Phase 04-checkout-and-booking-lifecycle-integrity P01 | 5 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -79,17 +82,22 @@ Recent decisions affecting current work:
 - [Phase 03-hotel-detail-and-user-workspace]: Cancellation policy is exposed as explicit nullable fields (isRefundable, cancellationDeadline, cancellationNote) across rates API and hook contracts.
 - [Phase 03-hotel-detail-and-user-workspace]: Selected room state is keyed by offerId:roomId and drives room highlighting, sticky booking details, and reserve CTA generation.
 - [Phase 03-hotel-detail-and-user-workspace]: Booking hand-off query now carries cancellation metadata alongside core room and pricing identifiers.
+- [Phase 03-hotel-detail-and-user-workspace]: Hotel AI answers are grounded to normalized hotel facts with explicit unknown-data and booking-safe boundaries.
+- [Phase 03-hotel-detail-and-user-workspace]: Wishlist API/hook flows now emit explicit auth-required semantics and consistent cross-surface save/remove workspace behavior.
+- [Phase 04]: Centralized booking lifecycle transitions in a shared guard module and enforced repository writes against that contract.
+- [Phase 04]: Added additive DB booking lifecycle backstops (canonical check constraints, transition trigger, and unique identifiers for LiteAPI/Stripe idempotency).
+- [Phase 04]: Preserve canonical booking commercial fields from merged metadata on valid lifecycle transitions to prevent reconciliation drift.
 
 ### Pending Todos
 
-- Continue Phase 3 execution with 03-03-PLAN.md
+- Execute 04-02-PLAN.md (Stripe checkout/payment intent lifecycle wiring)
 
 ### Blockers/Concerns
 
-None yet.
+- Local Supabase lint verification requires Docker Desktop/runtime (`npx supabase start` unavailable in current environment).
 
 ## Session Continuity
 
-Last session: 2026-02-23 13:45
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-02-25 18:44
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None

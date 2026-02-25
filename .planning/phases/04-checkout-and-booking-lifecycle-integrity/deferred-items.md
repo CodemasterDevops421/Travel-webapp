@@ -1,0 +1,1 @@
+- Unable to run `npx supabase db lint` in this environment because local Supabase requires Docker Desktop/runtime (`npx supabase start` fails). Re-run migration lint once Docker is available.
