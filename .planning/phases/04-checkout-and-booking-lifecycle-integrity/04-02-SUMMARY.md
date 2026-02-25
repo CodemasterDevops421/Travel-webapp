@@ -74,7 +74,7 @@ Each task was committed atomically:
 2. **Task 2: Implement verified Stripe webhook reconciliation with event dedupe** - `083a160` (feat)
 3. **Task 3: Harden finalize endpoint for webhook-authoritative payment truth** - `e9ace3a` (feat)
 
-**Plan metadata:** pending (will be added after SUMMARY/STATE updates)
+**Plan metadata:** `9762964` (docs)
 
 ## Files Created/Modified
 
