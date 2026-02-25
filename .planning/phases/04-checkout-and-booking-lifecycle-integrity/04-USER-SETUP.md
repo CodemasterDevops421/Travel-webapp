@@ -24,3 +24,23 @@ Why needed: Checkout session creation and verified webhook authority.
 
 - `npm run test -- tests/stripe-webhook-route.test.ts tests/booking-finalize-idempotency.test.ts`
 - `stripe trigger payment_intent.succeeded` (after Stripe CLI auth and webhook forwarding are configured)
+
+## Resend
+
+Why needed: Deliver booking confirmation and cancellation/refund lifecycle emails.
+
+### Environment Variables
+
+| Variable | Where to get it |
+| --- | --- |
+| `RESEND_API_KEY` | Resend Dashboard -> API Keys |
+| `BOOKING_FROM_EMAIL` | Verified sender identity in Resend Domains/Senders |
+
+### Dashboard Configuration Checklist
+
+- Verify sending domain or sender identity in Resend.
+- Use a from-address matching the verified sender for `BOOKING_FROM_EMAIL`.
+
+### Local Verification Commands
+
+- `npm run test -- tests/booking-notification-lifecycle.test.ts`
