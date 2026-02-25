@@ -55,6 +55,10 @@ type CheckoutSessionPayload = {
   quoteId: string | null;
   sessionSignature: string;
   quoteSignature: string;
+  prebookId: string;
+  state: 'payment_initiated' | 'awaiting_confirmation';
+  formValues: FormValues;
+  updatedAt: string;
   holder: {
     firstName: string;
     lastName: string;
@@ -77,9 +81,90 @@ type CheckoutSessionPayload = {
 
 const PAYMENT_SCRIPT_URL = 'https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v=a1';
 const PAYMENT_SCRIPT_ID = 'liteapi-payment-sdk';
+const CHECKOUT_DRAFT_STORAGE_KEY = 'booking:checkout:draft';
+
+type CheckoutStep = 'guest_details' | 'payment' | 'confirmation';
 
 function checkoutStorageKey(transactionId: string): string {
   return `booking:checkout:${transactionId}`;
+}
+
+function parseStoredCheckoutPayload(raw: string): CheckoutSessionPayload | null {
+  try {
+    const parsed = JSON.parse(raw) as CheckoutSessionPayload;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    if (typeof parsed.clientReference !== 'string') {
+      return null;
+    }
+    if (typeof parsed.sessionSignature !== 'string') {
+      return null;
+    }
+    if (typeof parsed.quoteSignature !== 'string') {
+      return null;
+    }
+    if (typeof parsed.prebookId !== 'string') {
+      return null;
+    }
+    if (parsed.state !== 'payment_initiated' && parsed.state !== 'awaiting_confirmation') {
+      return null;
+    }
+    if (!parsed.formValues || typeof parsed.formValues !== 'object') {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function loadLatestCheckoutSession(): CheckoutSessionPayload | null {
+  let latest: CheckoutSessionPayload | null = null;
+  for (let idx = 0; idx < localStorage.length; idx += 1) {
+    const key = localStorage.key(idx);
+    if (!key || !key.startsWith('booking:checkout:')) {
+      continue;
+    }
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      continue;
+    }
+    const parsed = parseStoredCheckoutPayload(raw);
+    if (!parsed) {
+      continue;
+    }
+    if (!latest) {
+      latest = parsed;
+      continue;
+    }
+    const latestTime = Date.parse(latest.updatedAt);
+    const parsedTime = Date.parse(parsed.updatedAt);
+    if (Number.isNaN(latestTime) || parsedTime > latestTime) {
+      latest = parsed;
+    }
+  }
+  return latest;
+}
+
+function loadCheckoutDraft(): Partial<FormValues> | null {
+  try {
+    const raw = localStorage.getItem(CHECKOUT_DRAFT_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<FormValues>;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function persistCheckoutDraft(values: FormValues): void {
+  saveToStorage(localStorage, CHECKOUT_DRAFT_STORAGE_KEY, JSON.stringify(values));
 }
 
 function buildPrebookGuests(adults: number, rooms: number): Array<{ adults: number }> {
@@ -152,6 +237,26 @@ async function ensurePaymentScriptLoaded(): Promise<void> {
 export function BookingConsole({ initialValues, preferredLanguage, preferredCurrency }: BookingConsoleProps) {
   const [prebook, setPrebook] = useState<PrebookResult | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState<number | null>(null);
+  const [promoError, setPromoError] = useState('');
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('guest_details');
+
+  const defaultValues: FormValues = {
+    hotelId: initialValues?.hotelId ?? '',
+    roomId: initialValues?.roomId ?? '',
+    offerId: initialValues?.offerId ?? '',
+    amount: initialValues?.amount ?? 100,
+    currency: initialValues?.currency ?? 'USD',
+    adults: initialValues?.adults ?? 2,
+    rooms: initialValues?.rooms ?? 1,
+    checkIn: initialValues?.checkIn ?? '',
+    checkOut: initialValues?.checkOut ?? '',
+    firstName: initialValues?.firstName ?? '',
+    lastName: initialValues?.lastName ?? '',
+    email: initialValues?.email ?? ''
+  };
 
   function errorMessage(error: unknown): string {
     if (error instanceof Error) {
@@ -162,22 +267,35 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      hotelId: initialValues?.hotelId ?? '',
-      roomId: initialValues?.roomId ?? '',
-      offerId: initialValues?.offerId ?? '',
-      amount: initialValues?.amount ?? 100,
-      currency: initialValues?.currency ?? 'USD',
-      adults: initialValues?.adults ?? 2,
-      rooms: initialValues?.rooms ?? 1,
-      checkIn: initialValues?.checkIn ?? '',
-      checkOut: initialValues?.checkOut ?? '',
-      firstName: initialValues?.firstName ?? '',
-      lastName: initialValues?.lastName ?? '',
-      email: initialValues?.email ?? ''
-    }
+    defaultValues
   });
   const liveValues = form.watch();
+
+  useEffect(() => {
+    const draft = loadCheckoutDraft();
+    if (draft) {
+      form.reset({
+        ...form.getValues(),
+        ...draft,
+        hotelId: initialValues?.hotelId ?? draft.hotelId ?? '',
+        roomId: initialValues?.roomId ?? draft.roomId ?? '',
+        offerId: initialValues?.offerId ?? draft.offerId ?? '',
+        checkIn: initialValues?.checkIn ?? draft.checkIn ?? '',
+        checkOut: initialValues?.checkOut ?? draft.checkOut ?? ''
+      });
+    }
+
+    const latestSession = loadLatestCheckoutSession();
+    if (!latestSession || latestSession.state !== 'awaiting_confirmation') {
+      return;
+    }
+    form.reset({
+      ...form.getValues(),
+      ...latestSession.formValues
+    });
+    setCheckoutStep('confirmation');
+  }, [form, initialValues?.checkIn, initialValues?.checkOut, initialValues?.hotelId, initialValues?.offerId, initialValues?.roomId]);
+
   const prebookFingerprint = useMemo(
     () => [
       liveValues.hotelId,
@@ -212,6 +330,25 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const hasSelectedRate = Boolean(
     liveValues.hotelId && liveValues.roomId && liveValues.offerId && liveValues.checkIn && liveValues.checkOut
   );
+  const hasGuestDetails = Boolean(liveValues.firstName && liveValues.lastName && liveValues.email);
+
+  useEffect(() => {
+    persistCheckoutDraft(liveValues);
+  }, [liveValues]);
+
+  useEffect(() => {
+    if (checkoutStep === 'confirmation') {
+      return;
+    }
+    if (prebook) {
+      setCheckoutStep('payment');
+      return;
+    }
+    if (hasSelectedRate && hasGuestDetails) {
+      setCheckoutStep('guest_details');
+    }
+  }, [checkoutStep, hasGuestDetails, hasSelectedRate, prebook]);
+
   const baseAmount = Number(liveValues.amount || 0);
   const currency = (liveValues.currency || 'USD').toUpperCase();
   const totalAmount = prebook?.quote.totalAmount ?? baseAmount;
@@ -248,6 +385,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     },
     onSuccess: (result: PrebookResult) => {
       setPrebook(result);
+      setCheckoutStep('payment');
     }
   });
 
@@ -268,6 +406,10 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       quoteId: activePrebook.quoteId,
       sessionSignature: activePrebook.sessionSignature,
       quoteSignature: activePrebook.quote.signature,
+      prebookId: activePrebook.prebookId,
+      state: 'awaiting_confirmation',
+      formValues: values,
+      updatedAt: new Date().toISOString(),
       holder: {
         firstName: values.firstName,
         lastName: values.lastName,
@@ -278,6 +420,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     };
 
     saveCheckoutSession(activePrebook.transactionId, checkoutSession);
+    setCheckoutStep('confirmation');
     await ensurePaymentScriptLoaded();
     if (!window.LiteAPIPayment) {
       throw new Error('Secure payment widget unavailable');
@@ -290,7 +433,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       prebookId: activePrebook.prebookId,
       transactionId: activePrebook.transactionId
     });
-    const resolvedLanguage = normalizeLanguage(preferredLanguage) ?? normalizeLanguage(window.localStorage.getItem('travelapp:language'));
+    const resolvedLanguage = normalizeLanguage(preferredLanguage) ?? normalizeLanguage(window.localStorage.getItem('hostelstays:language'));
     const resolvedCurrency = normalizeCurrency(values.currency) ?? normalizeCurrency(preferredCurrency);
     if (resolvedLanguage) {
       returnParams.set('language', resolvedLanguage);
@@ -305,7 +448,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       returnUrl,
       targetElement: '#liteapi-payment-target',
       appearance: { theme: 'flat' },
-      options: { business: { name: 'TravelApp' } }
+      options: { business: { name: 'Hostel Stays' } }
     });
 
     liteAPIPayment.handlePayment();
@@ -315,53 +458,71 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     if (!prebook) {
       const createdPrebook = await prebookMutation.mutateAsync(values);
       await startPayment(values, createdPrebook).catch((error: unknown) => {
+        setCheckoutStep('payment');
         setPaymentError(errorMessage(error));
       });
       return;
     }
     await startPayment(values).catch((error: unknown) => {
+      setCheckoutStep('payment');
       setPaymentError(errorMessage(error));
     });
   });
 
   return (
-    <section className="space-y-4 rounded-3xl border border-border/80 bg-card/90 p-5 shadow-md md:p-6">
-      <div className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Secure Checkout</p>
-        <h1 className="text-3xl font-semibold">Finalize your stay in 3 quick steps</h1>
-        <p className="text-sm text-muted-foreground">1) Validate quote 2) Complete payment in SDK 3) Receive confirmed booking record.</p>
+    <section className="space-y-8 p-6 md:p-8">
+      <div className="space-y-4 border-b border-border pb-6">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Secure Checkout</p>
+        <h1 className="font-heading text-4xl font-light">Finalize your stay</h1>
+        <p className="text-sm text-muted-foreground">Complete your booking in three simple steps.</p>
       </div>
 
-      <div className="grid gap-3 rounded-2xl border border-border bg-background/60 p-3 text-xs md:grid-cols-3">
-        <p className="rounded-xl border border-border px-3 py-2">Step 1: Prebook + signed quote</p>
-        <p className={`rounded-xl border px-3 py-2 ${prebook ? 'border-primary/40 bg-primary/10' : 'border-border'}`}>Step 2: Payment widget</p>
-        <p className="rounded-xl border border-border px-3 py-2">Step 3: Server-side confirmation</p>
+      <div className="grid gap-0 border border-border bg-background text-sm font-medium md:grid-cols-3">
+        <div className={`flex items-center gap-3 border-b border-border p-4 md:border-b-0 md:border-r ${checkoutStep === 'guest_details' ? 'bg-primary/5' : ''}`}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">1</span>
+          <span>Your details {hasGuestDetails ? 'done' : ''}</span>
+        </div>
+        <div className={`flex items-center gap-3 border-b border-border p-4 md:border-b-0 md:border-r ${checkoutStep === 'payment' ? 'bg-primary/5' : ''}`}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">2</span>
+          <span>Payment {prebook ? 'ready' : ''}</span>
+        </div>
+        <div className={`flex items-center gap-3 p-4 ${checkoutStep === 'confirmation' ? 'bg-primary/5' : ''}`}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">3</span>
+          <span>Confirmation {checkoutStep === 'confirmation' ? 'awaiting' : ''}</span>
+        </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.35fr,0.9fr]">
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={onSubmit}>
+      <div className="grid gap-8 lg:grid-cols-[1.5fr,1fr]">
+        <form className="space-y-6" onSubmit={onSubmit}>
           {hasSelectedRate ? (
-            <div className="md:col-span-2 rounded-2xl border border-border bg-background/70 p-3 text-sm">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Selected stay</p>
-              <p className="mt-1 font-medium">
-                Check-in {liveValues.checkIn} · Check-out {liveValues.checkOut}
-              </p>
-              <p className="mt-1 text-muted-foreground">
-                Rate token confirmed. Technical supplier IDs are hidden for cleaner checkout.
-              </p>
+            <div className="border border-border bg-muted/30 p-6">
+              <p className="text-xs font-bold uppercase tracking-widest text-foreground">Selected stay</p>
+              <div className="mt-4 flex flex-col sm:flex-row justify-between gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Check-in</p>
+                  <p className="font-semibold text-lg">{liveValues.checkIn}</p>
+                </div>
+                <div className="hidden sm:block w-px bg-border"></div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Check-out</p>
+                  <p className="font-semibold text-lg">{liveValues.checkOut}</p>
+                </div>
+              </div>
             </div>
           ) : (
-            <>
-              <Input aria-label="Hotel ID" placeholder="Hotel ID" {...form.register('hotelId')} />
-              <Input aria-label="Room ID" placeholder="Room ID" {...form.register('roomId')} />
-              <Input aria-label="Offer ID" placeholder="Offer ID" {...form.register('offerId')} />
-              <Input aria-label="Amount" placeholder="Amount" type="number" step="1" {...form.register('amount')} />
-              <Input aria-label="Currency" placeholder="Currency (USD)" {...form.register('currency')} />
-              <Input aria-label="Adults" placeholder="Adults" type="number" min={1} step="1" {...form.register('adults')} />
-              <Input aria-label="Rooms" placeholder="Rooms" type="number" min={1} step="1" {...form.register('rooms')} />
-              <Input aria-label="Check-in date" placeholder="Check-in YYYY-MM-DD" {...form.register('checkIn')} />
-              <Input aria-label="Check-out date" placeholder="Check-out YYYY-MM-DD" {...form.register('checkOut')} />
-            </>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input className="rounded-none border-border" aria-label="Hotel ID" placeholder="Hotel ID" {...form.register('hotelId')} />
+              <Input className="rounded-none border-border" aria-label="Room ID" placeholder="Room ID" {...form.register('roomId')} />
+              <Input className="rounded-none border-border" aria-label="Offer ID" placeholder="Offer ID" {...form.register('offerId')} />
+              <Input className="rounded-none border-border" aria-label="Amount" placeholder="Amount" type="number" step="1" {...form.register('amount')} />
+              <Input className="rounded-none border-border" aria-label="Currency" placeholder="Currency (USD)" {...form.register('currency')} />
+              <div className="grid grid-cols-2 gap-4">
+                <Input className="rounded-none border-border" aria-label="Adults" placeholder="Adults" type="number" min={1} step="1" {...form.register('adults')} />
+                <Input className="rounded-none border-border" aria-label="Rooms" placeholder="Rooms" type="number" min={1} step="1" {...form.register('rooms')} />
+              </div>
+              <Input className="rounded-none border-border" aria-label="Check-in date" placeholder="Check-in YYYY-MM-DD" {...form.register('checkIn')} />
+              <Input className="rounded-none border-border" aria-label="Check-out date" placeholder="Check-out YYYY-MM-DD" {...form.register('checkOut')} />
+            </div>
           )}
 
           {hasSelectedRate && (
@@ -378,41 +539,124 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
             </>
           )}
 
-          <Input aria-label="First name" placeholder="First name" {...form.register('firstName')} />
-          <Input aria-label="Last name" placeholder="Last name" {...form.register('lastName')} />
-          <Input aria-label="Email" placeholder="Email" type="email" {...form.register('email')} />
+          <div className="space-y-4 pt-4">
+            <h2 className="font-heading text-2xl font-light">Guest Details</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input className="rounded-none border-border bg-background" aria-label="First name" placeholder="First name" {...form.register('firstName')} />
+              <Input className="rounded-none border-border bg-background" aria-label="Last name" placeholder="Last name" {...form.register('lastName')} />
+            </div>
+            <Input className="rounded-none border-border bg-background" aria-label="Email" placeholder="Email" type="email" {...form.register('email')} />
+          </div>
 
-          <div className="md:col-span-2">
-            <Button type="submit" size="lg" disabled={prebookMutation.isPending}>
+          <div className="pt-6">
+            <Button className="rounded-none shadow-none w-full md:w-auto px-8" type="submit" size="lg" disabled={prebookMutation.isPending}>
               {prebookMutation.isPending ? 'Securing your quote...' : !prebook ? 'Validate and launch payment' : 'Launch secure payment'}
             </Button>
           </div>
         </form>
 
-        <aside className="rounded-2xl border border-border bg-background/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Booking Summary</p>
-          <p className="mt-2 text-sm text-muted-foreground">Live checkout estimate before payment.</p>
-          <div className="mt-4 space-y-3 text-sm">
+        <aside className="sticky top-24 self-start border border-border bg-card p-6 shadow-editorial-md">
+          <p className="font-heading text-2xl font-light mb-6">Price Summary</p>
+          <div className="space-y-4 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Nights</span>
-              <span className="font-semibold">{nights ?? '—'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Base rate</span>
-              <span>{currency} {baseAmount || 0}</span>
+              <span className="text-muted-foreground">{nights ?? '—'} nights</span>
+              <span className="font-semibold text-foreground">{currency} {baseAmount || 0}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Service/markup</span>
-              <span>{currency} {markupAmount}</span>
+              <span className="text-muted-foreground">Taxes & fees</span>
+              <span className="font-semibold text-foreground">{currency} {markupAmount}</span>
             </div>
-            <div className="h-px bg-border" />
-            <div className="flex items-center justify-between text-base font-semibold text-primary">
-              <span>Total payable</span>
-              <span>{currency} {totalAmount}</span>
+            <div className="my-4 h-px bg-border" />
+            <div className="flex items-end justify-between">
+              <span className="text-base font-bold text-foreground">Total</span>
+              <div className="text-right">
+                <span className="text-3xl font-bold text-foreground">{currency} {totalAmount}</span>
+              </div>
             </div>
-            <p className="rounded-xl border border-border bg-card/80 px-3 py-2 text-xs text-muted-foreground">
-              Cancellation terms and taxes are provided by supplier and shown before you confirm payment.
+            <p className="text-xs text-muted-foreground mt-2">
+              Prices are inclusive of all taxes and fees. No hidden charges.
             </p>
+          </div>
+
+          {/* Promo Code Section */}
+          <div className="mt-8 pt-6 border-t border-border">
+            <p className="text-sm font-semibold mb-3 text-foreground">Have a promo code?</p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter code"
+                value={promoCode}
+                onChange={(e) => {
+                  setPromoCode(e.target.value);
+                  setPromoError('');
+                  setPromoDiscount(null);
+                }}
+                className="text-sm rounded-none border-border"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-none border-border px-6"
+                disabled={!promoCode.trim() || promoLoading}
+                onClick={async () => {
+                  setPromoLoading(true);
+                  setPromoError('');
+                  try {
+                    const bodyPayload: Record<string, unknown> = { code: promoCode };
+                    if (prebook) {
+                      bodyPayload.quote = prebook.quote;
+                      bodyPayload.quoteSignature = prebook.quote.signature;
+                    }
+                    const res = await fetch('/api/promo/validate', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(bodyPayload)
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.valid) {
+                      setPromoDiscount(data.discountPercent);
+                      if (data.newQuote && data.newSignature && prebook) {
+                        setPrebook({
+                          ...prebook,
+                          quote: {
+                            ...data.newQuote,
+                            signature: data.newSignature
+                          }
+                        });
+                      }
+                    } else {
+                      setPromoError(data.error || 'Invalid code');
+                    }
+                  } catch {
+                    setPromoError('Failed to validate');
+                  } finally {
+                    setPromoLoading(false);
+                  }
+                }}
+              >
+                Apply
+              </Button>
+            </div>
+            {promoDiscount && (
+              <p className="mt-3 text-sm font-semibold text-emerald-600 border border-emerald-200 bg-emerald-50 px-3 py-2">✓ {promoDiscount}% discount applied to base rate.</p>
+            )}
+            {promoError && (
+              <p className="mt-3 text-sm font-medium text-destructive">{promoError}</p>
+            )}
+          </div>
+
+          {/* Trust Guarantees */}
+          <div className="mt-8 pt-6 border-t border-border bg-muted/20 -mx-6 -mb-6 p-6">
+            <h4 className="text-sm font-bold text-foreground mb-3">Your booking is protected</h4>
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="text-green-600">✓</span>
+                <span><strong>SSL Secure</strong> - Your information is encrypted and secure.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600">✓</span>
+                <span><strong>Instant Confirmation</strong> - You will receive your booking details immediately.</span>
+              </li>
+            </ul>
           </div>
         </aside>
       </div>
