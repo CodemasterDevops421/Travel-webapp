@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
+import { assertRateLimit } from '@/server/ratelimit';
 import { assertSameOrigin } from '@/server/csrf';
 import { bookRate } from '@/server/liteapi';
 import { getPrebookSession } from '@/server/booking-store';
@@ -18,6 +18,7 @@ import {
 import { assertProductionReadiness, env } from '@/server/env';
 import { logger } from '@/server/logger';
 import { getRequestContext, parseRequestBody, sanitizeRecord, sanitizeUnknown, stripSupplierSecrets } from '@/server/request';
+import { createServerSupabaseClient } from '@/server/supabase/server';
 
 const requestSchema = z.object({
   prebookId: z.string().trim().min(1),
@@ -64,12 +65,21 @@ export async function POST(request: NextRequest) {
   try {
     assertProductionReadiness();
     assertSameOrigin(request);
+
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Sign in required to continue booking.', code: 'AUTH_REQUIRED' }, { status: 401 });
+    }
+
     if (!env.LITEAPI_API_KEY || env.LITEAPI_API_KEY.toLowerCase().includes('placeholder')) {
       throw new HttpError(503, 'Booking is temporarily unavailable. Please retry shortly.');
     }
 
     const { clientIp, correlationId } = getRequestContext(request);
-    await assertRateLimit(createRateLimitKey('booking', clientIp, 'finalize'), 'booking');
+    await assertRateLimit(`booking:${clientIp}:finalize`, 'booking');
 
     const payload = await parseRequestBody(request, requestSchema);
     transactionIdForLock = payload.transactionId;

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
+import { assertRateLimit } from '@/server/ratelimit';
 import { assertSameOrigin } from '@/server/csrf';
-import { buildPriceQuote } from '@/server/pricing';
+import { buildPriceQuoteWithMarkup } from '@/server/pricing';
 import { prebookRate } from '@/server/liteapi';
 import { savePrebookSession } from '@/server/booking-store';
 import { HttpError, toHttpError } from '@/server/errors';
@@ -11,6 +11,8 @@ import { signCheckoutSession } from '@/server/booking-session';
 import { logger } from '@/server/logger';
 import { getRequestContext, parseRequestBody, sanitizeUnknown } from '@/server/request';
 import { assertProductionReadiness } from '@/server/env';
+import { getAppSettings } from '@/server/settings/repository';
+import { createServerSupabaseClient } from '@/server/supabase/server';
 
 const requestSchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -45,8 +47,17 @@ export async function POST(request: NextRequest) {
   try {
     assertProductionReadiness();
     assertSameOrigin(request);
+
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Sign in required to continue booking.', code: 'AUTH_REQUIRED' }, { status: 401 });
+    }
+
     const { clientIp, correlationId } = getRequestContext(request);
-    await assertRateLimit(createRateLimitKey('booking', clientIp, 'prebook'), 'booking');
+    await assertRateLimit(`booking:${clientIp}:prebook`, 'booking');
 
     const payload = await parseRequestBody(request, requestSchema);
     if (new Date(payload.checkOut) <= new Date(payload.checkIn)) {
@@ -58,12 +69,13 @@ export async function POST(request: NextRequest) {
       throw new HttpError(502, 'Supplier prebook payload is invalid');
     }
     const prebook = parsedPrebook.data;
-    const quote = buildPriceQuote({
+    const settings = await getAppSettings();
+    const quote = buildPriceQuoteWithMarkup({
       hotelId: payload.hotelId,
       roomId: payload.roomId,
       amount: prebook.price,
       currency: prebook.currency.toUpperCase()
-    });
+    }, settings.commissionPercent);
     const clientReference = createClientReference({
       hotelId: payload.hotelId,
       roomId: payload.roomId,

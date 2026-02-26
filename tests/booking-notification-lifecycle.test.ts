@@ -73,14 +73,16 @@ describe('booking notification lifecycle', () => {
     );
     expect(updateBookingStatusById).toHaveBeenCalledWith(
       'booking_1',
-      'refunded',
+      'confirmed',
       expect.objectContaining({
-        paymentStatus: 'refunded',
-        invoiceStatus: 'refunded',
+        cancellationOutcome: 'refund_pending_webhook',
+        refundPending: true,
         stripeRefundId: 're_123'
       })
     );
-    expect(body.status).toBe('refunded');
+    expect(body.status).toBe('confirmed');
+    expect(body.cancellationOutcome).toBe('refund_pending_webhook');
+    expect(body.invoiceStatus).toBe('paid');
   });
 
   it('emits lifecycle emails once per booking transition and keeps invoice status aligned', async () => {
@@ -140,19 +142,25 @@ describe('booking notification lifecycle', () => {
     expect(bookingId).toBeTypeOf('string');
 
     const authorized = await repo.updateBookingStatusByTransactionId('txn-1', 'payment_authorized', {
-      paymentStatus: 'authorized'
+      paymentStatus: 'authorized',
+      stripeEventId: 'evt_checkout_1',
+      stripeEventType: 'checkout.session.completed'
     });
     expect(authorized).toBe(true);
 
     const confirmedFirst = await repo.updateBookingStatusByTransactionId('txn-1', 'confirmed', {
       paymentStatus: 'captured',
-      confirmationCode: 'CONF-123'
+      confirmationCode: 'CONF-123',
+      stripeEventId: 'evt_payment_1',
+      stripeEventType: 'payment_intent.succeeded'
     });
     expect(confirmedFirst).toBe(true);
 
     const confirmedSecond = await repo.updateBookingStatusByTransactionId('txn-1', 'confirmed', {
       paymentStatus: 'captured',
-      confirmationCode: 'CONF-123'
+      confirmationCode: 'CONF-123',
+      stripeEventId: 'evt_payment_2',
+      stripeEventType: 'payment_intent.succeeded'
     });
     expect(confirmedSecond).toBe(true);
 
@@ -172,5 +180,100 @@ describe('booking notification lifecycle', () => {
       invoiceStatus: 'paid',
       paymentStatus: 'captured'
     });
+  });
+
+  it('allows first-party cancellation with booking view token when booking API key is absent', async () => {
+    const getBookingById = vi.fn().mockResolvedValue({
+      id: 'booking_1',
+      liteapi_booking_id: 'lite_1',
+      status: 'confirmed',
+      payment_status: 'captured',
+      stripe_payment_intent_id: 'pi_123'
+    });
+    const updateBookingStatusById = vi.fn().mockResolvedValue(true);
+    const cancelBooking = vi.fn().mockResolvedValue({ ok: true });
+    const createStripeRefund = vi.fn().mockResolvedValue({
+      refundId: 're_123',
+      status: 'succeeded',
+      paymentIntentId: 'pi_123'
+    });
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/authz', async () => {
+      const { HttpError } = await import('@/server/errors');
+      return {
+        assertBookingApiAuthorized: vi.fn(() => {
+          throw new HttpError(401, 'Unauthorized booking API request.');
+        })
+      };
+    });
+    vi.doMock('@/server/request', () => ({
+      getClientIp: vi.fn().mockReturnValue('127.0.0.1')
+    }));
+    vi.doMock('@/server/liteapi', () => ({ cancelBooking }));
+    vi.doMock('@/server/payments/stripe', () => ({ createStripeRefund }));
+    vi.doMock('@/server/booking/repository', () => ({
+      getBookingById,
+      updateBookingStatusById
+    }));
+
+    const { signBookingViewToken } = await import('@/server/booking-view-token');
+    const { POST } = await import('@/app/api/bookings/[bookingId]/cancel/route');
+    const request = {
+      headers: new Headers({
+        'x-booking-view-token': signBookingViewToken({ bookingId: 'booking_1' })
+      }),
+      json: async () => ({ reason: 'Guest requested cancellation' })
+    } as unknown as Request;
+
+    const response = await POST(request as never, {
+      params: Promise.resolve({ bookingId: 'booking_1' })
+    });
+
+    expect(response.status).toBe(200);
+    expect(cancelBooking).toHaveBeenCalledWith({ bookingId: 'lite_1' });
+  });
+
+  it('rejects cancellation when API key and booking view token are both missing', async () => {
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/authz', async () => {
+      const { HttpError } = await import('@/server/errors');
+      return {
+        assertBookingApiAuthorized: vi.fn(() => {
+          throw new HttpError(401, 'Unauthorized booking API request.');
+        })
+      };
+    });
+    vi.doMock('@/server/request', () => ({
+      getClientIp: vi.fn().mockReturnValue('127.0.0.1')
+    }));
+    vi.doMock('@/server/liteapi', () => ({
+      cancelBooking: vi.fn().mockResolvedValue({ ok: true })
+    }));
+    vi.doMock('@/server/payments/stripe', () => ({
+      createStripeRefund: vi.fn().mockResolvedValue({ refundId: 're_1' })
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      getBookingById: vi.fn(),
+      updateBookingStatusById: vi.fn()
+    }));
+
+    const { POST } = await import('@/app/api/bookings/[bookingId]/cancel/route');
+    const request = {
+      headers: new Headers(),
+      json: async () => ({ reason: 'Guest requested cancellation' })
+    } as unknown as Request;
+
+    const response = await POST(request as never, {
+      params: Promise.resolve({ bookingId: 'booking_1' })
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body.error).toMatch(/unauthorized booking api request/i);
   });
 });

@@ -6,6 +6,16 @@ describe('API security regression checks', () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.unstubAllEnvs();
+
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({
+            data: { user: { id: 'user_1' } }
+          })
+        }
+      })
+    }));
   });
 
   it('redacts supplier secret fields from hotel rates responses', async () => {

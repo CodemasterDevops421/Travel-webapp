@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
 import { cancelBooking } from '@/server/liteapi';
-import { toHttpError } from '@/server/errors';
+import { HttpError, toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
 import { assertBookingApiAuthorized } from '@/server/authz';
 import { assertProductionReadiness } from '@/server/env';
 import { createStripeRefund } from '@/server/payments/stripe';
 import { getBookingById, updateBookingStatusById } from '@/server/booking/repository';
+import { verifyBookingViewToken } from '@/server/booking-view-token';
 
 const paramsSchema = z.object({
   bookingId: z.string().trim().min(1)
@@ -20,9 +21,23 @@ const bodySchema = z.object({
 export async function POST(request: NextRequest, context: { params: Promise<{ bookingId: string }> }) {
   try {
     assertProductionReadiness();
-    assertBookingApiAuthorized(request);
-
     const params = paramsSchema.parse(await context.params);
+
+    const bookingViewToken = request.headers.get('x-booking-view-token');
+    const tokenAuthorized = typeof bookingViewToken === 'string'
+      && verifyBookingViewToken({ bookingId: params.bookingId, token: bookingViewToken });
+    let apiAuthorized = false;
+    try {
+      assertBookingApiAuthorized(request);
+      apiAuthorized = true;
+    } catch {
+      apiAuthorized = false;
+    }
+
+    if (!apiAuthorized && !tokenAuthorized) {
+      throw new HttpError(401, 'Unauthorized booking API request.');
+    }
+
     await assertRateLimit(`bookings-cancel-lifecycle:${getClientIp(request)}`);
 
     const parsedBody = bodySchema.safeParse(await request.json().catch(() => ({})));
@@ -71,16 +86,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
       refundId = refund.refundId;
     }
 
-    const nextStatus = requiresRefund ? 'refunded' : 'failed';
-    const paymentStatus = requiresRefund ? 'refunded' : 'failed';
-    const invoiceStatus = requiresRefund ? 'refunded' : 'void';
+    const nextStatus = requiresRefund ? booking.status : 'failed';
+    const invoiceStatus = requiresRefund ? 'paid' : 'void';
+    const cancellationOutcome = requiresRefund ? 'refund_pending_webhook' : 'failed';
 
     const updated = await updateBookingStatusById(booking.id, nextStatus, {
-      paymentStatus,
-      invoiceStatus,
       cancellationReason: reason,
       cancellationRequestedAt: new Date().toISOString(),
-      cancellationOutcome: nextStatus,
+      cancellationOutcome,
+      ...(requiresRefund ? { refundPending: true } : {}),
       ...(refundId ? { stripeRefundId: refundId } : {})
     });
 
@@ -96,8 +110,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
         ok: true,
         bookingId: booking.id,
         status: nextStatus,
-        paymentStatus,
+        paymentStatus: booking.payment_status,
         invoiceStatus,
+        cancellationOutcome,
         refundId
       },
       { status: 200 }

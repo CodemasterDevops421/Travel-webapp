@@ -18,6 +18,29 @@ describe('booking route handlers', () => {
     process.env.BOOKING_API_AUTH_SECRET = 'abcdefghijklmnopqrstuvwxyz123456';
     process.env.UPSTASH_REDIS_REST_URL = 'https://example.upstash.io';
     process.env.UPSTASH_REDIS_REST_TOKEN = 'upstash-token';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_123';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_123';
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = 'pk_test_123';
+
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({
+            data: { user: { id: 'user_1' } }
+          })
+        }
+      })
+    }));
+    vi.doMock('@/server/settings/repository', () => ({
+      getAppSettings: vi.fn().mockResolvedValue({
+        commissionPercent: 12,
+        environmentMode: 'sandbox',
+        requireLoginForBooking: false,
+        updatedAt: null,
+        updatedBy: null,
+        source: 'fallback'
+      })
+    }));
   });
 
   it('prebook route returns payment sdk payload and persists session', async () => {
@@ -28,7 +51,7 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/pricing', () => ({
-      buildPriceQuote: vi.fn().mockReturnValue({
+      buildPriceQuoteWithMarkup: vi.fn().mockReturnValue({
         hotelId: 'h1',
         roomId: 'r1',
         baseAmount: 100,
@@ -79,6 +102,38 @@ describe('booking route handlers', () => {
     expect(persistQuote).toHaveBeenCalledOnce();
   });
 
+  it('prebook route rejects unauthenticated requests', async () => {
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({
+            data: { user: null }
+          })
+        }
+      })
+    }));
+
+    const { POST } = await import('@/app/api/booking/prebook/route');
+    const req = {
+      url: 'https://example.com/api/booking/prebook',
+      headers: new Headers({ origin: 'https://example.com' }),
+      json: async () => ({
+        hotelId: 'h1',
+        roomId: 'r1',
+        offerId: 'offer-1',
+        checkIn: '2026-04-10',
+        checkOut: '2026-04-12',
+        guests: [{ adults: 2 }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(body.code).toBe('AUTH_REQUIRED');
+  });
+
   it('prebook route continues when quote persistence is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('LITEAPI_ENV', 'production');
@@ -93,7 +148,7 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/pricing', () => ({
-      buildPriceQuote: vi.fn().mockReturnValue({
+      buildPriceQuoteWithMarkup: vi.fn().mockReturnValue({
         hotelId: 'h1',
         roomId: 'r1',
         baseAmount: 100,
@@ -521,7 +576,7 @@ describe('booking route handlers', () => {
       type: 'booking_confirmed',
       data: {
         bookingId: 'lite-booking-1',
-        status: 'confirmed'
+        status: 'failed'
       }
     });
     const timestamp = String(Math.floor(Date.now() / 1000));
@@ -544,7 +599,7 @@ describe('booking route handlers', () => {
     expect(body.ok).toBe(true);
     expect(updateByLiteApiId).toHaveBeenCalledWith(
       'lite-booking-1',
-      'confirmed',
+      'failed',
       expect.objectContaining({ bookingId: 'lite-booking-1' })
     );
     expect(loggerInfo).toHaveBeenCalled();
