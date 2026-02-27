@@ -6,8 +6,8 @@ describe('oauth callback flow', () => {
     vi.clearAllMocks();
   });
 
-  it('rejects callback attempts missing state', async () => {
-    const exchangeCodeForSession = vi.fn();
+  it('proceeds with code exchange even without state (email confirmation flow)', async () => {
+    const exchangeCodeForSession = vi.fn().mockResolvedValue({ error: { message: 'invalid_code' } });
 
     vi.doMock('@/server/supabase/server', () => ({
       createServerSupabaseClient: vi.fn().mockResolvedValue({
@@ -18,8 +18,10 @@ describe('oauth callback flow', () => {
     const { GET } = await import('@/app/auth/callback/route');
     const response = await GET(new Request('https://example.com/auth/callback?code=abc'));
 
-    expect(exchangeCodeForSession).not.toHaveBeenCalled();
-    expect(response.headers.get('location')).toBe('https://example.com/auth/login?error=oauth_state_missing');
+    // state is no longer required (email confirmations don't include it)
+    expect(exchangeCodeForSession).toHaveBeenCalledWith('abc');
+    // code exchange failed, so redirect to login with error
+    expect(response.headers.get('location')).toBe('https://example.com/auth/login?error=callback_failed');
   });
 
   it('upserts profile and redirects to safe relative path', async () => {

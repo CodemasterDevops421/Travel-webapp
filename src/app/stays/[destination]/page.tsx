@@ -42,7 +42,8 @@ export async function generateMetadata({ params }: MetadataProps): Promise<Metad
   return {
     title: `Stays in ${label} | Hostel Stays`,
     description: `Compare prices, ratings, and amenities for stays in ${label}.`,
-    alternates: { canonical: `/stays/${normalized}` }
+    alternates: { canonical: `/stays/${normalized}` },
+    robots: { index: false, follow: false }
   };
 }
 
