@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import type { HotelDetails } from '@/server/liteapi';
 import type { HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
@@ -66,6 +67,15 @@ export function HotelDetailSections({
   askAnswer,
   askHotelAI
 }: HotelDetailSectionsProps) {
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [reviewSort, setReviewSort] = useState<'top' | 'newest' | 'oldest'>('top');
+
+  function parseReviewDate(value: string | null): number {
+    if (!value) return 0;
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.getTime() : 0;
+  }
+
   function formatReviewDate(value: string | null): string | null {
     if (!value) return null;
     const parsed = new Date(value);
@@ -109,6 +119,21 @@ export function HotelDetailSections({
   const nearbyRestaurants = hotel?.nearbyRestaurants ?? [];
   const facilityCategories = hotel?.facilityCategories ?? [];
   const houseRulesDetailed = hotel?.houseRulesDetailed ?? [];
+  const sortedReviews = useMemo(() => {
+    const items = [...reviews];
+    if (reviewSort === 'newest') {
+      items.sort((a, b) => parseReviewDate(b.createdAt) - parseReviewDate(a.createdAt));
+      return items;
+    }
+    if (reviewSort === 'oldest') {
+      items.sort((a, b) => parseReviewDate(a.createdAt) - parseReviewDate(b.createdAt));
+      return items;
+    }
+
+    items.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    return items;
+  }, [reviewSort, reviews]);
+  const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 3);
   const popularFacilityHighlights = amenities.slice(0, 12);
   const surroundings = locationContext?.nearbyLandmarks?.length
     ? locationContext.nearbyLandmarks
@@ -356,51 +381,98 @@ export function HotelDetailSections({
       </section>
 
       <section id="reviews" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('reviews')}>
-        <h2 className="text-xl font-semibold">Guest reviews</h2>
-        {hotel?.reviewScore ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            {hotel.reviewScore.toFixed(1)} · Based on {hotel.reviewCount ? Math.round(hotel.reviewCount) : 'available'} reviews
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-3xl font-bold text-foreground">Guest reviews</h2>
+          <a href="#rooms" className="rounded bg-[#006ce4] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0057b8]">See availability</a>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <span className="rounded bg-[#003b95] px-2.5 py-1 text-base font-bold text-white">{(hotel?.reviewScore ?? 0).toFixed(1)}</span>
+          <p className="text-lg font-semibold text-foreground">
+            {hotel?.reviewScore ? (hotel.reviewScore >= 9 ? 'Excellent' : hotel.reviewScore >= 8 ? 'Very good' : 'Good') : 'Verified'}
+            <span className="font-normal text-muted-foreground"> · {hotel?.reviewCount ? Math.round(hotel.reviewCount).toLocaleString() : reviews.length.toLocaleString()} reviews</span>
           </p>
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">No verified review score available from supplier for this property.</p>
-        )}
+        </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Showing {reviews.length} review{reviews.length === 1 ? '' : 's'}
+          Showing {visibleReviews.length} of {reviews.length} fetched review{reviews.length === 1 ? '' : 's'}
           {typeof hotel?.reviewCount === 'number' && hotel.reviewCount > reviews.length
             ? ` (supplier returned ${reviews.length} of ${Math.round(hotel.reviewCount)} total).`
             : '.'}
         </p>
 
         {reviewBreakdown.length > 0 && (
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {reviewBreakdown.map((item) => (
-              <div key={item.label} className="rounded-xl border border-border bg-background/70 p-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <p>{item.label}</p>
-                  <p className="font-semibold">{item.score.toFixed(1)}</p>
+          <>
+            <p className="mt-6 text-lg font-semibold text-foreground">Categories</p>
+            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {reviewBreakdown.map((item) => (
+                <div key={item.label} className="text-sm">
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="font-medium text-foreground">{item.label}</p>
+                    <p className="font-semibold text-foreground">{item.score.toFixed(1)}</p>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-200">
+                    <div className="h-full rounded-full bg-[#003b95]" style={{ width: `${Math.max(0, Math.min(100, (item.score / 10) * 100))}%` }} />
+                  </div>
                 </div>
-                <div className="mt-2 h-2 rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, Math.min(100, (item.score / 10) * 100))}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
 
         {reviews.length > 0 && (
-          <div className="mt-4 space-y-3">
-            {reviews.map((review, index) => (
-              <article key={`${review.author ?? 'guest'}-${index}`} className="rounded-xl border border-border bg-background/70 p-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>{review.author ?? 'Guest'}</span>
-                  {review.travelerType ? <span>• {review.travelerType}</span> : null}
-                  {review.score ? <span>• {review.score.toFixed(1)}</span> : null}
-                  {formatReviewDate(review.createdAt) ? <span>• {formatReviewDate(review.createdAt)}</span> : null}
-                </div>
-                <p className="mt-2 text-sm">{review.comment}</p>
-              </article>
-            ))}
-          </div>
+          <>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-lg font-semibold text-foreground">See what guests loved the most</p>
+              <div className="flex items-center gap-2 text-sm">
+                <label htmlFor="review-sort" className="text-muted-foreground">Sort by</label>
+                <select
+                  id="review-sort"
+                  className="rounded border border-border bg-background px-2 py-1 text-foreground"
+                  value={reviewSort}
+                  onChange={(event) => {
+                    setReviewSort(event.target.value as 'top' | 'newest' | 'oldest');
+                  }}
+                >
+                  <option value="top">Top rated</option>
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {visibleReviews.map((review, index) => (
+                <article key={`${review.author ?? 'guest'}-${index}`} className="rounded-xl border border-border bg-background p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-700 text-sm font-semibold text-white">
+                      {(review.author ?? 'G').charAt(0).toUpperCase()}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{review.author ?? 'Guest'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {review.travelerType ?? 'Traveler'}
+                        {typeof review.score === 'number' ? ` · ${review.score.toFixed(1)}` : ''}
+                        {formatReviewDate(review.createdAt) ? ` · ${formatReviewDate(review.createdAt)}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-foreground">{review.comment}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {reviews.length > 3 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAllReviews((previous) => !previous)}
+                  className="rounded border border-[#006ce4] px-4 py-2 text-sm font-semibold text-[#006ce4] hover:bg-blue-50"
+                >
+                  {showAllReviews ? 'Show top reviews only' : `View all reviews (${reviews.length})`}
+                </button>
+              ) : null}
+            </div>
+          </>
         )}
 
         {reviews.length === 0 ? (
