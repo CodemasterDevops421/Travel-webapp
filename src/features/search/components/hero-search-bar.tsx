@@ -300,7 +300,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             {!canSearch ? (
                 <p className={cn(
                     'mt-2 text-xs font-medium md:text-right',
-                    variant === 'default' ? 'text-amber-100' : 'text-muted-foreground'
+                    variant === 'default' ? 'text-slate-500' : 'text-muted-foreground'
                 )}>
                     Select destination, check-in, and check-out to enable search.
                 </p>
