@@ -48,28 +48,40 @@ function applySecurityHeaders(response: NextResponse) {
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request: { headers: request.headers } });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  let user = null;
+
+  if (supabaseUrl && supabaseAnonKey) {
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            response = NextResponse.next({ request: { headers: request.headers } });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            );
+          }
         }
       }
-    }
-  );
+    );
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user: authUser }
+      } = await supabase.auth.getUser();
+      user = authUser;
+    } catch {
+      user = null;
+    }
+  }
 
   const protectedPaths = ['/booking', '/wishlist', '/admin'];
   const isProtectedRoute = protectedPaths.some((path) =>
