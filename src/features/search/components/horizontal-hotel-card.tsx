@@ -1,9 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import Image from 'next/image';
 import { Heart, Star } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
 import { PropertyPreview } from '@/features/search/hooks/use-property-preview';
 
@@ -15,6 +13,15 @@ interface HorizontalHotelCardProps {
     rooms: number;
     currency: string;
     discoveryContext?: string;
+    saved?: boolean;
+    onToggleSave?: (hotel: {
+        hotelId: string;
+        hotelName?: string;
+        hotelImage?: string;
+        starRating?: number;
+        city?: string;
+    }) => void;
+    showAuthPrompt?: boolean;
 }
 
 function formatMoney(currency: string, amount: number | null): string {
@@ -47,7 +54,10 @@ export function HorizontalHotelCard({
     adults,
     rooms,
     currency,
-    discoveryContext
+    discoveryContext,
+    saved = false,
+    onToggleSave,
+    showAuthPrompt = false
 }: HorizontalHotelCardProps) {
     const reviewScore = hotel.reviewScore ?? 7.5;
     const detailsParams = new URLSearchParams({
@@ -62,20 +72,38 @@ export function HorizontalHotelCard({
         detailsParams.set('returnTo', discoveryContext);
     }
 
+    const hotelHref = `/hotels/${hotel.hotelId}?${detailsParams.toString()}`;
+    const loginHref = `/auth/login?redirect=${encodeURIComponent(hotelHref)}`;
+
     return (
-        <Link
-            href={`/hotels/${hotel.hotelId}?${detailsParams.toString()}`}
-            className="group flex flex-col md:flex-row gap-4 rounded-xl border border-border bg-white p-4 transition-all hover:shadow-lg hover:border-primary/20"
-        >
+        <article className="group flex flex-col gap-4 rounded-xl border border-border bg-white p-4 transition-all hover:border-primary/20 hover:shadow-lg md:flex-row">
             {/* Image Section */}
             <div className="relative h-48 w-full shrink-0 overflow-hidden md:h-auto md:w-72">
-                {hotel.imageUrl ? (
-                    <Image src={hotel.imageUrl} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, 288px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
-                ) : (
-                    <div className="h-full w-full bg-slate-100" />
-                )}
-                <button className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-muted-foreground shadow-sm hover:text-red-500 hover:scale-110 transition-all">
-                    <Heart className="h-4 w-4" />
+                <a href={hotelHref}>
+                    {hotel.imageUrl ? (
+                        <Image src={hotel.imageUrl} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, 288px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                    ) : (
+                        <div className="h-full w-full bg-slate-100" />
+                    )}
+                </a>
+                <button
+                    type="button"
+                    onClick={() => {
+                        onToggleSave?.({
+                            hotelId: hotel.hotelId,
+                            hotelName: hotel.name,
+                            hotelImage: hotel.imageUrl,
+                            starRating: hotel.starRating ?? undefined,
+                            city: hotel.city
+                        });
+                    }}
+                    className={cn(
+                        'absolute right-3 top-3 rounded-full bg-white/90 p-2 text-muted-foreground shadow-sm transition-all hover:scale-110',
+                        saved ? 'text-rose-500' : 'hover:text-rose-500'
+                    )}
+                    aria-label={saved ? 'Remove from wishlist' : 'Save to wishlist'}
+                >
+                    <Heart className={cn('h-4 w-4', saved ? 'fill-current' : '')} />
                 </button>
             </div>
 
@@ -88,12 +116,14 @@ export function HorizontalHotelCard({
                                 <Star key={i} className="h-3 w-3 fill-orange-400 text-orange-400" />
                             ))}
                         </div>
-                        <h3 className="mt-1 text-xl font-bold text-foreground group-hover:text-primary transition-colors">{hotel.name}</h3>
-                        <div className="mt-1 flex items-center gap-2 text-sm text-foreground underline underline-offset-2">
+                        <a href={hotelHref}>
+                            <h3 className="mt-1 text-xl font-bold text-foreground transition-colors group-hover:text-primary">{hotel.name}</h3>
+                        </a>
+                        <a href={hotelHref} className="mt-1 flex items-center gap-2 text-sm text-foreground underline underline-offset-2">
                             <span className="line-clamp-1">{hotel.city}, {hotel.countryCode}</span>
                             <span className="text-muted-foreground no-underline">•</span>
                             <span className="text-muted-foreground no-underline">Map view</span>
-                        </div>
+                        </a>
 
                         {/* Trust Badges */}
                         <div className="mt-3 flex flex-col gap-1 items-start">
@@ -137,12 +167,17 @@ export function HorizontalHotelCard({
                             </div>
                             <p className="text-[11px] text-muted-foreground mt-0.5">Includes taxes and charges</p>
                         </div>
-                        <Button className="mt-3 h-10 w-full rounded bg-primary px-8 font-bold shadow-none transition-all hover:bg-primary/90 hover:shadow-md sm:w-auto">
+                        <a href={hotelHref} className="mt-3 inline-flex h-10 w-full items-center justify-center rounded bg-primary px-8 font-bold text-primary-foreground shadow-none transition-all hover:bg-primary/90 hover:shadow-md sm:w-auto">
                             See availability
-                        </Button>
+                        </a>
                     </div>
                 </div>
+                {showAuthPrompt ? (
+                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        Sign in to save stays. <a href={loginHref} className="font-semibold underline underline-offset-2">Go to login</a>
+                    </p>
+                ) : null}
             </div>
-        </Link>
+        </article>
     );
 }
