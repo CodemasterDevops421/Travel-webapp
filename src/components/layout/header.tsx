@@ -188,14 +188,14 @@ export function Header() {
             {user ? (
               <>
                 <Link
-                  href="/wishlist"
+                  href={'/wishlist' as Route}
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
                 >
                   <Heart className="h-4 w-4" /> Wishlist
                 </Link>
                 <Link
-                  href="/admin"
+                  href={'/admin' as Route}
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
                 >
