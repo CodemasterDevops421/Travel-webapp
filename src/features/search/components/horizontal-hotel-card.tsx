@@ -52,6 +52,14 @@ function getReviewLabel(score: number): string {
     return 'Good';
 }
 
+function getNights(checkin: string, checkout: string): number {
+    const start = new Date(checkin);
+    const end = new Date(checkout);
+    const diff = end.getTime() - start.getTime();
+    if (!Number.isFinite(diff) || diff <= 0) return 1;
+    return Math.max(1, Math.round(diff / 86400000));
+}
+
 export function HorizontalHotelCard({
     hotel,
     checkin,
@@ -80,6 +88,8 @@ export function HorizontalHotelCard({
 
     const hotelHref = `/hotels/${hotel.hotelId}?${detailsParams.toString()}`;
     const loginHref = `/auth/login?redirect=${encodeURIComponent(hotelHref)}`;
+    const nights = getNights(checkin, checkout);
+    const amenityHighlights = (hotel.amenities ?? []).slice(0, 4);
 
     return (
         <article className="group flex flex-col gap-4 rounded-xl border border-border bg-white p-4 transition-all hover:border-primary/20 hover:shadow-lg md:flex-row">
@@ -132,14 +142,26 @@ export function HorizontalHotelCard({
                         </a>
 
                         {/* Trust Badges */}
-                        <div className="mt-3 flex flex-col gap-1 items-start">
+                        <div className="mt-3 flex flex-wrap gap-1.5 items-center">
                             <span className="rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700 border border-green-200">
                                 Free cancellation
+                            </span>
+                            <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
+                                Reserve now, pay later
                             </span>
                             <span className="rounded bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700 border border-red-200 flex items-center gap-1">
                                 🔥 Limited supply for your dates
                             </span>
                         </div>
+                        {amenityHighlights.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                                {amenityHighlights.map((amenity) => (
+                                    <span key={amenity} className="rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-[11px] text-foreground/90">
+                                        {amenity}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
 
                     {/* Rating Badge (Right Side) */}
@@ -181,7 +203,10 @@ export function HorizontalHotelCard({
                                 <span className="text-sm text-muted-foreground line-through decoration-red-500/50">{formatMoney(hotel.currency, (hotel.price ?? 0) * 1.08)}</span>
                                 <span className="text-2xl font-bold text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">Includes taxes and charges</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{nights} night{nights > 1 ? 's' : ''} · Includes taxes and charges</p>
+                            {typeof hotel.price === 'number' ? (
+                                <p className="text-xs font-semibold text-foreground">Total {formatMoney(hotel.currency, hotel.price * nights)}</p>
+                            ) : null}
                         </div>
                         <a href={hotelHref} className="mt-3 inline-flex h-10 w-full items-center justify-center rounded bg-primary px-8 font-bold text-primary-foreground shadow-none transition-all hover:bg-primary/90 hover:shadow-md sm:w-auto">
                             See availability
