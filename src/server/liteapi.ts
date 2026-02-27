@@ -205,6 +205,7 @@ export type HotelRateOption = {
   offerId: string;
   roomId: string;
   roomName: string;
+  imageUrl?: string | null;
   boardName: string;
   refundableTag: string;
   cancelTime?: string | null;
@@ -2039,6 +2040,13 @@ export async function getHotelRates(params: {
           offerId: offerId || `offer-${idx}`,
           roomId: String(rate.mappedRoomId ?? rate.roomId ?? `room-${idx}`),
           roomName: String(rate.name ?? 'Room'),
+          imageUrl:
+            cleanString(rate.imageUrl) ??
+            cleanString(rate.image) ??
+            cleanString((rate.room as Record<string, unknown> | undefined)?.imageUrl) ??
+            cleanString((rate.room as Record<string, unknown> | undefined)?.image) ??
+            cleanString((roomType as Record<string, unknown>).imageUrl) ??
+            cleanString((roomType as Record<string, unknown>).image),
           boardName: String(rate.boardName ?? 'N/A'),
           refundableTag: String(policies?.refundableTag ?? 'N/A'),
           cancelTime: typeof infos?.[0]?.cancelTime === 'string' ? String(infos[0].cancelTime) : null,

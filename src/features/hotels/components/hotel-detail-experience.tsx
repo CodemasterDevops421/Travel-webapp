@@ -153,7 +153,13 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     });
   }, [rates]);
 
-  const photos = hotel?.photos?.length ? hotel.photos : hotel?.mainPhoto ? [hotel.mainPhoto as string] : [];
+  const photos = useMemo(() => {
+    const basePhotos = hotel?.photos?.length ? hotel.photos : hotel?.mainPhoto ? [hotel.mainPhoto as string] : [];
+    const roomPhotos = rates
+      .map((rate) => (typeof rate.imageUrl === 'string' ? rate.imageUrl : null))
+      .filter((item): item is string => Boolean(item));
+    return Array.from(new Set([...basePhotos, ...roomPhotos]));
+  }, [hotel?.mainPhoto, hotel?.photos, rates]);
   const amenities = hotel?.facilities ?? [];
   const lowestRate = rates.reduce<number | null>((min, rate) => (min === null || rate.amount < min ? rate.amount : min), null);
   const currency = rates[0]?.currency ?? 'USD';
