@@ -34,7 +34,17 @@ function safeCompare(a: string, b: string): boolean {
 }
 
 export function buildPriceQuote(payload: { hotelId: string; roomId: string; amount: number; currency: string }): PriceQuote {
-  const totalAmount = applyMarkup(payload.amount, env.PRICE_MARKUP_PERCENT);
+  return buildPriceQuoteWithMarkup(payload, env.PRICE_MARKUP_PERCENT);
+}
+
+export function buildPriceQuoteWithMarkup(
+  payload: { hotelId: string; roomId: string; amount: number; currency: string },
+  commissionPercent: number
+): PriceQuote {
+  const normalizedPercent = Number.isFinite(commissionPercent)
+    ? Math.min(15, Math.max(5, commissionPercent))
+    : env.PRICE_MARKUP_PERCENT;
+  const totalAmount = applyMarkup(payload.amount, normalizedPercent);
   const quote: QuotePayload = {
     hotelId: payload.hotelId,
     roomId: payload.roomId,
@@ -59,4 +69,24 @@ export function verifyPriceQuoteSignature(quote: PriceQuote): boolean {
   });
 
   return safeCompare(expected, quote.signature);
+}
+
+export function applyPromoDiscount(quote: PriceQuote, discountPercent: number): PriceQuote {
+  if (discountPercent <= 0 || discountPercent >= 100) return quote;
+
+  const discountMultiplier = 1 - (discountPercent / 100);
+  const newTotalAmount = Math.max(0, Math.floor(quote.totalAmount * discountMultiplier));
+
+  const newQuotePayload: QuotePayload = {
+    hotelId: quote.hotelId,
+    roomId: quote.roomId,
+    baseAmount: quote.baseAmount,
+    totalAmount: newTotalAmount,
+    currency: quote.currency
+  };
+
+  return {
+    ...newQuotePayload,
+    signature: createQuoteSignature(newQuotePayload)
+  };
 }

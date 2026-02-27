@@ -93,8 +93,7 @@ export function assertLiteApiRuntimeConfig(config: LiteApiRuntimeConfig): void {
   }
 }
 
-export function getLiteApiRuntimeConfig(): LiteApiRuntimeConfig {
-  const mode = parsedEnv.LITEAPI_ENV;
+export function getLiteApiRuntimeConfigForMode(mode: 'sandbox' | 'production'): LiteApiRuntimeConfig {
   const selectedApiKey = mode === 'production'
     ? getModeValue(mode, parsedEnv.LITEAPI_PRODUCTION_API_KEY, parsedEnv.LITEAPI_API_KEY)
     : getModeValue(mode, parsedEnv.LITEAPI_SANDBOX_API_KEY, parsedEnv.LITEAPI_API_KEY);
@@ -115,6 +114,10 @@ export function getLiteApiRuntimeConfig(): LiteApiRuntimeConfig {
   assertLiteApiRuntimeConfig(config);
 
   return config;
+}
+
+export function getLiteApiRuntimeConfig(): LiteApiRuntimeConfig {
+  return getLiteApiRuntimeConfigForMode(parsedEnv.LITEAPI_ENV);
 }
 
 function isPlaceholderValue(value: string | undefined, patterns: string[]): boolean {
