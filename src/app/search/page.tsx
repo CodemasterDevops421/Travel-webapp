@@ -19,13 +19,22 @@ type SearchPageProps = {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const queryState = parseDiscoveryQuery(params, { defaultDestination: 'Dubai' });
-  const destination = getDestinationByLabel(queryState.destination) ?? getDestinationByLabel('Dubai');
+  const destination = getDestinationByLabel(queryState.destination);
+
+  const rawSlug = queryState.destination
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  const slug = (destination?.slug ?? rawSlug) || 'dubai';
+
   const canonicalQuery = serializeDiscoveryQuery({
     ...queryState,
     destination: ''
   });
   const queryString = canonicalQuery.toString();
-  const destinationPath = buildDestinationPath(destination?.slug ?? 'dubai');
+  const destinationPath = buildDestinationPath(slug);
 
   redirect((queryString ? `${destinationPath}?${queryString}` : destinationPath) as Route);
 }
