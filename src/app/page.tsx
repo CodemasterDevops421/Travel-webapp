@@ -21,40 +21,33 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <main className="space-y-20 pb-24">
-      <section className="bg-[#003b95] pb-14 pt-8 text-white">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="relative z-10 w-full max-w-5xl space-y-6 pb-10 pt-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">
-              Curated Stays Worldwide
-            </p>
-            <h1 className="font-heading text-5xl font-bold leading-tight md:text-7xl">
-              Find your next stay
+      <section className="mx-auto max-w-7xl px-4 pt-4 pb-8 md:pb-16">
+        <div className="hero-photo flex flex-col justify-center px-6 py-20 md:px-16 md:py-32">
+          <div className="relative z-10 w-full max-w-3xl space-y-6 animate-fade-in">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 backdrop-blur-md">
+              <Sparkles className="h-4 w-4 text-white" />
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white">
+                Curated Premium Stays
+              </p>
+            </div>
+            <h1 className="font-heading text-5xl font-extrabold leading-tight text-white md:text-7xl drop-shadow-xl animate-fade-in stagger-1">
+              Discover your <br /> next escape
             </h1>
-            <p className="max-w-3xl text-base text-blue-100 md:text-lg">
-              Compare hotels, apartments, and resorts with transparent pricing, verified rates, and secure checkout.
+            <p className="max-w-xl text-lg text-white/90 drop-shadow-md animate-fade-in stagger-2">
+              Experience the world's most stunning destinations with verified rates, transparent pricing, and seamless booking.
             </p>
           </div>
         </div>
 
-        <div className="relative z-20 mx-auto -mb-10 w-full max-w-7xl px-4">
+        <div className="hero-search-float animate-fade-in stagger-3">
           <Suspense fallback={<SearchSkeleton />}>
-            <HeroSearchBar className="border-4 border-[#ffb700]" />
+            <div className="glass-panel p-2 md:p-3">
+              <HeroSearchBar className="border-none shadow-none bg-transparent" />
+            </div>
           </Suspense>
         </div>
       </section>
 
-      <section className="mx-auto mt-2 max-w-7xl px-4">
-        <div className="relative h-[520px] w-full overflow-hidden rounded-2xl bg-muted">
-          <Image
-            src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
-            alt="Luxury Hotel Pool"
-            fill
-            sizes="100vw"
-            priority
-            className="object-cover"
-          />
-        </div>
-      </section>
 
       <section className="mx-auto grid max-w-6xl gap-0 border-y border-border px-4 md:grid-cols-3">
         <div className="p-12 transition-colors hover:bg-muted/50 border-b md:border-b-0 md:border-r border-border text-center">

@@ -139,11 +139,11 @@ export function HotelDetailSections({
   const surroundings = locationContext?.nearbyLandmarks?.length
     ? locationContext.nearbyLandmarks
     : [
-        `City center access in ${hotel?.city ?? 'the area'}`,
-        'Shops and convenience stores nearby',
-        'Taxi pick-up points around the property',
-        'Dining options in walking or short-drive distance'
-      ];
+      `City center access in ${hotel?.city ?? 'the area'}`,
+      'Shops and convenience stores nearby',
+      'Taxi pick-up points around the property',
+      'Dining options in walking or short-drive distance'
+    ];
   const languageCandidates = [
     ...amenities,
     ...(policies?.extra ?? []),
@@ -163,7 +163,7 @@ export function HotelDetailSections({
         <h2 className="font-heading text-3xl font-light">Smart Highlights</h2>
         {isPartialDetail ? (
           <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {hotel?.completeness.message ?? 'Some supplier details are currently unavailable for this property.'}
+            {hotel?.completeness?.message ?? 'Some supplier details are currently unavailable for this property.'}
           </p>
         ) : null}
         <ul className="grid gap-4 sm:grid-cols-3">

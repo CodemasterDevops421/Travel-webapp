@@ -2,162 +2,196 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* ZZZello Brand Colors */
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
+@layer base {
+  :root {
+    /* Premium Light Mode: Clean, sophisticated white/gray with deep sea blue accents */
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
 
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-  /* ZZZello Electric Violet #aa15ef -> HSL approx 282 85% 51% */
-  --primary: 282 85% 51%;
-  --primary-foreground: 210 40% 98%;
+    /* Accent: Modern Ocean Blue */
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
 
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary: Soft Slate */
+    --secondary: 214.3 31.8% 91.4%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 214.3 31.8% 91.4%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 214.3 31.8% 91.4%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
 
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 282 85% 51%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
 
-  --radius: 1rem;
+    --radius: 1rem;
+  }
 
-  --brand-gradient: linear-gradient(90deg, #7EFEFD 0%, #85F4FC 20%, #A4B6EA 40%, #C99DDB 60%, #F28A9B 75%, #FB9476 85%, #FBB173 100%);
+  .dark {
+    /* Premium Dark Mode: Deep Obsidian with Ocean Accents */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 217.2 32.6% 17.5%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
 }
 
-.dark {
-  /* Adapted Dark Mode for ZZZello (using Ink-2 #232635 as base or darker) */
-  --background: 230 20% 11%;
-  /* Darker than Ink-2 for contrast */
-  --foreground: 210 20% 98%;
-
-  --primary: 277 100% 65%;
-  /* Lighter violet for dark mode */
-  --primary-foreground: 212 33% 10%;
-
-  --muted: 220 20% 16%;
-  --muted-foreground: 218 11% 75%;
-
-  --card: 230 20% 14%;
-  --card-foreground: 210 20% 98%;
-
-  --border: 230 20% 20%;
-  --input: 230 20% 20%;
-  --ring: 277 100% 65%;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+    min-height: 100vh;
+    /* Soft dynamic background gradient for dark mode */
+    background-image: radial-gradient(circle at top center, rgba(37, 99, 235, 0.03), transparent 60%),
+                      radial-gradient(circle at bottom left, rgba(147, 51, 234, 0.03), transparent 50%);
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
 }
 
-body {
-  @apply bg-background text-foreground antialiased;
-  font-family: var(--font-body);
-  min-height: 100vh;
-  background-image:
-    radial-gradient(circle at 8% 8%, rgba(14, 165, 173, 0.14), transparent 36%),
-    radial-gradient(circle at 80% 12%, rgba(225, 168, 52, 0.14), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+/* ── Premium Glassmorphism ── */
+.glass {
+  @apply bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-premium-md;
+}
+.glass-panel {
+  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/20 dark:border-slate-800/50 shadow-premium-lg rounded-2xl;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-heading);
-  letter-spacing: -0.02em;
+/* ── Interactive Elements ── */
+.premium-hover {
+  @apply transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-premium-lg hover:shadow-primary/20 dark:hover:shadow-primary/10;
+}
+.card-hover {
+  @apply transition-all duration-300 ease-out hover:-translate-y-[4px] hover:shadow-premium-lg;
 }
 
+/* ── Hero Section Aesthetics ── */
 .hero-photo {
   position: relative;
-  min-height: 320px;
-  border-radius: 28px;
+  min-height: 480px;
+  border-radius: 2rem;
   overflow: hidden;
   background-image:
-    linear-gradient(140deg, rgba(15, 118, 110, 0.35), rgba(15, 118, 110, 0.05) 40%, rgba(255, 255, 255, 0.12)),
-    url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80");
+    linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(2, 8, 23, 0.8) 100%),
+    url("https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1600&q=80");
   background-size: cover;
   background-position: center;
-  box-shadow:
-    0 30px 65px -10px rgba(15, 23, 42, 0.15),
-    0 10px 30px -15px rgba(170, 21, 239, 0.2);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .hero-search-float {
   position: absolute;
   left: 50%;
-  bottom: 2.5rem;
+  bottom: -2.5rem; /* Break out of the hero for a modern layered look */
   transform: translateX(-50%);
-  width: min(96%, 840px);
-  z-index: 2;
+  width: min(96%, 920px);
+  z-index: 20;
 }
 
 @media (max-width: 1024px) {
   .hero-search-float {
     position: static;
     transform: none;
-    margin-top: 1.5rem;
+    margin-top: -3rem;
     width: 100%;
+    padding: 0 1rem;
+  }
+  .hero-photo {
+    min-height: 400px;
+    border-radius: 1.5rem;
   }
 }
 
 @media (max-width: 640px) {
   .hero-photo {
-    min-height: 260px;
+    min-height: 320px;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+/* ── Smooth page transitions ── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes soft-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.animate-fade-in {
+  animation: fade-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ── Stagger helpers ── */
+.stagger-1 { animation-delay: 100ms; }
+.stagger-2 { animation-delay: 200ms; }
+.stagger-3 { animation-delay: 300ms; }
+.stagger-4 { animation-delay: 400ms; }
+.stagger-5 { animation-delay: 500ms; }
+
+/* ── Skeleton shimmer for loading states ── */
 @keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
-  }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
-
-.animate-soft-rise {
-  animation: soft-rise 400ms ease-out both;
-}
-
 .skeleton-shimmer {
-  background: linear-gradient(90deg, rgba(210, 214, 218, 0.45) 0%, rgba(210, 214, 218, 0.72) 50%, rgba(210, 214, 218, 0.45) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s linear infinite;
+  position: relative;
+  overflow: hidden;
+  background-color: hsl(var(--muted));
+}
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+/* Focus outline glow */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  nav[class*="fixed bottom-0"] {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

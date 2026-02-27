@@ -39,11 +39,11 @@ export function Header() {
   const isDark = mounted && resolvedTheme === 'dark';
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-background/95 dark:supports-[backdrop-filter]:bg-background/80">
+    <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-white/20 dark:border-white/10 shadow-premium-sm transition-all duration-300">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:h-20">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-xl font-heading font-bold tracking-tight bg-gradient-to-r from-violet-600 via-fuchsia-500 to-rose-400 bg-clip-text text-transparent">
+        <Link href="/" className="flex items-center gap-2 premium-hover group">
+          <span className="text-2xl font-heading font-extrabold tracking-tight text-primary transition-colors group-hover:text-primary/80">
             Hostel Stays
           </span>
         </Link>

@@ -27,7 +27,7 @@ const deals = [
 
 export function FeaturedDealsStrip() {
   return (
-    <section className="space-y-4 rounded-2xl border border-border/80 bg-card/75 p-5">
+    <section className="space-y-4 glass-panel p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Featured deals</p>
@@ -35,7 +35,7 @@ export function FeaturedDealsStrip() {
         </div>
         <PreferenceLink
           href="/search"
-          className="text-sm font-semibold text-primary underline underline-offset-4"
+          className="text-sm font-semibold text-primary underline underline-offset-4 premium-hover"
         >
           View all deals
         </PreferenceLink>
@@ -44,7 +44,7 @@ export function FeaturedDealsStrip() {
         {deals.map((deal) => (
           <article
             key={deal.city}
-            className="flex h-full flex-col justify-between gap-3 rounded-2xl border border-border/70 bg-background/80 p-4 shadow-sm"
+            className="flex h-full flex-col justify-between gap-3 rounded-2xl border border-border/70 bg-white/60 dark:bg-slate-900/60 p-4 shadow-sm card-hover cursor-pointer backdrop-blur-md"
           >
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">

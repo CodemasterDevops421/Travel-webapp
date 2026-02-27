@@ -6,11 +6,11 @@ import { PreferenceLink } from '@/components/navigation/preference-link';
 
 export function GlobalTopBar() {
   return (
-    <header className="sticky top-3 z-30 mx-auto mt-3 max-w-6xl rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm backdrop-blur">
+    <header className="sticky top-4 z-30 mx-auto mt-4 max-w-6xl glass-panel px-5 py-3 transition-all duration-300">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <PreferenceLink href="/" className="text-sm font-semibold tracking-[0.16em]">
-            TRAVELAPP
+            HOSTEL STAYS
           </PreferenceLink>
           <nav className="hidden items-center gap-5 text-sm md:flex">
             <PreferenceLink href="/" className="text-muted-foreground transition-colors hover:text-foreground">
