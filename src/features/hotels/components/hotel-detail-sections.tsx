@@ -92,6 +92,10 @@ export function HotelDetailSections({
         : 'Amenities list is currently unavailable from the supplier.'
     }
   ];
+  const areaInfo = hotel?.areaInfo ?? [];
+  const nearbyRestaurants = hotel?.nearbyRestaurants ?? [];
+  const facilityCategories = hotel?.facilityCategories ?? [];
+  const houseRulesDetailed = hotel?.houseRulesDetailed ?? [];
 
   return (
     <div className="space-y-12 pb-24">
@@ -187,6 +191,43 @@ export function HotelDetailSections({
         ) : (
           <p className="mt-3 rounded-xl border border-border bg-background/70 p-3 text-sm text-muted-foreground">
             Nearby landmark context is currently unavailable from the supplier.
+          </p>
+        )}
+      </section>
+
+      <section id="area-info" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('area-info')}>
+        <h2 className="text-xl font-semibold">Hotel area info</h2>
+        {areaInfo.length > 0 ? (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {areaInfo.map((item) => (
+              <article key={`${item.label}-${item.value}`} className="rounded-xl border border-border bg-background/70 p-3">
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{item.label}</p>
+                <p className="mt-1 text-sm text-foreground">{item.value}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            Area context details are currently unavailable from the supplier.
+          </p>
+        )}
+      </section>
+
+      <section id="restaurants" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('restaurants')}>
+        <h2 className="text-xl font-semibold">Restaurants</h2>
+        {nearbyRestaurants.length > 0 ? (
+          <div className="mt-3 grid gap-3">
+            {nearbyRestaurants.map((restaurant) => (
+              <article key={restaurant.name} className="rounded-xl border border-border bg-background/70 p-3">
+                <p className="text-sm font-semibold text-foreground">{restaurant.name}</p>
+                {restaurant.cuisine ? <p className="mt-1 text-xs text-muted-foreground">Cuisine: {restaurant.cuisine}</p> : null}
+                {restaurant.description ? <p className="mt-1 text-sm text-muted-foreground">{restaurant.description}</p> : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            Nearby restaurant details are currently unavailable from the supplier.
           </p>
         )}
       </section>
@@ -362,6 +403,28 @@ export function HotelDetailSections({
         </p>
       </section>
 
+      <section id="facilities-detail" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('facilities-detail')}>
+        <h2 className="text-xl font-semibold">Facilities of this property</h2>
+        {facilityCategories.length > 0 ? (
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            {facilityCategories.map((category) => (
+              <article key={category.category} className="rounded-xl border border-border bg-background/70 p-4">
+                <p className="text-sm font-semibold text-foreground">{category.category}</p>
+                <ul className="mt-2 grid gap-1 text-sm text-muted-foreground">
+                  {category.items.slice(0, 16).map((item) => (
+                    <li key={`${category.category}-${item}`}>• {item}</li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            Detailed facilities categories are currently unavailable from the supplier.
+          </p>
+        )}
+      </section>
+
       <section id="house-rules" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('house-rules')}>
         <h2 className="text-xl font-semibold">House rules</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -394,6 +457,16 @@ export function HotelDetailSections({
             </p>
           </article>
         </div>
+        {houseRulesDetailed.length > 0 ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {houseRulesDetailed.map((rule) => (
+              <article key={`${rule.title}-${rule.detail}`} className="rounded-xl border border-border bg-background/70 p-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{rule.title}</p>
+                <p className="mt-2 text-sm text-foreground">{rule.detail}</p>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section id="ask-ai" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('ask-ai')}>

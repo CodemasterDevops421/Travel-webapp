@@ -147,6 +147,27 @@ export type HotelProsAndCons = {
   cons: string[];
 };
 
+export type HotelFacilityCategory = {
+  category: string;
+  items: string[];
+};
+
+export type HotelAreaInfoItem = {
+  label: string;
+  value: string;
+};
+
+export type HotelRestaurantInfo = {
+  name: string;
+  cuisine: string | null;
+  description: string | null;
+};
+
+export type HotelHouseRuleItem = {
+  title: string;
+  detail: string;
+};
+
 export type HotelDetailCompleteness = {
   isPartial: boolean;
   missingSections: string[];
@@ -173,6 +194,10 @@ export type HotelDetails = {
   policies: HotelPolicyDetails;
   locationContext: HotelLocationContext;
   prosAndCons: HotelProsAndCons;
+  facilityCategories?: HotelFacilityCategory[];
+  areaInfo?: HotelAreaInfoItem[];
+  nearbyRestaurants?: HotelRestaurantInfo[];
+  houseRulesDetailed?: HotelHouseRuleItem[];
   completeness: HotelDetailCompleteness;
 };
 
@@ -588,6 +613,117 @@ function pickLocationContext(data: Record<string, unknown>, city: string, countr
     transit: pickStringList(locationRoot, ['transit', 'transport', 'publicTransport']).slice(0, 8),
     nearbyLandmarks: pickStringList(locationRoot, ['nearby', 'landmarks', 'pointsOfInterest']).slice(0, 8)
   };
+}
+
+function pickFacilityCategories(data: Record<string, unknown>, facilities: string[]): HotelFacilityCategory[] {
+  const directGroups = data.facilitiesByCategory ?? data.facilityGroups ?? data.hotelFacilities;
+  if (Array.isArray(directGroups)) {
+    const mapped = directGroups
+      .map((group) => {
+        if (!group || typeof group !== 'object') return null;
+        const row = group as Record<string, unknown>;
+        const category = cleanString(row.category) ?? cleanString(row.name) ?? cleanString(row.title);
+        const items = pickStringList(row, ['items', 'facilities', 'amenities']);
+        if (!category || items.length === 0) return null;
+        return { category, items: items.slice(0, 18) } satisfies HotelFacilityCategory;
+      })
+      .filter((item): item is HotelFacilityCategory => Boolean(item));
+    if (mapped.length > 0) return mapped.slice(0, 8);
+  }
+
+  if (facilities.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      category: 'Most popular facilities',
+      items: facilities.slice(0, 24)
+    }
+  ];
+}
+
+function pickAreaInfo(data: Record<string, unknown>, location: HotelLocationContext): HotelAreaInfoItem[] {
+  const area: HotelAreaInfoItem[] = [];
+  if (location.addressLine) {
+    area.push({ label: 'Address', value: location.addressLine });
+  }
+  if (location.neighborhood) {
+    area.push({ label: 'Neighborhood', value: location.neighborhood });
+  }
+  if (location.transit.length > 0) {
+    area.push({ label: 'Transit', value: location.transit.slice(0, 3).join(', ') });
+  }
+  if (location.nearbyLandmarks.length > 0) {
+    area.push({ label: 'Nearby places', value: location.nearbyLandmarks.slice(0, 4).join(', ') });
+  }
+
+  const distances = (data.distances as Array<Record<string, unknown>> | undefined) ?? [];
+  for (const distance of distances.slice(0, 4)) {
+    const name = cleanString(distance.name) ?? cleanString(distance.place) ?? null;
+    const value = cleanString(distance.distance) ?? cleanString(distance.value) ?? null;
+    if (name && value) {
+      area.push({ label: name, value });
+    }
+  }
+
+  return area.slice(0, 8);
+}
+
+function pickNearbyRestaurants(data: Record<string, unknown>): HotelRestaurantInfo[] {
+  const candidates = [data.restaurants, data.dining, data.nearbyRestaurants];
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const mapped = candidate
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const row = item as Record<string, unknown>;
+        const name = cleanString(row.name) ?? cleanString(row.title);
+        if (!name) return null;
+        return {
+          name,
+          cuisine: cleanString(row.cuisine) ?? cleanString(row.type),
+          description: cleanString(row.description) ?? cleanString(row.summary)
+        } satisfies HotelRestaurantInfo;
+      })
+      .filter((item): item is HotelRestaurantInfo => Boolean(item));
+    if (mapped.length > 0) {
+      return mapped.slice(0, 6);
+    }
+  }
+  return [];
+}
+
+function pickHouseRulesDetailed(data: Record<string, unknown>, policies: HotelPolicyDetails): HotelHouseRuleItem[] {
+  const rulesRoot = (data.houseRules as Array<Record<string, unknown>> | undefined) ?? [];
+  const mapped = rulesRoot
+    .map((item) => {
+      const title = cleanString(item.title) ?? cleanString(item.name);
+      const detail = cleanString(item.detail) ?? cleanString(item.value) ?? cleanString(item.description);
+      if (!title || !detail) return null;
+      return { title, detail } satisfies HotelHouseRuleItem;
+    })
+    .filter((item): item is HotelHouseRuleItem => Boolean(item));
+
+  if (mapped.length > 0) {
+    return mapped.slice(0, 10);
+  }
+
+  const fallback: HotelHouseRuleItem[] = [];
+  if (policies.children.length > 0) {
+    fallback.push({ title: 'Children policy', detail: policies.children.join(' ') });
+  }
+  if (policies.pets.length > 0) {
+    fallback.push({ title: 'Pet policy', detail: policies.pets.join(' ') });
+  }
+  if (policies.cancellation.length > 0) {
+    fallback.push({ title: 'Cancellation', detail: policies.cancellation[0] });
+  }
+  if (policies.payment.length > 0) {
+    fallback.push({ title: 'Payment', detail: policies.payment[0] });
+  }
+
+  return fallback;
 }
 
 function pickProsAndCons(reviews: HotelGuestReview[]): HotelProsAndCons {
@@ -1584,9 +1720,14 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
     const policies = pickPolicies(data);
     const locationContext = pickLocationContext(data, city, countryCode);
     const prosAndCons = pickProsAndCons(resolvedReviews);
+    const facilities = pickFacilities(data);
+    const facilityCategories = pickFacilityCategories(data, facilities);
+    const areaInfo = pickAreaInfo(data, locationContext);
+    const nearbyRestaurants = pickNearbyRestaurants(data);
+    const houseRulesDetailed = pickHouseRulesDetailed(data, policies);
     const completeness = buildCompleteness({
       photos,
-      facilities: pickFacilities(data),
+      facilities,
       policies,
       locationContext,
       reviews: resolvedReviews,
@@ -1601,7 +1742,7 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       address: cleanString(data.address),
       mainPhoto,
       photos,
-      facilities: pickFacilities(data),
+      facilities,
       description:
         cleanString(data.description) ??
         cleanString(data.overview),
@@ -1615,6 +1756,10 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       policies,
       locationContext,
       prosAndCons,
+      facilityCategories,
+      areaInfo,
+      nearbyRestaurants,
+      houseRulesDetailed,
       completeness
     };
   } catch (error) {
