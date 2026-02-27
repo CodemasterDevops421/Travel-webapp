@@ -29,15 +29,13 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const next = getSafeNextPath(searchParams.get('next'));
-  const state = searchParams.get('state');
 
   if (!code) {
     return NextResponse.redirect(`${origin}/auth/login?error=callback_failed`);
   }
 
-  if (!state) {
-    return NextResponse.redirect(`${origin}/auth/login?error=oauth_state_missing`);
-  }
+  // Note: `state` is only present for OAuth flows, not email confirmation links.
+  // We must NOT reject requests without `state` — email signups won't have it.
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
