@@ -447,6 +447,38 @@ function pickImageUrls(hotel: Record<string, unknown>): string[] {
   return Array.from(picked);
 }
 
+function pickImageUrlsFromUnknown(value: unknown): string[] {
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+
+  const record = value as Record<string, unknown>;
+  const picked = new Set<string>(pickImageUrls(record));
+  const extraArrayKeys = ['roomImages', 'photoUrls', 'media', 'assets'];
+  for (const key of extraArrayKeys) {
+    const candidate = record[key];
+    if (!Array.isArray(candidate)) {
+      continue;
+    }
+
+    for (const item of candidate) {
+      if (typeof item === 'string' && item.trim().length > 0) {
+        picked.add(item.trim());
+        continue;
+      }
+      if (item && typeof item === 'object') {
+        const row = item as Record<string, unknown>;
+        const url = cleanString(row.url) ?? cleanString(row.image) ?? cleanString(row.imageUrl) ?? cleanString(row.src);
+        if (url) {
+          picked.add(url);
+        }
+      }
+    }
+  }
+
+  return Array.from(picked);
+}
+
 function pickFacilities(data: Record<string, unknown>): string[] {
   const options = [data.facilities, data.amenities, data.popularFacilities, data.propertyFacilities];
   for (const option of options) {
@@ -1027,6 +1059,74 @@ async function searchRates(
     items: mapped,
     degradedReason: null
   };
+}
+
+async function fetchPhotoEnrichmentFromRates(
+  hotelId: string,
+  runtime: Awaited<ReturnType<typeof resolveLiteApiRuntimeConfig>>,
+  currency?: string
+): Promise<string[]> {
+  try {
+    const stayWindow = nextStayWindow();
+    const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'X-API-Key': runtime.apiKey
+      },
+      body: JSON.stringify({
+        hotelIds: [hotelId],
+        checkin: stayWindow.checkin,
+        checkout: stayWindow.checkout,
+        occupancies: [{ adults: 2 }],
+        guestNationality: env.DEFAULT_GUEST_NATIONALITY,
+        currency: currency ?? env.DEFAULT_CURRENCY,
+        includeHotelData: true,
+        roomMapping: true,
+        maxRatesPerHotel: 6
+      }),
+      next: { revalidate: 300 }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = (await response.json()) as LiteApiResponse<Array<Record<string, unknown>>>;
+    const photos = new Set<string>();
+
+    for (const hotel of payload.hotels ?? []) {
+      for (const image of pickImageUrlsFromUnknown(hotel)) {
+        photos.add(image);
+      }
+    }
+
+    for (const entry of payload.data ?? []) {
+      const hotelData = (entry.hotel as Record<string, unknown> | undefined) ?? (entry.hotelData as Record<string, unknown> | undefined) ?? {};
+      for (const image of pickImageUrlsFromUnknown(hotelData)) {
+        photos.add(image);
+      }
+
+      const roomTypes = (entry.roomTypes as Array<Record<string, unknown>> | undefined) ?? [];
+      for (const roomType of roomTypes) {
+        for (const image of pickImageUrlsFromUnknown(roomType)) {
+          photos.add(image);
+        }
+        const rates = (roomType.rates as Array<Record<string, unknown>> | undefined) ?? [];
+        for (const rate of rates) {
+          for (const image of pickImageUrlsFromUnknown(rate)) {
+            photos.add(image);
+          }
+        }
+      }
+    }
+
+    return Array.from(photos).slice(0, 40);
+  } catch (error) {
+    logger.warn({ error, hotelId }, 'LiteAPI photo enrichment failed');
+    return [];
+  }
 }
 
 export async function autocomplete(query: string, language?: string): Promise<AutocompleteEntity[]> {
@@ -1731,7 +1831,11 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
     const data = json.data ?? {};
     const city = String(data.city ?? '');
     const countryCode = cleanString(data.countryCode);
-    const photos = pickImageUrls(data);
+    const basePhotos = pickImageUrls(data);
+    const enrichedPhotos = basePhotos.length >= 8
+      ? []
+      : await fetchPhotoEnrichmentFromRates(hotelId, runtime, currency);
+    const photos = Array.from(new Set([...basePhotos, ...enrichedPhotos])).slice(0, 40);
     const mainPhoto = cleanString(data.main_photo) ?? photos[0] ?? null;
     const { latitude, longitude } = pickCoordinates(data);
     const reviewBreakdown = pickReviewBreakdown(data);
