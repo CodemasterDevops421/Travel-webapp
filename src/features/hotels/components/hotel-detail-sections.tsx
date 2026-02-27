@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import type { HotelDetails } from '@/server/liteapi';
 import type { HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
@@ -67,6 +67,7 @@ export function HotelDetailSections({
   askAnswer,
   askHotelAI
 }: HotelDetailSectionsProps) {
+  const reviewRailRef = useRef<HTMLDivElement | null>(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [reviewSort, setReviewSort] = useState<'top' | 'newest' | 'oldest'>('top');
 
@@ -437,12 +438,48 @@ export function HotelDetailSections({
                   <option value="newest">Newest first</option>
                   <option value="oldest">Oldest first</option>
                 </select>
+                {!showAllReviews && visibleReviews.length > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        reviewRailRef.current?.scrollBy({ left: -360, behavior: 'smooth' });
+                      }}
+                      className="rounded-full border border-border px-2 py-1 text-xs font-semibold text-foreground hover:bg-muted"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        reviewRailRef.current?.scrollBy({ left: 360, behavior: 'smooth' });
+                      }}
+                      className="rounded-full border border-border px-2 py-1 text-xs font-semibold text-foreground hover:bg-muted"
+                    >
+                      Next
+                    </button>
+                  </>
+                ) : null}
               </div>
             </div>
 
-            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div
+              ref={reviewRailRef}
+              className={cn(
+                'mt-3 gap-3',
+                showAllReviews
+                  ? 'grid md:grid-cols-2 xl:grid-cols-3'
+                  : 'flex overflow-x-auto pb-2'
+              )}
+            >
               {visibleReviews.map((review, index) => (
-                <article key={`${review.author ?? 'guest'}-${index}`} className="rounded-xl border border-border bg-background p-4">
+                <article
+                  key={`${review.author ?? 'guest'}-${index}`}
+                  className={cn(
+                    'rounded-xl border border-border bg-background p-4',
+                    showAllReviews ? '' : 'min-w-[320px] max-w-[360px] shrink-0'
+                  )}
+                >
                   <div className="flex items-center gap-3">
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-700 text-sm font-semibold text-white">
                       {(review.author ?? 'G').charAt(0).toUpperCase()}
