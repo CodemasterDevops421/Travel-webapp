@@ -152,22 +152,17 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
     return (
         <motion.div
-            onClick={() => console.log('MOTION DIV CLICKED')}
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
             className={cn(
                 "relative z-20 mx-auto w-full",
                 variant === 'default' ? "max-w-5xl" : "max-w-7xl",
                 className
             )}
         >
-            <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className={cn(
-                "flex flex-col bg-background text-foreground md:flex-row md:items-stretch transition-all border-y border-border md:border-x",
-                variant === 'default'
-                    ? "shadow-editorial-md"
-                    : "shadow-editorial-sm"
-            )}>
+            <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="flex flex-col md:flex-row md:items-stretch transition-all rounded-full bg-transparent">
 
                 {/* Destination Input */}
-                <div className="relative z-50 flex-1 md:border-r md:border-border/30">
+                <div className="relative z-50 flex-1">
                     <div className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
                         <MapPin className="h-5 w-5 text-primary/80" strokeWidth={1.5} />
                     </div>
@@ -293,7 +288,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                         type="submit"
                         size="lg"
                         disabled={!canSearch}
-                        className="rounded-none px-10 text-base font-semibold shadow-none transition-all hover:brightness-110 active:scale-95 md:h-16"
+                        className="rounded-full bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 px-8 text-base font-semibold text-white shadow-lg shadow-purple-500/25 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:brightness-110 active:scale-95 md:h-14 disabled:opacity-50 disabled:shadow-none"
                     >
                         Search
                     </Button>

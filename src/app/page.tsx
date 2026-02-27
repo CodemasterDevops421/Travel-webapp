@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { LockKeyhole, ShieldCheck, Sparkles, Wallet } from 'lucide-react';
+import { LockKeyhole, ShieldCheck, Wallet } from 'lucide-react';
 import { HeroSearchBar } from '@/features/search/components/hero-search-bar';
 import { SearchSkeleton } from '@/features/search/components/search-skeleton';
 import { TrendingDestinations } from '@/components/home/trending-destinations';
@@ -20,30 +20,40 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <main className="pb-24">
-      {/* ── Full-bleed Hero ── */}
-      <section className="relative">
-        <div className="hero-photo flex flex-col justify-end overflow-hidden px-6 py-16 md:px-16 md:py-24 lg:py-32">
-          <div className="relative z-10 mx-auto w-full max-w-7xl space-y-5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 backdrop-blur-md">
-              <Sparkles className="h-4 w-4 text-amber-300" />
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white">
-                Curated Premium Stays
-              </p>
-            </div>
-            <h1 className="font-heading text-5xl font-extrabold leading-[1.1] text-white md:text-7xl drop-shadow-xl animate-fade-in stagger-1">
-              Discover your <br /> next escape
+      {/* ── Hero with rounded card look ── */}
+      <section className="relative px-4 pt-4 md:px-8 md:pt-6">
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-3xl">
+          {/* Background image + overlay */}
+          <div
+            className="flex flex-col items-center justify-center px-6 py-20 text-center md:py-28 lg:py-36"
+            style={{
+              backgroundImage:
+                'linear-gradient(180deg, rgba(15,10,40,0.35) 0%, rgba(15,10,40,0.75) 60%, rgba(15,10,40,0.92) 100%), url("https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=2000&q=80")',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center 40%'
+            }}
+          >
+            <h1 className="font-heading text-5xl font-extrabold leading-[1.1] text-white md:text-7xl drop-shadow-xl animate-fade-in">
+              Same Stays.
+              <br />
+              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-fuchsia-400 bg-clip-text text-transparent">
+                Better Prices.
+              </span>
             </h1>
-            <p className="max-w-xl text-lg leading-relaxed text-white/85 drop-shadow-md animate-fade-in stagger-2">
-              Experience the world&apos;s most stunning destinations with verified rates, transparent pricing, and seamless booking.
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 md:text-lg animate-fade-in stagger-2">
+              2 Million Hotels Worldwide. Compare rates, review full terms upfront,
+              and book with confidence.
             </p>
           </div>
         </div>
 
-        {/* ── Search bar overlaid at bottom of hero ── */}
-        <div className="relative z-30 mx-auto -mt-10 w-full max-w-4xl overflow-visible rounded-2xl border border-white/20 bg-white/95 p-3 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95 md:-mt-12 md:p-4 animate-fade-in stagger-3" style={{ marginLeft: 'auto', marginRight: 'auto', left: 0, right: 0 }}>
-          <Suspense fallback={<SearchSkeleton />}>
-            <HeroSearchBar className="border-none shadow-none bg-transparent" />
-          </Suspense>
+        {/* ── Search bar overlapping the hero bottom ── */}
+        <div className="relative z-30 mx-auto -mt-8 w-full max-w-3xl px-4 md:-mt-10 animate-fade-in stagger-3">
+          <div className="overflow-visible rounded-full border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900 md:p-2.5">
+            <Suspense fallback={<SearchSkeleton />}>
+              <HeroSearchBar className="border-none shadow-none bg-transparent" />
+            </Suspense>
+          </div>
         </div>
       </section>
 
