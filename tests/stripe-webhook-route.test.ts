@@ -19,7 +19,8 @@ describe('stripe webhook route', () => {
   });
 
   it('rejects invalid signatures', async () => {
-    const markWebhookEventProcessed = vi.fn();
+    const claimWebhookEvent = vi.fn();
+    const finalizeWebhookEvent = vi.fn();
 
     vi.doMock('@/server/ratelimit', () => ({
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
@@ -30,7 +31,8 @@ describe('stripe webhook route', () => {
       })
     }));
     vi.doMock('@/server/webhook-idempotency', () => ({
-      markWebhookEventProcessed
+      claimWebhookEvent,
+      finalizeWebhookEvent
     }));
 
     const { POST } = await import('@/app/api/webhooks/stripe/route');
@@ -44,7 +46,7 @@ describe('stripe webhook route', () => {
 
     expect(res.status).toBe(401);
     expect(body.error).toMatch(/invalid webhook signature/i);
-    expect(markWebhookEventProcessed).not.toHaveBeenCalled();
+    expect(claimWebhookEvent).not.toHaveBeenCalled();
   });
 
   it('ignores duplicate events by Stripe event id', async () => {
@@ -68,7 +70,8 @@ describe('stripe webhook route', () => {
       })
     }));
     vi.doMock('@/server/webhook-idempotency', () => ({
-      markWebhookEventProcessed: vi.fn().mockResolvedValue(false)
+      claimWebhookEvent: vi.fn().mockResolvedValue(false),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking/repository', () => ({
       updateBookingStatusByTransactionId,
@@ -110,7 +113,8 @@ describe('stripe webhook route', () => {
       })
     }));
     vi.doMock('@/server/webhook-idempotency', () => ({
-      markWebhookEventProcessed: vi.fn().mockResolvedValue(true)
+      claimWebhookEvent: vi.fn().mockResolvedValue(true),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking/repository', () => ({
       updateBookingStatusByTransactionId,
@@ -163,7 +167,8 @@ describe('stripe webhook route', () => {
       })
     }));
     vi.doMock('@/server/webhook-idempotency', () => ({
-      markWebhookEventProcessed: vi.fn().mockResolvedValue(true)
+      claimWebhookEvent: vi.fn().mockResolvedValue(true),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking/repository', () => ({
       updateBookingStatusByTransactionId,

@@ -23,22 +23,9 @@ function dedupeKey(event: BookingLifecycleOutboxEvent): string {
   return `booking:lifecycle:${event.bookingId}:${event.transition}`;
 }
 
-async function isAlreadyClaimed(key: string): Promise<boolean> {
+async function claimDispatchSlot(key: string, ttlSeconds = 60): Promise<boolean> {
   if (redis) {
-    const result = await redis.exists(key);
-    return result === 1;
-  }
-
-  const now = Date.now();
-  const expiresAt = fallbackDedupe.get(key);
-  if (expiresAt && expiresAt > now) return true;
-  if (expiresAt) fallbackDedupe.delete(key);
-  return false;
-}
-
-async function claimDispatchSlot(key: string, ttlSeconds = 60 * 60 * 24 * 30): Promise<boolean> {
-  if (redis) {
-    const result = await redis.set(key, '1', { nx: true, ex: ttlSeconds });
+    const result = await redis.set(key, 'processing', { nx: true, ex: ttlSeconds });
     return result === 'OK';
   }
 
@@ -57,12 +44,21 @@ async function claimDispatchSlot(key: string, ttlSeconds = 60 * 60 * 24 * 30): P
   return true;
 }
 
+async function finalizeDispatchSlot(key: string, ttlSeconds = 60 * 60 * 24 * 30): Promise<void> {
+  if (redis) {
+    await redis.set(key, 'processed', { ex: ttlSeconds }); // Overwrites 'processing' with new TTL
+    return;
+  }
+
+  fallbackDedupe.set(key, Date.now() + ttlSeconds * 1000);
+}
+
 async function dispatchLifecycleEvent(event: BookingLifecycleOutboxEvent): Promise<void> {
   const key = dedupeKey(event);
 
-  // Check dedup BEFORE sending, but only to skip truly duplicate events
-  const alreadyClaimed = await isAlreadyClaimed(key);
-  if (alreadyClaimed) {
+  // Phase 1: 60s processing lock. Concurrent duplicates skip immediately.
+  const claimed = await claimDispatchSlot(key, 60);
+  if (!claimed) {
     logger.info({ bookingId: event.bookingId, transition: event.transition }, 'Duplicate lifecycle outbox event ignored');
     return;
   }
@@ -81,11 +77,12 @@ async function dispatchLifecycleEvent(event: BookingLifecycleOutboxEvent): Promi
 
   if (emailResult.status === 'rejected') {
     // Email failed — do NOT claim the dedup slot so retries can re-attempt
+    // The 60s processing lock will expire, allowing future retries to succeed.
     throw emailResult.reason;
   }
 
-  // Email succeeded — now claim the dedup slot to prevent future re-sends
-  await claimDispatchSlot(key);
+  // Phase 2: Email succeeded — now finalize the dedup slot (30 days) to prevent future re-sends
+  await finalizeDispatchSlot(key);
 
   if (analyticsResult.status === 'rejected') {
     logger.warn(
