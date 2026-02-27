@@ -40,12 +40,10 @@ export default function HomePage() {
         </div>
 
         {/* ── Search bar overlaid at bottom of hero ── */}
-        <div className="relative z-20 mx-auto -mt-10 w-full max-w-4xl px-4 md:-mt-12 animate-fade-in stagger-3">
-          <div className="rounded-2xl border border-white/20 bg-white/95 p-3 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95 md:p-4">
-            <Suspense fallback={<SearchSkeleton />}>
-              <HeroSearchBar className="border-none shadow-none bg-transparent" />
-            </Suspense>
-          </div>
+        <div className="relative z-30 mx-auto -mt-10 w-full max-w-4xl overflow-visible rounded-2xl border border-white/20 bg-white/95 p-3 shadow-2xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95 md:-mt-12 md:p-4 animate-fade-in stagger-3" style={{ marginLeft: 'auto', marginRight: 'auto', left: 0, right: 0 }}>
+          <Suspense fallback={<SearchSkeleton />}>
+            <HeroSearchBar className="border-none shadow-none bg-transparent" />
+          </Suspense>
         </div>
       </section>
 
