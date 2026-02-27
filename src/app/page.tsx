@@ -34,7 +34,7 @@ export default function HomePage() {
               Discover your <br /> next escape
             </h1>
             <p className="max-w-xl text-lg text-white/90 drop-shadow-md animate-fade-in stagger-2">
-              Experience the world's most stunning destinations with verified rates, transparent pricing, and seamless booking.
+              Experience the world&apos;s most stunning destinations with verified rates, transparent pricing, and seamless booking.
             </p>
           </div>
         </div>
