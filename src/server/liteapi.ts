@@ -1,20 +1,42 @@
 import 'server-only';
 import LiteAPI from 'liteapi-node-sdk';
-import { assertLiteApiRuntimeConfig, env, getLiteApiRuntimeConfig } from '@/server/env';
+import { env, getLiteApiRuntimeConfig, getLiteApiRuntimeConfigForMode } from '@/server/env';
 import { logger } from '@/server/logger';
 import { HttpError } from '@/server/errors';
+import { getAppSettings } from '@/server/settings/repository';
 
-const liteApiRuntime = getLiteApiRuntimeConfig();
-assertLiteApiRuntimeConfig(liteApiRuntime);
-const LITEAPI_API_KEY = liteApiRuntime.apiKey;
-const LITEAPI_BASE_URL = liteApiRuntime.baseUrl;
-const LITEAPI_BOOK_BASE_URL = liteApiRuntime.bookBaseUrl;
+const RUNTIME_MODE_CACHE_TTL_MS = 5_000;
 
-const liteApiClient = new LiteAPI({
-  apiKey: LITEAPI_API_KEY,
-  baseURL: LITEAPI_BASE_URL,
-  timeout: env.LITEAPI_TIMEOUT_MS
-} as never);
+let cachedRuntimeConfig: {
+  value: ReturnType<typeof getLiteApiRuntimeConfig>;
+  expiresAt: number;
+} | null = null;
+
+async function resolveLiteApiRuntimeConfig() {
+  const now = Date.now();
+  if (cachedRuntimeConfig && cachedRuntimeConfig.expiresAt > now) {
+    return cachedRuntimeConfig.value;
+  }
+
+  const envRuntime = getLiteApiRuntimeConfig();
+
+  try {
+    const settings = await getAppSettings();
+    const runtime = getLiteApiRuntimeConfigForMode(settings.environmentMode);
+    cachedRuntimeConfig = {
+      value: runtime,
+      expiresAt: now + RUNTIME_MODE_CACHE_TTL_MS
+    };
+    return runtime;
+  } catch (error) {
+    logger.warn({ error }, 'Failed to resolve app settings environment mode. Using env runtime mode.');
+    cachedRuntimeConfig = {
+      value: envRuntime,
+      expiresAt: now + RUNTIME_MODE_CACHE_TTL_MS
+    };
+    return envRuntime;
+  }
+}
 
 type AutocompleteEntity = {
   id: string;
@@ -33,6 +55,8 @@ export type PropertyPreview = {
   name: string;
   city: string;
   countryCode?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   starRating: number | null;
   reviewScore?: number | null;
   reviewCount?: number | null;
@@ -626,6 +650,7 @@ function shouldEnrichReviews(
 
 async function fetchReviewEnrichmentFromRates(
   hotelId: string,
+  runtime: Awaited<ReturnType<typeof resolveLiteApiRuntimeConfig>>,
   currency?: string
 ): Promise<{
   reviewScore: number | null;
@@ -635,12 +660,12 @@ async function fetchReviewEnrichmentFromRates(
 } | null> {
   try {
     const stayWindow = nextStayWindow();
-    const response = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+    const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': runtime.apiKey
       },
       body: JSON.stringify({
         hotelIds: [hotelId],
@@ -725,12 +750,15 @@ function mapRatesResponse(
       parseNumber(hotel.reviewsCount) ??
       parseNumber(hotel.numReviews) ??
       parseNumber(hotel.totalReviews);
+    const { latitude, longitude } = pickCoordinates(hotel);
 
     return {
       hotelId: hotelId || String(hotel.id ?? `hotel-${Math.random().toString(16).slice(2, 8)}`),
       name: String(hotel.name ?? 'Hotel'),
       city: String(hotel.city ?? fallbackCity),
       countryCode: typeof hotel.countryCode === 'string' ? hotel.countryCode : undefined,
+      latitude,
+      longitude,
       starRating: Number.isFinite(parsedStar) ? parsedStar : null,
       reviewScore,
       reviewCount,
@@ -758,7 +786,11 @@ type SearchRatesResult = {
   degradedReason: Exclude<SupplierDegradedReason, 'partial'> | null;
 };
 
-async function searchRates(payload: RatesSearchPayload, fallbackCity: string): Promise<SearchRatesResult> {
+async function searchRates(
+  payload: RatesSearchPayload,
+  fallbackCity: string,
+  runtime: Awaited<ReturnType<typeof resolveLiteApiRuntimeConfig>>
+): Promise<SearchRatesResult> {
   let cacheKey: string | null = null;
   if (redis) {
     try {
@@ -775,12 +807,12 @@ async function searchRates(payload: RatesSearchPayload, fallbackCity: string): P
     }
   }
 
-  const response = await fetchJsonWithBackoffDetailed<LiteApiResponse<Array<Record<string, unknown>>>>(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+  const response = await fetchJsonWithBackoffDetailed<LiteApiResponse<Array<Record<string, unknown>>>>(`${runtime.baseUrl}/hotels/rates`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     body: JSON.stringify(payload),
     next: { revalidate: 300 }
@@ -808,7 +840,9 @@ async function searchRates(payload: RatesSearchPayload, fallbackCity: string): P
 }
 
 export async function autocomplete(query: string, language?: string): Promise<AutocompleteEntity[]> {
-  if (!hasConfiguredLiteApiKey()) {
+  const runtime = await resolveLiteApiRuntimeConfig();
+
+  if (!hasConfiguredLiteApiKey(runtime.apiKey)) {
     return fallbackProperties.map((item) => ({
       id: item.hotelId,
       name: item.city,
@@ -819,11 +853,11 @@ export async function autocomplete(query: string, language?: string): Promise<Au
 
   try {
     const placesResponse = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(
-      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=8${language ? `&language=${encodeURIComponent(language)}` : ''}`,
+      `${runtime.baseUrl}/data/places?textQuery=${encodeURIComponent(query)}&limit=8${language ? `&language=${encodeURIComponent(language)}` : ''}`,
       {
         headers: {
           accept: 'application/json',
-          'X-API-Key': env.LITEAPI_API_KEY
+          'X-API-Key': runtime.apiKey
         },
         next: { revalidate: 3600 }
       }
@@ -849,6 +883,11 @@ export async function autocomplete(query: string, language?: string): Promise<Au
       return places.slice(0, 8);
     }
 
+    const liteApiClient = new LiteAPI({
+      apiKey: runtime.apiKey,
+      baseURL: runtime.baseUrl,
+      timeout: env.LITEAPI_TIMEOUT_MS
+    } as never);
     const response = await liteApiClient.data.cities({ query });
     const cities = (response?.data ?? []).slice(0, 8).map((item: Record<string, string>) => ({
       id: item.id,
@@ -901,8 +940,8 @@ const fallbackProperties: PropertyPreview[] = [
   }
 ];
 
-function hasConfiguredLiteApiKey(): boolean {
-  return Boolean(env.LITEAPI_API_KEY && env.LITEAPI_API_KEY !== 'liteapi-placeholder-key');
+function hasConfiguredLiteApiKey(apiKey: string): boolean {
+  return Boolean(apiKey && apiKey !== 'liteapi-placeholder-key');
 }
 
 export async function searchPropertyPreviews(
@@ -920,6 +959,7 @@ export async function searchPropertyPreviews(
     maxPrice?: number;
   }
 ): Promise<PropertyPreviewSearchResult> {
+  const runtime = await resolveLiteApiRuntimeConfig();
   const asOf = new Date().toISOString();
   const toResult = (
     properties: PropertyPreview[],
@@ -932,17 +972,17 @@ export async function searchPropertyPreviews(
     freshness: degradedReason ? 'stale' : 'fresh'
   });
 
-  if (!hasConfiguredLiteApiKey()) {
+  if (!hasConfiguredLiteApiKey(runtime.apiKey)) {
     return toResult(fallbackProperties, 'unavailable');
   }
 
   try {
     const placeResponse = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(
-      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=5${language ? `&language=${encodeURIComponent(language)}` : ''}`,
+      `${runtime.baseUrl}/data/places?textQuery=${encodeURIComponent(query)}&limit=5${language ? `&language=${encodeURIComponent(language)}` : ''}`,
       {
         headers: {
           accept: 'application/json',
-          'X-API-Key': env.LITEAPI_API_KEY
+          'X-API-Key': runtime.apiKey
         },
         next: { revalidate: 3600 }
       }
@@ -1004,7 +1044,8 @@ export async function searchPropertyPreviews(
           ...basePayload,
           aiSearch: aiSearchQuery
         },
-        query
+        query,
+        runtime
       );
       if (byAiSearch.degradedReason) {
         degradedReason = byAiSearch.degradedReason;
@@ -1021,7 +1062,8 @@ export async function searchPropertyPreviews(
           ...basePayload,
           placeId: firstPlaceId
         },
-        query
+        query,
+        runtime
       );
       if (byPlace.degradedReason) {
         degradedReason = byPlace.degradedReason;
@@ -1037,7 +1079,8 @@ export async function searchPropertyPreviews(
         ...basePayload,
         cityName: query
       },
-      query
+      query,
+      runtime
     );
     if (byCity.degradedReason) {
       degradedReason = byCity.degradedReason;
@@ -1052,7 +1095,8 @@ export async function searchPropertyPreviews(
         ...basePayload,
         aiSearch: aiSearchQuery
       },
-      query
+      query,
+      runtime
     );
     if (byAiSearch.degradedReason) {
       degradedReason = byAiSearch.degradedReason;
@@ -1063,11 +1107,11 @@ export async function searchPropertyPreviews(
     }
 
     const placeRes = await fetch(
-      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}${language ? `&language=${encodeURIComponent(language)}` : ''}`,
+      `${runtime.baseUrl}/data/places?textQuery=${encodeURIComponent(query)}${language ? `&language=${encodeURIComponent(language)}` : ''}`,
       {
         headers: {
           accept: 'application/json',
-          'X-API-Key': env.LITEAPI_API_KEY
+          'X-API-Key': runtime.apiKey
         },
         next: { revalidate: 3600 }
       }
@@ -1081,12 +1125,12 @@ export async function searchPropertyPreviews(
       return toResult(fallbackProperties, degradedReason ?? 'unavailable');
     }
 
-    const ratesRes = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+    const ratesRes = await fetch(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': runtime.apiKey
       },
       body: JSON.stringify({
         placeId: fallbackPlaceId,
@@ -1120,12 +1164,13 @@ export async function searchPropertyPreviews(
 }
 
 export async function prebookRate(offerId: string): Promise<LiteApiPrebookResponse> {
-  const response = await fetch(`${env.LITEAPI_BOOK_BASE_URL}/rates/prebook`, {
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const response = await fetch(`${runtime.bookBaseUrl}/rates/prebook`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     body: JSON.stringify({
       offerId,
@@ -1168,12 +1213,13 @@ type BookPayload = {
 };
 
 export async function bookRate(payload: BookPayload) {
-  const response = await fetch(`${env.LITEAPI_BOOK_BASE_URL}/rates/book`, {
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const response = await fetch(`${runtime.bookBaseUrl}/rates/book`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     body: JSON.stringify({
       prebookId: payload.prebookId,
@@ -1201,7 +1247,8 @@ export async function bookRate(payload: BookPayload) {
 }
 
 export async function listBookings(params: { clientReference: string; timeoutSeconds?: number }) {
-  const url = new URL(`${env.LITEAPI_BOOK_BASE_URL}/bookings`);
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const url = new URL(`${runtime.bookBaseUrl}/bookings`);
   url.searchParams.set('clientReference', params.clientReference);
   if (typeof params.timeoutSeconds === 'number' && Number.isFinite(params.timeoutSeconds)) {
     url.searchParams.set('timeout', String(params.timeoutSeconds));
@@ -1210,7 +1257,7 @@ export async function listBookings(params: { clientReference: string; timeoutSec
   const response = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     cache: 'no-store'
   });
@@ -1232,7 +1279,8 @@ export async function listBookings(params: { clientReference: string; timeoutSec
 }
 
 export async function getBooking(params: { bookingId: string; timeoutSeconds?: number }) {
-  const url = new URL(`${env.LITEAPI_BOOK_BASE_URL}/bookings/${encodeURIComponent(params.bookingId)}`);
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const url = new URL(`${runtime.bookBaseUrl}/bookings/${encodeURIComponent(params.bookingId)}`);
   if (typeof params.timeoutSeconds === 'number' && Number.isFinite(params.timeoutSeconds)) {
     url.searchParams.set('timeout', String(params.timeoutSeconds));
   }
@@ -1240,7 +1288,7 @@ export async function getBooking(params: { bookingId: string; timeoutSeconds?: n
   const response = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     cache: 'no-store'
   });
@@ -1262,7 +1310,8 @@ export async function getBooking(params: { bookingId: string; timeoutSeconds?: n
 }
 
 export async function cancelBooking(params: { bookingId: string; timeoutSeconds?: number }) {
-  const url = new URL(`${env.LITEAPI_BOOK_BASE_URL}/bookings/${encodeURIComponent(params.bookingId)}`);
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const url = new URL(`${runtime.bookBaseUrl}/bookings/${encodeURIComponent(params.bookingId)}`);
   if (typeof params.timeoutSeconds === 'number' && Number.isFinite(params.timeoutSeconds)) {
     url.searchParams.set('timeout', String(params.timeoutSeconds));
   }
@@ -1271,7 +1320,7 @@ export async function cancelBooking(params: { bookingId: string; timeoutSeconds?
     method: 'PUT',
     headers: {
       accept: 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     cache: 'no-store'
   });
@@ -1294,10 +1343,11 @@ export async function cancelBooking(params: { bookingId: string; timeoutSeconds?
 
 export async function getHotelDetails(hotelId: string, language?: string, currency?: string): Promise<HotelDetails | null> {
   try {
-    const response = await fetch(`${env.LITEAPI_BASE_URL}/data/hotel?hotelId=${encodeURIComponent(hotelId)}${language ? `&language=${encodeURIComponent(language)}` : ''}`, {
+    const runtime = await resolveLiteApiRuntimeConfig();
+    const response = await fetch(`${runtime.baseUrl}/data/hotel?hotelId=${encodeURIComponent(hotelId)}${language ? `&language=${encodeURIComponent(language)}` : ''}`, {
       headers: {
         accept: 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': runtime.apiKey
       },
       cache: 'no-store'
     });
@@ -1313,14 +1363,14 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
     const mainPhoto = cleanString(data.main_photo) ?? photos[0] ?? null;
     const { latitude, longitude } = pickCoordinates(data);
     const reviewBreakdown = pickReviewBreakdown(data);
-    const reviews = (await getGuestReviews(hotelId)) ?? [];
+    const reviews = (await getGuestReviews(hotelId, 10, runtime)) ?? [];
     const reviewScore = pickReviewScore(data);
     const reviewCount = pickReviewCount(data);
 
     // If we have no reviews from /data/hotel or /data/reviews, try enrichment as a last resort
     // but prefer the dedicated reviews endpoint data if available
     const enrichment = shouldEnrichReviews(reviewScore, reviewCount, reviewBreakdown, reviews)
-      ? await fetchReviewEnrichmentFromRates(hotelId, currency)
+      ? await fetchReviewEnrichmentFromRates(hotelId, runtime, currency)
       : null;
 
     const resolvedReviews = reviews.length > 0 ? reviews : (enrichment?.reviews ?? []);
@@ -1366,12 +1416,17 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
   }
 }
 
-export async function getGuestReviews(hotelId: string, limit: number = 10): Promise<HotelDetails['reviews'] | null> {
+export async function getGuestReviews(
+  hotelId: string,
+  limit: number = 10,
+  runtime?: Awaited<ReturnType<typeof resolveLiteApiRuntimeConfig>>
+): Promise<HotelDetails['reviews'] | null> {
   try {
-    const response = await fetch(`${env.LITEAPI_BASE_URL}/data/reviews?hotelId=${encodeURIComponent(hotelId)}&limit=${limit}`, {
+    const activeRuntime = runtime ?? await resolveLiteApiRuntimeConfig();
+    const response = await fetch(`${activeRuntime.baseUrl}/data/reviews?hotelId=${encodeURIComponent(hotelId)}&limit=${limit}`, {
       headers: {
         accept: 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': activeRuntime.apiKey
       },
       next: { revalidate: 3600 }
     });
@@ -1422,15 +1477,16 @@ export async function getHotelRates(params: {
   guestNationality?: string;
 }): Promise<HotelRateOption[]> {
   try {
+    const runtime = await resolveLiteApiRuntimeConfig();
     const numRooms = params.rooms ?? 1;
     const occupancies = Array.from({ length: numRooms }, () => ({ adults: params.adults }));
 
-    const response = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+    const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': runtime.apiKey
       },
       body: JSON.stringify({
         hotelIds: [params.hotelId],

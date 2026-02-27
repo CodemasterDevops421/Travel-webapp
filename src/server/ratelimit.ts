@@ -34,6 +34,8 @@ const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
   : null;
 
 const inMemory = new Map<string, { count: number; expiresAt: number }>();
+const IN_MEMORY_MAX_KEYS = 10000;
+let fallbackCallCounter = 0;
 
 const rateLimiters = redis
   ? {
@@ -69,6 +71,30 @@ export function createRateLimitKey(routeClass: RateLimitClass, identifier: strin
   return `${routePart}:${subjectPart}${actionPart}`;
 }
 
+function pruneInMemoryStore(now: number): void {
+  for (const [key, entry] of inMemory.entries()) {
+    if (entry.expiresAt <= now) {
+      inMemory.delete(key);
+    }
+  }
+
+  while (inMemory.size > IN_MEMORY_MAX_KEYS) {
+    const oldestKey = inMemory.keys().next().value;
+    if (!oldestKey) {
+      break;
+    }
+    inMemory.delete(oldestKey);
+  }
+}
+
+export function __unsafeInMemoryRateLimitSizeForTests(): number {
+  return inMemory.size;
+}
+
+export function __unsafePruneInMemoryRateLimitStoreForTests(now = Date.now()): void {
+  pruneInMemoryStore(now);
+}
+
 export async function assertRateLimit(key: string, routeClass: RateLimitClass = 'mutation'): Promise<void> {
   const policy = RATE_LIMIT_POLICIES[routeClass];
 
@@ -81,9 +107,17 @@ export async function assertRateLimit(key: string, routeClass: RateLimitClass = 
   }
 
   const now = Date.now();
+  fallbackCallCounter += 1;
+  if (fallbackCallCounter % 64 === 0 || inMemory.size > IN_MEMORY_MAX_KEYS) {
+    pruneInMemoryStore(now);
+  }
+
   const current = inMemory.get(key);
   if (!current || current.expiresAt <= now) {
     inMemory.set(key, { count: 1, expiresAt: now + (policy.windowSeconds * 1000) });
+    if (inMemory.size > IN_MEMORY_MAX_KEYS) {
+      pruneInMemoryStore(now);
+    }
     return;
   }
   current.count += 1;

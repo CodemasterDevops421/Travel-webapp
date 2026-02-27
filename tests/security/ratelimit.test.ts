@@ -40,4 +40,36 @@ describe('rate-limit policies', () => {
     }
     await expect(assertRateLimit(mutationKey, 'mutation')).rejects.toThrow();
   });
+
+  it('prunes expired in-memory fallback keys', async () => {
+    const {
+      assertRateLimit,
+      __unsafeInMemoryRateLimitSizeForTests,
+      __unsafePruneInMemoryRateLimitStoreForTests
+    } = await loadRateLimitModule();
+    const baseNow = Date.now();
+    vi.useFakeTimers();
+    vi.setSystemTime(baseNow);
+
+    await assertRateLimit(`mutation:expired:${baseNow}`, 'mutation');
+    await assertRateLimit(`mutation:active:${baseNow}`, 'mutation');
+    expect(__unsafeInMemoryRateLimitSizeForTests()).toBeGreaterThanOrEqual(2);
+
+    vi.setSystemTime(baseNow + 61_000);
+    __unsafePruneInMemoryRateLimitStoreForTests();
+
+    expect(__unsafeInMemoryRateLimitSizeForTests()).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it('caps in-memory fallback map size under key churn', async () => {
+    const { assertRateLimit, __unsafeInMemoryRateLimitSizeForTests } = await loadRateLimitModule();
+    const keyPrefix = `mutation:churn:${Date.now()}`;
+
+    for (let index = 0; index < 10_500; index += 1) {
+      await assertRateLimit(`${keyPrefix}:${index}`, 'mutation');
+    }
+
+    expect(__unsafeInMemoryRateLimitSizeForTests()).toBeLessThanOrEqual(10_000);
+  });
 });

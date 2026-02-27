@@ -8,6 +8,8 @@ export type PropertyPreview = {
   name: string;
   city: string;
   countryCode?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   starRating: number | null;
   reviewScore?: number | null;
   reviewCount?: number | null;

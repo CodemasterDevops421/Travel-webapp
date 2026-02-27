@@ -3,6 +3,7 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { ListFilter, Map as MapIcon } from 'lucide-react';
 import type { Route } from 'next';
+import dynamic from 'next/dynamic';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
 import {
@@ -13,8 +14,21 @@ import {
 } from '@/features/search/lib/listing-search-params';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
+import { useWishlist } from '@/shared/hooks/use-wishlist';
 import { FiltersSidebar, type FilterState } from './filters-sidebar';
 import { HorizontalHotelCard } from './horizontal-hotel-card';
+
+const SearchResultsMap = dynamic(
+  () => import('./search-results-map').then((module) => module.SearchResultsMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[320px] items-center justify-center bg-slate-100 text-sm text-muted-foreground dark:bg-slate-800">
+        Preparing map view...
+      </div>
+    )
+  }
+);
 
 type SearchResultsPageProps = {
   query: string;
@@ -55,6 +69,7 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
   const searchParams = useSearchParams();
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [deferMapRender, setDeferMapRender] = useState(false);
+  const { isSaved, toggleSave, authRequired, clearAuthRequired } = useWishlist();
 
   const queryParams = useMemo(
     () => ({ query, checkin, checkout, adults, rooms, language, currency }),
@@ -349,12 +364,7 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
           {urlState.view === 'map' && (
             <article className="mb-4 overflow-hidden rounded-xl border border-border shadow-sm">
               {deferMapRender ? (
-                <iframe
-                  title="Map view"
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=12&output=embed`}
-                  className="h-[320px] w-full"
-                  loading="lazy"
-                />
+                <SearchResultsMap hotels={paginatedListings} />
               ) : (
                 <div className="flex h-[320px] items-center justify-center bg-slate-100 text-sm text-muted-foreground dark:bg-slate-800">
                   Preparing map view...
@@ -381,6 +391,12 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
                   rooms={rooms}
                   currency={currency}
                   discoveryContext={discoveryContext}
+                  saved={isSaved(hotel.hotelId)}
+                  showAuthPrompt={authRequired}
+                  onToggleSave={(payload) => {
+                    clearAuthRequired();
+                    void toggleSave(payload);
+                  }}
                 />
               ))}
 

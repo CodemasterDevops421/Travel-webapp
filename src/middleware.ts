@@ -1,6 +1,18 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+const ADMIN_ROLES = new Set(['admin', 'owner']);
+
+function normalizeRole(value: unknown): string {
+  return typeof value === 'string' ? value.toLowerCase().trim() : '';
+}
+
+function hasAdminClaim(user: { app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> }): boolean {
+  const appRole = normalizeRole(user.app_metadata?.role);
+  const userRole = normalizeRole(user.user_metadata?.role);
+  return ADMIN_ROLES.has(appRole) || ADMIN_ROLES.has(userRole);
+}
+
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -68,6 +80,11 @@ export async function middleware(request: NextRequest) {
     const signupUrl = new URL('/auth/signup', request.url);
     signupUrl.searchParams.set('redirect', request.nextUrl.pathname);
     return applySecurityHeaders(NextResponse.redirect(signupUrl));
+  }
+
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
+  if (isAdminRoute && user && !hasAdminClaim(user)) {
+    return applySecurityHeaders(NextResponse.redirect(new URL('/', request.url)));
   }
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
