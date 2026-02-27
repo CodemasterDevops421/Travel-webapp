@@ -66,6 +66,19 @@ export function HotelDetailSections({
   askAnswer,
   askHotelAI
 }: HotelDetailSectionsProps) {
+  function formatReviewDate(value: string | null): string | null {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }).format(parsed);
+  }
+
   const travelersQuestions = [
     {
       q: 'What are check-in and check-out times?',
@@ -370,13 +383,13 @@ export function HotelDetailSections({
 
         {reviews.length > 0 && (
           <div className="mt-4 space-y-3">
-            {reviews.slice(0, 6).map((review, index) => (
+            {reviews.map((review, index) => (
               <article key={`${review.author ?? 'guest'}-${index}`} className="rounded-xl border border-border bg-background/70 p-3">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>{review.author ?? 'Guest'}</span>
                   {review.travelerType ? <span>• {review.travelerType}</span> : null}
                   {review.score ? <span>• {review.score.toFixed(1)}</span> : null}
-                  {review.createdAt ? <span>• {review.createdAt}</span> : null}
+                  {formatReviewDate(review.createdAt) ? <span>• {formatReviewDate(review.createdAt)}</span> : null}
                 </div>
                 <p className="mt-2 text-sm">{review.comment}</p>
               </article>
