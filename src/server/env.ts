@@ -111,8 +111,6 @@ export function getLiteApiRuntimeConfigForMode(mode: 'sandbox' | 'production'): 
     bookBaseUrl: selectedBookBaseUrl
   };
 
-  assertLiteApiRuntimeConfig(config);
-
   return config;
 }
 
@@ -139,6 +137,16 @@ export function assertProductionReadiness(): void {
       problems.push('LiteAPI key for selected LITEAPI_ENV must be set to a real key in production.');
     }
   }
+
+  try {
+    assertLiteApiRuntimeConfig(getLiteApiRuntimeConfig());
+  } catch (err: any) {
+    // Extract the specific problem messages and add them to our main list
+    const msg = err.message as string;
+    const lines = msg.split('\n- ').slice(1);
+    problems.push(...lines);
+  }
+
   if (!parsedEnv.QUOTE_SIGNING_SECRET) {
     problems.push('QUOTE_SIGNING_SECRET is required in production.');
   }
