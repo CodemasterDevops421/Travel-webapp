@@ -1735,7 +1735,7 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
     const mainPhoto = cleanString(data.main_photo) ?? photos[0] ?? null;
     const { latitude, longitude } = pickCoordinates(data);
     const reviewBreakdown = pickReviewBreakdown(data);
-    const reviews = (await getGuestReviews(hotelId, 10, runtime)) ?? [];
+    const reviews = (await getGuestReviews(hotelId, 50, runtime)) ?? [];
     const reviewScore = pickReviewScore(data);
     const reviewCount = pickReviewCount(data);
 
@@ -1799,26 +1799,58 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
 
 export async function getGuestReviews(
   hotelId: string,
-  limit: number = 10,
+  limit: number = 50,
   runtime?: Awaited<ReturnType<typeof resolveLiteApiRuntimeConfig>>
 ): Promise<HotelDetails['reviews'] | null> {
   try {
     const activeRuntime = runtime ?? await resolveLiteApiRuntimeConfig();
-    const response = await fetch(`${activeRuntime.baseUrl}/data/reviews?hotelId=${encodeURIComponent(hotelId)}&limit=${limit}`, {
-      headers: {
-        accept: 'application/json',
-        'X-API-Key': activeRuntime.apiKey
-      },
-      next: { revalidate: 3600 }
-    });
+    const hardCap = 300;
+    const chunkSize = Math.max(10, Math.min(50, limit));
+    const collected: Array<Record<string, unknown>> = [];
+    const seen = new Set<string>();
 
-    if (!response.ok) {
-      // If 404 or other error, return null so caller can fallback
-      return null;
+    for (let offset = 0; offset < hardCap; offset += chunkSize) {
+      const response = await fetch(
+        `${activeRuntime.baseUrl}/data/reviews?hotelId=${encodeURIComponent(hotelId)}&limit=${chunkSize}&offset=${offset}`,
+        {
+          headers: {
+            accept: 'application/json',
+            'X-API-Key': activeRuntime.apiKey
+          },
+          next: { revalidate: 3600 }
+        }
+      );
+
+      if (!response.ok) {
+        if (offset === 0) {
+          return null;
+        }
+        break;
+      }
+
+      const json = (await response.json()) as { data?: Array<Record<string, unknown>> };
+      const pageItems = json.data ?? [];
+      if (pageItems.length === 0) {
+        break;
+      }
+
+      let added = 0;
+      for (const item of pageItems) {
+        const key = `${String(item.name ?? '')}|${String(item.date ?? '')}|${String(item.pros ?? '')}|${String(item.cons ?? '')}`;
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        collected.push(item);
+        added += 1;
+      }
+
+      if (pageItems.length < chunkSize || added === 0 || collected.length >= hardCap) {
+        break;
+      }
     }
 
-    const json = (await response.json()) as { data?: Array<Record<string, unknown>> };
-    return (json.data ?? []).map((item) => {
+    return collected.map((item) => {
       const pros = String(item.pros ?? '').trim();
       const cons = String(item.cons ?? '').trim();
       const headline = String(item.headline ?? '').trim();

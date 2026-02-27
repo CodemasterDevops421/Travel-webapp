@@ -364,6 +364,12 @@ export function HotelDetailSections({
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">No verified review score available from supplier for this property.</p>
         )}
+        <p className="mt-1 text-xs text-muted-foreground">
+          Showing {reviews.length} review{reviews.length === 1 ? '' : 's'}
+          {typeof hotel?.reviewCount === 'number' && hotel.reviewCount > reviews.length
+            ? ` (supplier returned ${reviews.length} of ${Math.round(hotel.reviewCount)} total).`
+            : '.'}
+        </p>
 
         {reviewBreakdown.length > 0 && (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
