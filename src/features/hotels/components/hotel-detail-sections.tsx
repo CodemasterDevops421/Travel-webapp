@@ -172,6 +172,16 @@ export function HotelDetailSections({
             Cancellation policy details are currently unavailable from the supplier.
           </p>
         )}
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <article className="rounded-xl border border-border bg-background/70 p-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Payment policies</p>
+            <p className="mt-2 text-muted-foreground">{policies?.payment?.length ? policies.payment.join(' ') : 'Not provided by supplier'}</p>
+          </article>
+          <article className="rounded-xl border border-border bg-background/70 p-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Additional notes</p>
+            <p className="mt-2 text-muted-foreground">{policies?.extra?.length ? policies.extra.join(' ') : 'No additional policy notes provided.'}</p>
+          </article>
+        </div>
       </section>
 
       <section id="location" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('location')}>
@@ -242,6 +252,11 @@ export function HotelDetailSections({
             {adults} adults · {rooms} room{rooms > 1 ? 's' : ''}
           </p>
         </div>
+        <article className="rounded-xl border border-border bg-card/70 p-4">
+          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Availability snapshot</p>
+          <p className="mt-2 text-sm text-foreground">{rates.length} room options found for your selected dates.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Final cancellation and payment terms depend on the selected room and fare conditions.</p>
+        </article>
         {rates.length === 0 ? (
           <p className="rounded-xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
         ) : (

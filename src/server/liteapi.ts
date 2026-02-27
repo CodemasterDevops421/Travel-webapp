@@ -439,9 +439,9 @@ function pickImageUrls(hotel: Record<string, unknown>): string[] {
           }
         }
       }
-      if (picked.size >= 6) break;
+      if (picked.size >= 24) break;
     }
-    if (picked.size >= 6) break;
+    if (picked.size >= 24) break;
   }
 
   return Array.from(picked);
@@ -464,7 +464,7 @@ function pickFacilities(data: Record<string, unknown>): string[] {
       })
       .filter(Boolean);
     if (names.length > 0) {
-      return names.slice(0, 20);
+      return names.slice(0, 80);
     }
   }
   return [];
@@ -588,11 +588,11 @@ function pickPolicies(data: Record<string, unknown>): HotelPolicyDetails {
       pickStringValue(policyRoot, ['checkOutUntil', 'checkoutUntil', 'checkOutEnd']),
     cancellation: pickStringList(policyRoot, ['cancellation', 'cancellationPolicies', 'cancellationPolicy'])
       .concat(pickStringList(data, ['cancellationPolicy']))
-      .slice(0, 8),
-    payment: pickStringList(policyRoot, ['payment', 'paymentTerms']).slice(0, 8),
-    pets: pickStringList(policyRoot, ['pets', 'petPolicy']).slice(0, 8),
-    children: pickStringList(policyRoot, ['children', 'childPolicy', 'childrenPolicy']).slice(0, 8),
-    extra: pickStringList(policyRoot, ['other', 'extra', 'importantNotes']).slice(0, 8)
+      .slice(0, 20),
+    payment: pickStringList(policyRoot, ['payment', 'paymentTerms']).slice(0, 20),
+    pets: pickStringList(policyRoot, ['pets', 'petPolicy']).slice(0, 20),
+    children: pickStringList(policyRoot, ['children', 'childPolicy', 'childrenPolicy']).slice(0, 20),
+    extra: pickStringList(policyRoot, ['other', 'extra', 'importantNotes']).slice(0, 20)
   };
 }
 
@@ -610,8 +610,8 @@ function pickLocationContext(data: Record<string, unknown>, city: string, countr
     latitude,
     longitude,
     neighborhood: pickStringValue(locationRoot, ['neighborhood', 'district', 'areaName']),
-    transit: pickStringList(locationRoot, ['transit', 'transport', 'publicTransport']).slice(0, 8),
-    nearbyLandmarks: pickStringList(locationRoot, ['nearby', 'landmarks', 'pointsOfInterest']).slice(0, 8)
+    transit: pickStringList(locationRoot, ['transit', 'transport', 'publicTransport', 'metro', 'bus', 'airport']).slice(0, 20),
+    nearbyLandmarks: pickStringList(locationRoot, ['nearby', 'landmarks', 'pointsOfInterest', 'attractions', 'poi']).slice(0, 20)
   };
 }
 
@@ -635,12 +635,32 @@ function pickFacilityCategories(data: Record<string, unknown>, facilities: strin
     return [];
   }
 
-  return [
-    {
-      category: 'Most popular facilities',
-      items: facilities.slice(0, 24)
+  const buckets: Record<string, string[]> = {
+    'Most popular facilities': [],
+    Services: [],
+    'Room amenities': [],
+    'Food & drink': [],
+    'Safety & security': []
+  };
+
+  for (const facility of facilities) {
+    const text = facility.toLowerCase();
+    if (/(wifi|internet|desk|tv|air|bath|shower|linen|wardrobe|socket)/.test(text)) {
+      buckets['Room amenities'].push(facility);
+    } else if (/(restaurant|bar|breakfast|coffee|kitchen|dining)/.test(text)) {
+      buckets['Food & drink'].push(facility);
+    } else if (/(security|cctv|alarm|safe|fire|smoke)/.test(text)) {
+      buckets['Safety & security'].push(facility);
+    } else if (/(concierge|front desk|housekeeping|laundry|parking|shuttle|car hire|luggage)/.test(text)) {
+      buckets.Services.push(facility);
+    } else {
+      buckets['Most popular facilities'].push(facility);
     }
-  ];
+  }
+
+  return Object.entries(buckets)
+    .map(([category, items]) => ({ category, items: Array.from(new Set(items)).slice(0, 18) }))
+    .filter((group) => group.items.length > 0);
 }
 
 function pickAreaInfo(data: Record<string, unknown>, location: HotelLocationContext): HotelAreaInfoItem[] {
@@ -656,6 +676,15 @@ function pickAreaInfo(data: Record<string, unknown>, location: HotelLocationCont
   }
   if (location.nearbyLandmarks.length > 0) {
     area.push({ label: 'Nearby places', value: location.nearbyLandmarks.slice(0, 4).join(', ') });
+  }
+  if (location.city) {
+    area.push({ label: 'City', value: location.city });
+  }
+  if (location.countryCode) {
+    area.push({ label: 'Country', value: location.countryCode });
+  }
+  if (location.latitude !== null && location.longitude !== null) {
+    area.push({ label: 'Coordinates', value: `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` });
   }
 
   const distances = (data.distances as Array<Record<string, unknown>> | undefined) ?? [];
