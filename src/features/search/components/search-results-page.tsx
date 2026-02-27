@@ -6,6 +6,7 @@ import type { Route } from 'next';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
+import { useReviewSnippets } from '@/features/search/hooks/use-review-snippets';
 import {
   DEFAULT_LISTING_FILTERS,
   parseListingUiState,
@@ -218,6 +219,16 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
     return listings.slice(start, start + ITEMS_PER_PAGE);
   }, [currentPage, listings]);
 
+  const listingHotelIds = useMemo(
+    () => paginatedListings.map((hotel) => hotel.hotelId),
+    [paginatedListings]
+  );
+  const { data: reviewSnippets = [] } = useReviewSnippets(listingHotelIds);
+  const reviewSnippetByHotelId = useMemo(
+    () => new Map(reviewSnippets.map((snippet) => [snippet.hotelId, snippet])),
+    [reviewSnippets]
+  );
+
   const activeFilterCount =
     (urlState.filters.propertyName ? 1 : 0) +
     (urlState.filters.minPrice > 0 ? 1 : 0) +
@@ -393,6 +404,7 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
                   discoveryContext={discoveryContext}
                   saved={isSaved(hotel.hotelId)}
                   showAuthPrompt={authRequired}
+                  reviewSnippet={reviewSnippetByHotelId.get(hotel.hotelId) ?? null}
                   onToggleSave={(payload) => {
                     clearAuthRequired();
                     void toggleSave(payload);

@@ -22,6 +22,11 @@ interface HorizontalHotelCardProps {
         city?: string;
     }) => void;
     showAuthPrompt?: boolean;
+    reviewSnippet?: {
+        quote: string;
+        author: string | null;
+        score: number | null;
+    } | null;
 }
 
 function formatMoney(currency: string, amount: number | null): string {
@@ -57,7 +62,8 @@ export function HorizontalHotelCard({
     discoveryContext,
     saved = false,
     onToggleSave,
-    showAuthPrompt = false
+    showAuthPrompt = false,
+    reviewSnippet = null
 }: HorizontalHotelCardProps) {
     const reviewScore = hotel.reviewScore ?? 7.5;
     const detailsParams = new URLSearchParams({
@@ -153,7 +159,17 @@ export function HorizontalHotelCard({
                 <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
                     <div className="text-xs text-muted-foreground max-w-[60%]">
                         <p className="font-semibold text-foreground">Top highlight:</p>
-                        <p className="line-clamp-2">&quot;Guests consistently praise the incredible location and seamless check-in experience.&quot;</p>
+                        {reviewSnippet ? (
+                            <>
+                                <p className="line-clamp-2">&quot;{reviewSnippet.quote}&quot;</p>
+                                <p className="mt-1 text-[11px]">
+                                    {reviewSnippet.author ?? 'Verified guest'}
+                                    {typeof reviewSnippet.score === 'number' ? ` · ${reviewSnippet.score.toFixed(1)}/10` : ''}
+                                </p>
+                            </>
+                        ) : (
+                            <p className="line-clamp-2">&quot;Guests consistently praise the incredible location and seamless check-in experience.&quot;</p>
+                        )}
                     </div>
 
                     <div className="flex flex-col items-end gap-0 w-full sm:w-auto">
