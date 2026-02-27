@@ -97,7 +97,6 @@ export function HeroSearch() {
         suggestionLength: name.length
       }
     });
-    onSearch(name);
   };
 
   const onAutocompleteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {

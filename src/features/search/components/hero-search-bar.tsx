@@ -74,6 +74,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     const { data, isFetching } = useAutocomplete(query, language);
     const suggestions = data ?? [];
     const isSuggestionsOpen = query.length > 2 && showSuggestions;
+    const canSearch = query.trim().length >= 3 && checkIn.length > 0 && checkOut.length > 0 && checkOut > checkIn;
 
     useEffect(() => {
         setHighlightedIndex(-1);
@@ -81,6 +82,9 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
     const onSearch = (queryOverride?: string) => {
         const nextQuery = (queryOverride ?? query).trim();
+        if (nextQuery.length < 3) {
+            return;
+        }
         setShowSuggestions(false);
 
         trackFunnelEvent({
@@ -107,12 +111,12 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     const onPickSuggestion = (name: string) => {
         setQuery(name);
         setShowSuggestions(false);
+        setHighlightedIndex(-1);
         trackFunnelEvent({
             name: 'autocomplete_suggestion_selected',
             step: 'search',
             properties: { suggestionLength: name.length }
         });
-        onSearch(name);
     };
 
     const onAutocompleteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -285,6 +289,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     <Button
                         type="submit"
                         size="lg"
+                        disabled={!canSearch}
                         className="rounded-none px-10 text-base font-semibold shadow-none transition-all hover:brightness-110 active:scale-95 md:h-16"
                     >
                         Search
@@ -292,6 +297,14 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                 </div>
 
             </form>
+            {!canSearch ? (
+                <p className={cn(
+                    'mt-2 text-xs font-medium md:text-right',
+                    variant === 'default' ? 'text-amber-100' : 'text-muted-foreground'
+                )}>
+                    Select destination, check-in, and check-out to enable search.
+                </p>
+            ) : null}
         </motion.div>
     );
 }

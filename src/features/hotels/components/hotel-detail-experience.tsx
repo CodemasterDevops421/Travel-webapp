@@ -30,8 +30,10 @@ const SECTION_TABS = [
   { id: 'location', label: 'Location' },
   { id: 'rooms', label: 'Rooms' },
   { id: 'reviews', label: 'Reviews' },
+  { id: 'travelers-asking', label: 'Travelers asking' },
   { id: 'pros-cons', label: 'Pros & Cons' },
   { id: 'description', label: 'Description' },
+  { id: 'house-rules', label: 'House rules' },
   { id: 'ask-ai', label: 'Ask AI (Beta)' }
 ];
 

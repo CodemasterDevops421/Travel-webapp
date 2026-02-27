@@ -66,6 +66,33 @@ export function HotelDetailSections({
   askAnswer,
   askHotelAI
 }: HotelDetailSectionsProps) {
+  const travelersQuestions = [
+    {
+      q: 'What are check-in and check-out times?',
+      a: policies?.checkInFrom || policies?.checkOutUntil
+        ? `Check-in: ${policies?.checkInFrom ?? 'not provided'} to ${policies?.checkInUntil ?? 'not provided'}. Check-out: ${policies?.checkOutFrom ?? 'not provided'} to ${policies?.checkOutUntil ?? 'not provided'}.`
+        : 'Check-in and check-out times are not fully provided by the supplier yet.'
+    },
+    {
+      q: 'Is this stay refundable?',
+      a: selectedRate
+        ? `${getCancellationCopy(selectedRate).status}. ${getCancellationCopy(selectedRate).detail}`
+        : 'Select a room to view cancellation policy and refund rules.'
+    },
+    {
+      q: 'Are there nearby places to visit?',
+      a: locationContext?.nearbyLandmarks?.length
+        ? `Nearby: ${locationContext.nearbyLandmarks.slice(0, 4).join(', ')}.`
+        : 'Nearby landmark information is currently unavailable from the supplier.'
+    },
+    {
+      q: 'What amenities are available?',
+      a: amenities.length > 0
+        ? `Popular amenities include ${amenities.slice(0, 6).join(', ')}.`
+        : 'Amenities list is currently unavailable from the supplier.'
+    }
+  ];
+
   return (
     <div className="space-y-12 pb-24">
       <section id="overview" className="scroll-mt-24 space-y-6" onMouseEnter={() => setActiveTab('overview')}>
@@ -276,6 +303,18 @@ export function HotelDetailSections({
         ) : null}
       </section>
 
+      <section id="travelers-asking" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('travelers-asking')}>
+        <h2 className="text-xl font-semibold">Travelers are asking</h2>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {travelersQuestions.map((item) => (
+            <article key={item.q} className="rounded-xl border border-border bg-background/70 p-4">
+              <p className="text-sm font-semibold text-foreground">{item.q}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section id="pros-cons" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('pros-cons')}>
         <h2 className="text-xl font-semibold">Pros and cons</h2>
         {prosAndCons && (prosAndCons.pros.length > 0 || prosAndCons.cons.length > 0) ? (
@@ -321,6 +360,40 @@ export function HotelDetailSections({
         <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
           {hotel?.description ?? 'Property description is currently unavailable.'}
         </p>
+      </section>
+
+      <section id="house-rules" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('house-rules')}>
+        <h2 className="text-xl font-semibold">House rules</h2>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <article className="rounded-xl border border-border bg-background/70 p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Check-in window</p>
+            <p className="mt-2 text-sm text-foreground">
+              {policies?.checkInFrom || policies?.checkInUntil
+                ? `${policies?.checkInFrom ?? 'Unknown'} - ${policies?.checkInUntil ?? 'Unknown'}`
+                : 'Not provided by supplier'}
+            </p>
+          </article>
+          <article className="rounded-xl border border-border bg-background/70 p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Check-out window</p>
+            <p className="mt-2 text-sm text-foreground">
+              {policies?.checkOutFrom || policies?.checkOutUntil
+                ? `${policies?.checkOutFrom ?? 'Unknown'} - ${policies?.checkOutUntil ?? 'Unknown'}`
+                : 'Not provided by supplier'}
+            </p>
+          </article>
+          <article className="rounded-xl border border-border bg-background/70 p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Children policy</p>
+            <p className="mt-2 text-sm text-foreground">
+              {policies?.children?.length ? policies.children.join(' ') : 'Children policy details are currently unavailable.'}
+            </p>
+          </article>
+          <article className="rounded-xl border border-border bg-background/70 p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Pet policy</p>
+            <p className="mt-2 text-sm text-foreground">
+              {policies?.pets?.length ? policies.pets.join(' ') : 'Pet policy details are currently unavailable.'}
+            </p>
+          </article>
+        </div>
       </section>
 
       <section id="ask-ai" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('ask-ai')}>
