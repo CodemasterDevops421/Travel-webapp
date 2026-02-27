@@ -48,9 +48,16 @@ function applySecurityHeaders(response: NextResponse) {
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return applySecurityHeaders(response);
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -67,9 +74,16 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  let user = null;
+
+  try {
+    const {
+      data: { user: authUser }
+    } = await supabase.auth.getUser();
+    user = authUser;
+  } catch {
+    user = null;
+  }
 
   const protectedPaths = ['/booking', '/wishlist', '/admin'];
   const isProtectedRoute = protectedPaths.some((path) =>
