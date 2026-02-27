@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
-import { getHotelDetails } from '@/server/liteapi';
+import { askHotelQuestionWithLiteApi, getHotelDetails } from '@/server/liteapi';
 import { getClientIp } from '@/server/request';
 import {
   answerHotelQuestion,
@@ -11,7 +11,8 @@ import {
 
 const bodySchema = z.object({
   hotelId: z.string().trim().min(1),
-  question: z.string().trim().min(3).max(300)
+  question: z.string().trim().min(3).max(300),
+  allowWebSearch: z.boolean().optional()
 });
 
 export async function POST(request: NextRequest) {
@@ -25,9 +26,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request payload.' }, { status: 400 });
     }
 
+    const liteApiAnswer = await askHotelQuestionWithLiteApi(
+      parsed.data.hotelId,
+      parsed.data.question,
+      parsed.data.allowWebSearch ?? false
+    );
+
     const hotel = await getHotelDetails(parsed.data.hotelId);
     const context = extractHotelAiContext(hotel);
-    const response = answerHotelQuestion(parsed.data.question, context);
+    const response = liteApiAnswer
+      ? {
+          answer: liteApiAnswer,
+          grounded: true as const,
+          source: 'liteapi-hotel-ask' as const,
+          safety: 'booking-safe' as const
+        }
+      : answerHotelQuestion(parsed.data.question, context);
     const contextDigest = buildHotelAiContextDigest(context);
 
     return NextResponse.json(

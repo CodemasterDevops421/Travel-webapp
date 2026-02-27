@@ -76,6 +76,31 @@ export type PropertyPreviewSearchResult = {
   freshness: 'fresh' | 'stale';
 };
 
+export type SemanticHotelMatch = {
+  hotelId: string;
+  name: string;
+  city: string;
+  countryCode: string | null;
+  address: string | null;
+  imageUrl: string | null;
+  score: number | null;
+  tags: string[];
+  story: string | null;
+};
+
+export type RoomSearchMatch = {
+  hotelId: string;
+  hotelName: string;
+  city: string | null;
+  countryCode: string | null;
+  rating: number | null;
+  rooms: Array<{
+    name: string;
+    imageUrl: string | null;
+    score: number | null;
+  }>;
+};
+
 export type LiteApiPrebookResponse = {
   prebookId: string;
   transactionId: string;
@@ -944,6 +969,166 @@ function hasConfiguredLiteApiKey(apiKey: string): boolean {
   return Boolean(apiKey && apiKey !== 'liteapi-placeholder-key');
 }
 
+export async function askHotelQuestionWithLiteApi(
+  hotelId: string,
+  question: string,
+  allowWebSearch = false
+): Promise<string | null> {
+  try {
+    const runtime = await resolveLiteApiRuntimeConfig();
+    const url = new URL(`${runtime.baseUrl}/data/hotel/ask`);
+    url.searchParams.set('hotelId', hotelId);
+    url.searchParams.set('question', question);
+    if (allowWebSearch) {
+      url.searchParams.set('allowWebSearch', 'true');
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        accept: 'application/json',
+        'X-API-Key': runtime.apiKey
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const json = (await response.json()) as Record<string, unknown>;
+    const directAnswer = typeof json.answer === 'string' ? json.answer : null;
+    const dataAnswer = typeof (json.data as Record<string, unknown> | undefined)?.answer === 'string'
+      ? String((json.data as Record<string, unknown>).answer)
+      : null;
+    const text = (directAnswer ?? dataAnswer)?.trim();
+    return text && text.length > 0 ? text : null;
+  } catch (error) {
+    logger.warn({ error, hotelId }, 'LiteAPI hotel ask failed');
+    return null;
+  }
+}
+
+function mapSemanticMatch(entry: Record<string, unknown>): SemanticHotelMatch | null {
+  const hotelId = cleanString(entry.hotelId) ?? cleanString(entry.id);
+  const name = cleanString(entry.name);
+  if (!hotelId || !name) {
+    return null;
+  }
+
+  const tagsRaw = entry.tags;
+  const tags = Array.isArray(tagsRaw)
+    ? tagsRaw.map((item) => String(item).trim()).filter((item) => item.length > 0)
+    : [];
+
+  return {
+    hotelId,
+    name,
+    city: cleanString(entry.city) ?? '',
+    countryCode: cleanString(entry.countryCode),
+    address: cleanString(entry.address),
+    imageUrl: cleanString(entry.mainPhoto) ?? cleanString(entry.image) ?? cleanString(entry.photo),
+    score: parseNumber(entry.score) ?? parseNumber(entry.relevanceScore),
+    tags,
+    story: cleanString(entry.story) ?? cleanString(entry.description)
+  };
+}
+
+export async function searchHotelsBySemanticQuery(
+  query: string,
+  language?: string,
+  limit = 8
+): Promise<SemanticHotelMatch[]> {
+  try {
+    const runtime = await resolveLiteApiRuntimeConfig();
+    const url = new URL(`${runtime.baseUrl}/data/hotels/semantic-search`);
+    url.searchParams.set('query', query);
+    url.searchParams.set('limit', String(Math.max(1, Math.min(12, limit))));
+    if (language) {
+      url.searchParams.set('language', language);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        accept: 'application/json',
+        'X-API-Key': runtime.apiKey
+      },
+      next: { revalidate: 600 }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const json = (await response.json()) as { data?: Array<Record<string, unknown>> };
+    return (json.data ?? []).map(mapSemanticMatch).filter((item): item is SemanticHotelMatch => item !== null);
+  } catch (error) {
+    logger.warn({ error, query }, 'LiteAPI semantic hotel search failed');
+    return [];
+  }
+}
+
+export async function searchHotelRoomsByText(
+  query: string,
+  options?: {
+    language?: string;
+    city?: string;
+    countryCode?: string;
+    limit?: number;
+  }
+): Promise<RoomSearchMatch[]> {
+  try {
+    const runtime = await resolveLiteApiRuntimeConfig();
+    const url = new URL(`${runtime.baseUrl}/data/hotels/room-search`);
+    url.searchParams.set('query', query);
+    url.searchParams.set('limit', String(Math.max(1, Math.min(10, options?.limit ?? 6))));
+    if (options?.language) {
+      url.searchParams.set('language', options.language);
+    }
+    if (options?.city) {
+      url.searchParams.set('city', options.city);
+    }
+    if (options?.countryCode) {
+      url.searchParams.set('country', options.countryCode);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        accept: 'application/json',
+        'X-API-Key': runtime.apiKey
+      },
+      next: { revalidate: 600 }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const json = (await response.json()) as { data?: Array<Record<string, unknown>> };
+    return (json.data ?? []).map((hotel) => {
+      const hotelId = cleanString(hotel.hotelId) ?? cleanString(hotel.id) ?? '';
+      const hotelName = cleanString(hotel.name) ?? 'Hotel';
+      const roomCandidates = (hotel.rooms as Array<Record<string, unknown>> | undefined) ?? [];
+      const rooms = roomCandidates.map((room) => ({
+        name: cleanString(room.name) ?? 'Room',
+        imageUrl: cleanString(room.imageUrl) ?? cleanString(room.image),
+        score: parseNumber(room.score)
+      }));
+
+      return {
+        hotelId,
+        hotelName,
+        city: cleanString(hotel.city),
+        countryCode: cleanString(hotel.countryCode),
+        rating: parseNumber(hotel.rating) ?? parseNumber(hotel.starRating),
+        rooms
+      } satisfies RoomSearchMatch;
+    }).filter((item) => item.hotelId.length > 0);
+  } catch (error) {
+    logger.warn({ error, query }, 'LiteAPI room search failed');
+    return [];
+  }
+}
+
 export async function searchPropertyPreviews(
   query: string,
   language?: string,
@@ -1104,6 +1289,28 @@ export async function searchPropertyPreviews(
     const filteredByAiSearch = applyFilters(byAiSearch.items);
     if (filteredByAiSearch.length > 0) {
       return toResult(filteredByAiSearch.slice(0, 8), degradedReason === null ? null : 'partial');
+    }
+
+    const semanticMatches = await searchHotelsBySemanticQuery(aiSearchQuery, language, 8);
+    if (semanticMatches.length > 0) {
+      const semanticMapped = applyFilters(
+        semanticMatches.map((match) => ({
+          hotelId: match.hotelId,
+          name: match.name,
+          city: match.city || query,
+          countryCode: match.countryCode ?? undefined,
+          starRating: null,
+          reviewScore: match.score,
+          reviewCount: null,
+          imageUrl: match.imageUrl ?? undefined,
+          price: null,
+          currency: selectedCurrency,
+          amenities: match.tags
+        }))
+      );
+      if (semanticMapped.length > 0) {
+        return toResult(semanticMapped.slice(0, 8), degradedReason === null ? null : 'partial');
+      }
     }
 
     const placeRes = await fetch(
