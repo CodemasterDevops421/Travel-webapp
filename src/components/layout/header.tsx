@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 import { Heart, Moon, Sun, UserCircle, LogOut, Menu, X, Bookmark, LayoutDashboard } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -62,7 +63,7 @@ export function Header() {
           </Button>
 
           {user && (
-            <Link href="/wishlist">
+            <Link href={'/wishlist' as Route}>
               <Button variant="ghost" size="icon" className="text-muted-foreground" title="Wishlist">
                 <Heart className="h-5 w-5" />
               </Button>
@@ -92,7 +93,7 @@ export function Header() {
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
                   <Link
-                    href="/wishlist"
+                    href={'/wishlist' as Route}
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
@@ -100,7 +101,7 @@ export function Header() {
                     My Wishlist
                   </Link>
                   <Link
-                    href="/admin"
+                    href={'/admin' as Route}
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
