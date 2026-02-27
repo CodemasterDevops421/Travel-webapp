@@ -191,11 +191,11 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
                     {/* Autocomplete Dropdown */}
                     {isSuggestionsOpen && (
-                        <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden border border-border bg-popover/95 text-popover-foreground backdrop-blur-sm shadow-editorial-lg p-2 rounded-none">
+                        <div className="absolute left-0 right-0 top-full z-[100] mt-2 overflow-hidden rounded-xl border border-border bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100 p-2">
                             {isFetching ? (
-                                <div className="p-4 text-sm text-muted-foreground">Searching...</div>
+                                <div className="p-4 text-sm text-slate-500">Searching...</div>
                             ) : suggestions.length === 0 ? (
-                                <div className="p-4 text-sm text-muted-foreground">No destinations found.</div>
+                                <div className="p-4 text-sm text-slate-500">No destinations found.</div>
                             ) : (
                                 <ul className="max-h-[300px] overflow-y-auto py-2">
                                     {suggestions.map((item, idx) => (
@@ -208,8 +208,8 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                             onMouseDown={(e) => { e.preventDefault(); onPickSuggestion(item.name); }}
                                             onMouseEnter={() => setHighlightedIndex(idx)}
                                         >
-                                            <span className="font-medium text-foreground">{item.name}</span>
-                                            <span className="text-xs text-muted-foreground capitalize">{item.source}</span>
+                                            <span className="font-medium text-slate-900 dark:text-slate-100">{item.name}</span>
+                                            <span className="text-xs text-slate-500 dark:text-slate-400 capitalize">{item.source}</span>
                                         </li>
                                     ))}
                                 </ul>
