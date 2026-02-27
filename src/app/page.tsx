@@ -21,8 +21,8 @@ export default function HomePage() {
   return (
     <main className="pb-24">
       {/* ── Full-bleed Hero ── */}
-      <section className="relative overflow-hidden">
-        <div className="hero-photo flex flex-col justify-end px-6 py-16 md:px-16 md:py-24 lg:py-32">
+      <section className="relative">
+        <div className="hero-photo flex flex-col justify-end overflow-hidden px-6 py-16 md:px-16 md:py-24 lg:py-32">
           <div className="relative z-10 mx-auto w-full max-w-7xl space-y-5">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 backdrop-blur-md">
               <Sparkles className="h-4 w-4 text-amber-300" />
