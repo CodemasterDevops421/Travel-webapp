@@ -30,12 +30,14 @@ const SECTION_TABS = [
   { id: 'location', label: 'Location' },
   { id: 'area-info', label: 'Area info' },
   { id: 'restaurants', label: 'Restaurants' },
+  { id: 'surroundings', label: 'Surroundings' },
   { id: 'rooms', label: 'Rooms' },
   { id: 'reviews', label: 'Reviews' },
   { id: 'travelers-asking', label: 'Travelers asking' },
   { id: 'pros-cons', label: 'Pros & Cons' },
   { id: 'description', label: 'Description' },
   { id: 'facilities-detail', label: 'Facilities' },
+  { id: 'languages', label: 'Languages' },
   { id: 'house-rules', label: 'House rules' },
   { id: 'ask-ai', label: 'Ask AI (Beta)' }
 ];
