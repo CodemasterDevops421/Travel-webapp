@@ -155,7 +155,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
             className={cn(
                 "relative z-20 mx-auto w-full",
-                variant === 'default' ? "max-w-5xl" : "max-w-7xl",
+                variant === 'default' ? "max-w-full" : "max-w-7xl",
                 className
             )}
         >

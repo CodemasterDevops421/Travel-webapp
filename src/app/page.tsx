@@ -48,8 +48,8 @@ export default function HomePage() {
         </div>
 
         {/* ── Search bar overlapping the hero bottom ── */}
-        <div className="relative z-30 mx-auto -mt-8 w-full max-w-3xl px-4 md:-mt-10 animate-fade-in stagger-3">
-          <div className="overflow-visible rounded-full border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900 md:p-2.5">
+        <div className="relative z-30 mx-auto -mt-8 w-full max-w-5xl px-4 md:-mt-10 animate-fade-in stagger-3">
+          <div className="overflow-visible rounded-full border border-slate-200 bg-white px-3 py-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900 md:px-4 md:py-3">
             <Suspense fallback={<SearchSkeleton />}>
               <HeroSearchBar className="border-none shadow-none bg-transparent" />
             </Suspense>
