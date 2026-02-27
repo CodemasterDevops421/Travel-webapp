@@ -191,25 +191,28 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
                     {/* Autocomplete Dropdown */}
                     {isSuggestionsOpen && (
-                        <div className="absolute left-0 right-0 top-full z-[100] mt-2 overflow-hidden rounded-xl border border-border bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100 p-2">
+                        <div
+                            className="absolute left-0 right-0 top-full mt-2 rounded-xl border border-slate-200 p-2 dark:border-slate-700"
+                            style={{ zIndex: 9999, backgroundColor: '#ffffff', color: '#1e293b', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
+                        >
                             {isFetching ? (
-                                <div className="p-4 text-sm text-slate-500">Searching...</div>
+                                <div className="p-4 text-sm" style={{ color: '#64748b' }}>Searching...</div>
                             ) : suggestions.length === 0 ? (
-                                <div className="p-4 text-sm text-slate-500">No destinations found.</div>
+                                <div className="p-4 text-sm" style={{ color: '#64748b' }}>No destinations found.</div>
                             ) : (
                                 <ul className="max-h-[300px] overflow-y-auto py-2">
                                     {suggestions.map((item, idx) => (
                                         <li
                                             key={item.id}
                                             className={cn(
-                                                "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-primary/5",
-                                                highlightedIndex === idx && "bg-primary/5"
+                                                "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-blue-50",
+                                                highlightedIndex === idx && "bg-blue-50"
                                             )}
                                             onMouseDown={(e) => { e.preventDefault(); onPickSuggestion(item.name); }}
                                             onMouseEnter={() => setHighlightedIndex(idx)}
                                         >
-                                            <span className="font-medium text-slate-900 dark:text-slate-100">{item.name}</span>
-                                            <span className="text-xs text-slate-500 dark:text-slate-400 capitalize">{item.source}</span>
+                                            <span style={{ color: '#0f172a', fontWeight: 500 }}>{item.name}</span>
+                                            <span style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'capitalize' }}>{item.source}</span>
                                         </li>
                                     ))}
                                 </ul>
