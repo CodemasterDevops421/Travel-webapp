@@ -3,6 +3,7 @@ import { Redis } from '@upstash/redis';
 import { env } from '@/server/env';
 import { logger } from '@/server/logger';
 import { sendLifecycleEmail, type LifecycleEmailPayload } from '@/server/notifications/email';
+import { persistLifecycleAnalyticsEvent } from '@/server/analytics-repository';
 
 type LifecycleOutboxTransition = 'confirmed' | 'failed' | 'refunded';
 
@@ -20,6 +21,19 @@ const inFlight = new Set<Promise<void>>();
 
 function dedupeKey(event: BookingLifecycleOutboxEvent): string {
   return `booking:lifecycle:${event.bookingId}:${event.transition}`;
+}
+
+async function isAlreadyClaimed(key: string): Promise<boolean> {
+  if (redis) {
+    const result = await redis.exists(key);
+    return result === 1;
+  }
+
+  const now = Date.now();
+  const expiresAt = fallbackDedupe.get(key);
+  if (expiresAt && expiresAt > now) return true;
+  if (expiresAt) fallbackDedupe.delete(key);
+  return false;
 }
 
 async function claimDispatchSlot(key: string, ttlSeconds = 60 * 60 * 24 * 30): Promise<boolean> {
@@ -45,13 +59,40 @@ async function claimDispatchSlot(key: string, ttlSeconds = 60 * 60 * 24 * 30): P
 
 async function dispatchLifecycleEvent(event: BookingLifecycleOutboxEvent): Promise<void> {
   const key = dedupeKey(event);
-  const firstSeen = await claimDispatchSlot(key);
-  if (!firstSeen) {
+
+  // Check dedup BEFORE sending, but only to skip truly duplicate events
+  const alreadyClaimed = await isAlreadyClaimed(key);
+  if (alreadyClaimed) {
     logger.info({ bookingId: event.bookingId, transition: event.transition }, 'Duplicate lifecycle outbox event ignored');
     return;
   }
 
-  await sendLifecycleEmail(event);
+  // Send email and persist analytics concurrently
+  const [emailResult, analyticsResult] = await Promise.allSettled([
+    sendLifecycleEmail(event),
+    persistLifecycleAnalyticsEvent({
+      bookingId: event.bookingId,
+      transition: event.transition,
+      paymentStatus: null,
+      totalAmount: event.totalAmount,
+      currency: event.currency
+    })
+  ]);
+
+  if (emailResult.status === 'rejected') {
+    // Email failed — do NOT claim the dedup slot so retries can re-attempt
+    throw emailResult.reason;
+  }
+
+  // Email succeeded — now claim the dedup slot to prevent future re-sends
+  await claimDispatchSlot(key);
+
+  if (analyticsResult.status === 'rejected') {
+    logger.warn(
+      { bookingId: event.bookingId, transition: event.transition, error: analyticsResult.reason },
+      'Lifecycle analytics dispatch failed'
+    );
+  }
 }
 
 export function enqueueBookingLifecycleNotification(event: BookingLifecycleOutboxEvent): void {

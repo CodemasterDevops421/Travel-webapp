@@ -10,7 +10,7 @@ import {
   updateBookingStatusByTransactionId
 } from '@/server/booking/repository';
 import { getClientIp, getCorrelationId } from '@/server/request';
-import { markWebhookEventProcessed } from '@/server/webhook-idempotency';
+import { claimWebhookEvent, finalizeWebhookEvent } from '@/server/webhook-idempotency';
 
 type ReconciliationUpdate = {
   transactionId: string | null;
@@ -114,14 +114,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 401 });
     }
 
-    const firstSeen = await markWebhookEventProcessed(event.id, 7 * 24 * 60 * 60, 'stripe');
-    if (!firstSeen) {
+    // Phase 1: Acquire a short-lived processing lock (60s).
+    // If this handler crashes before finalizing, the lock expires and
+    // the next Stripe retry can re-attempt reconciliation.
+    const claimed = await claimWebhookEvent(event.id, 'stripe', 60);
+    if (!claimed) {
       logger.info({ eventId: event.id, eventType: event.type }, 'Duplicate Stripe webhook ignored');
       return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
     }
 
     const update = buildReconciliationUpdate(event);
     if (!update) {
+      // Non-actionable event type — finalize immediately so retries skip it
+      await finalizeWebhookEvent(event.id, 'stripe');
       return NextResponse.json({ received: true, ignored: true }, { status: 200 });
     }
 
@@ -142,6 +147,19 @@ export async function POST(request: NextRequest) {
       });
       persisted = Boolean(localId);
     }
+
+    if (!persisted) {
+      // Persistence failed — return 500 so Stripe retries.
+      // The short lock will expire, allowing the retry to succeed.
+      logger.warn(
+        { eventId: event.id, eventType: event.type, transactionId: update.transactionId },
+        'Stripe webhook reconciliation failed — will allow retry after lock expires'
+      );
+      return NextResponse.json({ error: 'Reconciliation failed' }, { status: 500 });
+    }
+
+    // Phase 2: Persistence succeeded — extend the dedup key to 7 days
+    await finalizeWebhookEvent(event.id, 'stripe');
 
     logger.info(
       {
