@@ -1,9 +1,6 @@
 import 'server-only';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { env } from '@/server/env';
 import { logger } from '@/server/logger';
-import { BookingCancellationEmail } from '@/emails/booking-cancellation';
-import { BookingConfirmationEmail } from '@/emails/booking-confirmation';
 
 export type LifecycleEmailPayload = {
   toEmail: string;
@@ -23,6 +20,19 @@ type LifecycleEmailMessage = {
 };
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function renderEmailLayout(title: string, body: string): string {
+  return `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f7fb;font-family:Arial,sans-serif;color:#0f172a;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;"><tr><td style="padding:24px;"><h1 style="margin:0 0 16px 0;font-size:20px;line-height:1.3;">${escapeHtml(title)}</h1>${body}<p style="margin:24px 0 0 0;font-size:12px;color:#64748b;">Hostel Stays</p></td></tr></table></td></tr></table></body></html>`;
+}
 
 function formatDate(value: string | null): string {
   if (!value) {
@@ -63,35 +73,25 @@ function buildLifecycleMessage(
   const total = formatAmount(payload.totalAmount, payload.currency);
 
   if (transition === 'confirmed') {
-    const html = renderToStaticMarkup(
-      <BookingConfirmationEmail
-        bookingReference={payload.bookingReference}
-        checkIn={checkIn}
-        checkOut={checkOut}
-        total={total}
-      />
+    const html = renderEmailLayout(
+      'Booking confirmed',
+      `<p style="margin:0 0 12px 0;">Your booking is confirmed.</p><p style="margin:0 0 8px 0;"><strong>Reference:</strong> ${escapeHtml(payload.bookingReference)}</p><p style="margin:0 0 8px 0;"><strong>Check-in:</strong> ${escapeHtml(checkIn)}</p><p style="margin:0 0 8px 0;"><strong>Check-out:</strong> ${escapeHtml(checkOut)}</p><p style="margin:0;"><strong>Total:</strong> ${escapeHtml(total)}</p>`
     );
     return {
       subject: `Booking confirmed: ${payload.bookingReference}`,
-      html: `<!doctype html>${html}`
+      html
     };
   }
 
   const outcome = transition === 'refunded' ? 'Refund processed' : 'Booking canceled';
-  const html = renderToStaticMarkup(
-    <BookingCancellationEmail
-      bookingReference={payload.bookingReference}
-      checkIn={checkIn}
-      checkOut={checkOut}
-      total={total}
-      outcome={outcome}
-      invoiceStatus={payload.invoiceStatus}
-    />
+  const html = renderEmailLayout(
+    outcome,
+    `<p style="margin:0 0 12px 0;">${escapeHtml(outcome)} for your stay.</p><p style="margin:0 0 8px 0;"><strong>Reference:</strong> ${escapeHtml(payload.bookingReference)}</p><p style="margin:0 0 8px 0;"><strong>Check-in:</strong> ${escapeHtml(checkIn)}</p><p style="margin:0 0 8px 0;"><strong>Check-out:</strong> ${escapeHtml(checkOut)}</p><p style="margin:0 0 8px 0;"><strong>Total:</strong> ${escapeHtml(total)}</p><p style="margin:0;"><strong>Invoice status:</strong> ${escapeHtml(payload.invoiceStatus)}</p>`
   );
 
   return {
     subject: `${outcome}: ${payload.bookingReference}`,
-    html: `<!doctype html>${html}`
+    html
   };
 }
 
