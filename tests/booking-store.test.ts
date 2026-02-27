@@ -66,4 +66,47 @@ describe('booking prebook session fallback store', () => {
     const { assertProductionReadiness } = await import('@/server/env');
     expect(() => assertProductionReadiness()).toThrow(/Production configuration invalid/i);
   });
+
+  it('recovers checkout progress by transaction and prebook ids', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+
+    process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
+    process.env.LITEAPI_API_KEY = 'test';
+    process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
+    process.env.UPSTASH_REDIS_REST_URL = '';
+    process.env.UPSTASH_REDIS_REST_TOKEN = '';
+
+    const {
+      getCheckoutProgressSessionByPrebookId,
+      getCheckoutProgressSessionByTransactionId,
+      saveCheckoutProgressSession
+    } = await import('@/server/booking-store');
+
+    await saveCheckoutProgressSession({
+      transactionId: 'tx-progress-1',
+      prebookId: 'pb-progress-1',
+      clientReference: 'client-ref-1',
+      quoteId: 'quote-1',
+      sessionSignature: 'session-signature-1',
+      quoteSignature: 'quote-signature-1',
+      holderEmail: 'traveler@example.com',
+      state: 'awaiting_confirmation',
+      updatedAt: new Date().toISOString()
+    });
+
+    const byTransaction = await getCheckoutProgressSessionByTransactionId('tx-progress-1');
+    const byPrebook = await getCheckoutProgressSessionByPrebookId('pb-progress-1');
+
+    expect(byTransaction?.state).toBe('awaiting_confirmation');
+    expect(byPrebook?.transactionId).toBe('tx-progress-1');
+
+    vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+
+    expect(await getCheckoutProgressSessionByTransactionId('tx-progress-1')).toBeNull();
+    expect(await getCheckoutProgressSessionByPrebookId('pb-progress-1')).toBeNull();
+  });
 });

@@ -5,6 +5,7 @@ import { Calendar, MapPin, Search, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
+import { parseDiscoveryQuery, serializeDiscoveryQuery } from '@/features/search/lib/discovery-query';
 import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,14 +55,26 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
+    const today = new Date();
+
+    useEffect(() => {
+        if (checkOut <= checkIn) {
+            const nextDay = new Date(checkIn);
+            nextDay.setDate(nextDay.getDate() + 1);
+            setCheckOut(nextDay.toISOString().slice(0, 10));
+        }
+    }, [checkIn, checkOut]);
+
     const router = useRouter();
     const language = useSearchUIStore((state) => state.language);
     const currency = useSearchUIStore((state) => state.currency);
+    const activeMood = useSearchUIStore((state) => state.activeMood);
     const hasTrackedSearchInput = useRef(false);
     const suggestionsListId = useId();
     const { data, isFetching } = useAutocomplete(query, language);
     const suggestions = data ?? [];
     const isSuggestionsOpen = query.length > 2 && showSuggestions;
+    const canSearch = query.trim().length >= 3 && checkIn.length > 0 && checkOut.length > 0 && checkOut > checkIn;
 
     useEffect(() => {
         setHighlightedIndex(-1);
@@ -69,7 +82,9 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
     const onSearch = (queryOverride?: string) => {
         const nextQuery = (queryOverride ?? query).trim();
-        if (nextQuery.length < 3) return;
+        if (nextQuery.length < 3) {
+            return;
+        }
         setShowSuggestions(false);
 
         trackFunnelEvent({
@@ -78,27 +93,30 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             properties: { queryLength: nextQuery.length }
         });
 
-        const params = new URLSearchParams({
-            q: nextQuery,
-            checkin: checkIn,
-            checkout: checkOut,
-            adults: String(adults),
-            rooms: String(rooms),
-            language,
-            currency
-        });
+        const params = serializeDiscoveryQuery(
+            parseDiscoveryQuery({
+                q: nextQuery,
+                checkin: checkIn,
+                checkout: checkOut,
+                guests: String(adults),
+                rooms: String(rooms),
+                vibe: activeMood ?? undefined,
+                language,
+                currency
+            })
+        );
         router.push(`/search?${params.toString()}`);
     };
 
     const onPickSuggestion = (name: string) => {
         setQuery(name);
         setShowSuggestions(false);
+        setHighlightedIndex(-1);
         trackFunnelEvent({
             name: 'autocomplete_suggestion_selected',
             step: 'search',
             properties: { suggestionLength: name.length }
         });
-        onSearch(name);
     };
 
     const onAutocompleteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -134,22 +152,17 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
     return (
         <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
             className={cn(
                 "relative z-20 mx-auto w-full",
-                variant === 'default' ? "max-w-5xl" : "max-w-7xl",
+                variant === 'default' ? "max-w-full" : "max-w-7xl",
                 className
             )}
         >
-            {/* Search Bar Container - Fully Rounded Pill */}
-            <div className={cn(
-                "flex flex-col gap-2 bg-background p-2 text-foreground md:flex-row md:items-center md:gap-0 transition-all",
-                variant === 'default'
-                    ? "rounded-[2rem] lg:rounded-full shadow-soft-xl border border-white/20"
-                    : "rounded-3xl lg:rounded-full shadow-sm border border-border"
-            )}>
+            <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="flex flex-col md:flex-row md:items-stretch transition-all rounded-full bg-transparent">
 
                 {/* Destination Input */}
-                <div className="relative flex-1 md:border-r md:border-border/30">
+                <div className="relative z-50 flex-1">
                     <div className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
                         <MapPin className="h-5 w-5 text-primary/80" strokeWidth={1.5} />
                     </div>
@@ -173,25 +186,28 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
                     {/* Autocomplete Dropdown */}
                     {isSuggestionsOpen && (
-                        <div className="absolute left-0 right-0 top-full z-30 mt-4 overflow-hidden rounded-[1.5rem] border border-border/60 bg-popover/95 text-popover-foreground backdrop-blur-sm shadow-electric-lg ring-1 ring-black/5 p-2">
+                        <div
+                            className="absolute left-0 right-0 top-full mt-2 rounded-xl border border-slate-200 p-2 dark:border-slate-700"
+                            style={{ zIndex: 9999, backgroundColor: '#ffffff', color: '#1e293b', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
+                        >
                             {isFetching ? (
-                                <div className="p-4 text-sm text-muted-foreground">Searching...</div>
+                                <div className="p-4 text-sm" style={{ color: '#64748b' }}>Searching...</div>
                             ) : suggestions.length === 0 ? (
-                                <div className="p-4 text-sm text-muted-foreground">No destinations found.</div>
+                                <div className="p-4 text-sm" style={{ color: '#64748b' }}>No destinations found.</div>
                             ) : (
                                 <ul className="max-h-[300px] overflow-y-auto py-2">
                                     {suggestions.map((item, idx) => (
                                         <li
                                             key={item.id}
                                             className={cn(
-                                                "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-primary/5",
-                                                highlightedIndex === idx && "bg-primary/5"
+                                                "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-blue-50",
+                                                highlightedIndex === idx && "bg-blue-50"
                                             )}
                                             onMouseDown={(e) => { e.preventDefault(); onPickSuggestion(item.name); }}
                                             onMouseEnter={() => setHighlightedIndex(idx)}
                                         >
-                                            <span className="font-medium text-foreground">{item.name}</span>
-                                            <span className="text-xs text-muted-foreground capitalize">{item.source}</span>
+                                            <span style={{ color: '#0f172a', fontWeight: 500 }}>{item.name}</span>
+                                            <span style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'capitalize' }}>{item.source}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -201,7 +217,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                 </div>
 
                 {/* Dates - Split into Check-in / Check-out */}
-                <div className="flex flex-1 items-center border-b border-border/30 md:border-b-0 md:border-r">
+                <div className="flex flex-1 items-center border-t border-border/50 md:border-t-0 md:border-l md:border-border/50">
                     <div className="relative flex-1">
                         <div className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
                             <Calendar className="h-4 w-4 text-primary/80" strokeWidth={1.5} />
@@ -210,6 +226,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             type="date"
                             className="h-14 w-full cursor-pointer bg-transparent pl-12 pr-2 text-sm font-medium text-foreground focus:outline-none md:h-16"
                             value={checkIn}
+                            min={today.toISOString().slice(0, 10)}
                             onChange={(e) => setCheckIn(e.target.value)}
                         />
                     </div>
@@ -221,16 +238,17 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             type="date"
                             className="h-14 w-full cursor-pointer bg-transparent pl-12 pr-2 text-sm font-medium text-foreground focus:outline-none md:h-16"
                             value={checkOut}
+                            min={checkIn}
                             onChange={(e) => setCheckOut(e.target.value)}
                         />
                     </div>
                 </div>
 
                 {/* Guests & Search Button */}
-                <div className="flex flex-1 items-center gap-2 pl-2 pr-2">
+                <div className="flex flex-1 items-stretch border-t border-border/50 md:border-t-0 md:border-l md:border-border/50">
                     <Popover>
                         <PopoverTrigger asChild>
-                            <button type="button" className="flex h-14 flex-1 items-center gap-3 rounded-full hover:bg-primary/5 px-6 text-left transition-colors md:h-16 group">
+                            <button type="button" className="flex flex-1 items-center gap-3 hover:bg-primary/5 px-6 text-left transition-colors md:h-16 group outline-none focus-visible:bg-primary/5">
                                 <Users className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" strokeWidth={1.5} />
                                 <div className="flex flex-col">
                                     <span className="text-sm font-semibold text-foreground">{adults} Guests</span>
@@ -238,7 +256,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                 </div>
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-80 rounded-[1.5rem] border-border/60 shadow-electric-md p-6 z-[100]" align="end">
+                        <PopoverContent className="w-80 border-border shadow-editorial-md p-6 z-[100] rounded-none" align="end">
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <div>
@@ -267,15 +285,24 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     </Popover>
 
                     <Button
+                        type="submit"
                         size="lg"
-                        onClick={() => onSearch()}
-                        className="h-12 rounded-full px-8 text-base font-semibold shadow-electric-md transition-all hover:scale-105 hover:shadow-electric-lg active:scale-95 md:h-14"
+                        disabled={!canSearch}
+                        className="rounded-full bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 px-8 text-base font-semibold text-white shadow-lg shadow-purple-500/25 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:brightness-110 active:scale-95 md:h-14 disabled:opacity-50 disabled:shadow-none"
                     >
                         Search
                     </Button>
                 </div>
 
-            </div>
+            </form>
+            {!canSearch ? (
+                <p className={cn(
+                    'mt-2 text-xs font-medium md:text-right',
+                    variant === 'default' ? 'text-slate-500' : 'text-muted-foreground'
+                )}>
+                    Select destination, check-in, and check-out to enable search.
+                </p>
+            ) : null}
         </motion.div>
     );
 }

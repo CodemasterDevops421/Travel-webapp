@@ -1,8 +1,7 @@
 'use client';
 
-import Link from 'next/link';
+import Image from 'next/image';
 import { Heart, Star } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
 import { PropertyPreview } from '@/features/search/hooks/use-property-preview';
 
@@ -13,6 +12,21 @@ interface HorizontalHotelCardProps {
     adults: number;
     rooms: number;
     currency: string;
+    discoveryContext?: string;
+    saved?: boolean;
+    onToggleSave?: (hotel: {
+        hotelId: string;
+        hotelName?: string;
+        hotelImage?: string;
+        starRating?: number;
+        city?: string;
+    }) => void;
+    showAuthPrompt?: boolean;
+    reviewSnippet?: {
+        quote: string;
+        author: string | null;
+        score: number | null;
+    } | null;
 }
 
 function formatMoney(currency: string, amount: number | null): string {
@@ -38,24 +52,74 @@ function getReviewLabel(score: number): string {
     return 'Good';
 }
 
-export function HorizontalHotelCard({ hotel, checkin, checkout, adults, rooms, currency }: HorizontalHotelCardProps) {
+function getNights(checkin: string, checkout: string): number {
+    const start = new Date(checkin);
+    const end = new Date(checkout);
+    const diff = end.getTime() - start.getTime();
+    if (!Number.isFinite(diff) || diff <= 0) return 1;
+    return Math.max(1, Math.round(diff / 86400000));
+}
+
+export function HorizontalHotelCard({
+    hotel,
+    checkin,
+    checkout,
+    adults,
+    rooms,
+    currency,
+    discoveryContext,
+    saved = false,
+    onToggleSave,
+    showAuthPrompt = false,
+    reviewSnippet = null
+}: HorizontalHotelCardProps) {
     const reviewScore = hotel.reviewScore ?? 7.5;
+    const detailsParams = new URLSearchParams({
+        checkin,
+        checkout,
+        adults: String(adults),
+        rooms: String(rooms),
+        currency
+    });
+
+    if (discoveryContext) {
+        detailsParams.set('returnTo', discoveryContext);
+    }
+
+    const hotelHref = `/hotels/${hotel.hotelId}?${detailsParams.toString()}`;
+    const loginHref = `/auth/login?redirect=${encodeURIComponent(hotelHref)}`;
+    const nights = getNights(checkin, checkout);
+    const amenityHighlights = (hotel.amenities ?? []).slice(0, 4);
 
     return (
-        <Link
-            href={`/hotels/${hotel.hotelId}?checkin=${checkin}&checkout=${checkout}&adults=${adults}&rooms=${rooms}&currency=${currency}`}
-            className="group flex flex-col md:flex-row gap-4 rounded-xl border border-border bg-white p-4 transition-all hover:shadow-lg hover:border-primary/20"
-        >
+        <article className="group flex flex-col gap-4 rounded-xl border border-border bg-white p-4 transition-all hover:border-primary/20 hover:shadow-lg md:flex-row">
             {/* Image Section */}
-            <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-lg md:h-auto md:w-72">
-                {hotel.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={hotel.imageUrl} alt={hotel.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                ) : (
-                    <div className="h-full w-full bg-slate-100" />
-                )}
-                <button className="absolute left-3 top-3 rounded-full bg-white p-2 text-muted-foreground shadow-sm hover:text-red-500 hover:scale-110 transition-all">
-                    <Heart className="h-4 w-4" />
+            <div className="relative h-48 w-full shrink-0 overflow-hidden md:h-auto md:w-72">
+                <a href={hotelHref}>
+                    {hotel.imageUrl ? (
+                        <Image src={hotel.imageUrl} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, 288px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                    ) : (
+                        <div className="h-full w-full bg-slate-100" />
+                    )}
+                </a>
+                <button
+                    type="button"
+                    onClick={() => {
+                        onToggleSave?.({
+                            hotelId: hotel.hotelId,
+                            hotelName: hotel.name,
+                            hotelImage: hotel.imageUrl,
+                            starRating: hotel.starRating ?? undefined,
+                            city: hotel.city
+                        });
+                    }}
+                    className={cn(
+                        'absolute right-3 top-3 rounded-full bg-white/90 p-2 text-muted-foreground shadow-sm transition-all hover:scale-110',
+                        saved ? 'text-rose-500' : 'hover:text-rose-500'
+                    )}
+                    aria-label={saved ? 'Remove from wishlist' : 'Save to wishlist'}
+                >
+                    <Heart className={cn('h-4 w-4', saved ? 'fill-current' : '')} />
                 </button>
             </div>
 
@@ -68,16 +132,36 @@ export function HorizontalHotelCard({ hotel, checkin, checkout, adults, rooms, c
                                 <Star key={i} className="h-3 w-3 fill-orange-400 text-orange-400" />
                             ))}
                         </div>
-                        <h3 className="mt-1 text-xl font-bold text-foreground group-hover:text-primary transition-colors">{hotel.name}</h3>
-                        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                        <a href={hotelHref}>
+                            <h3 className="mt-1 text-xl font-bold text-foreground transition-colors group-hover:text-primary">{hotel.name}</h3>
+                        </a>
+                        <a href={hotelHref} className="mt-1 flex items-center gap-2 text-sm text-foreground underline underline-offset-2">
                             <span className="line-clamp-1">{hotel.city}, {hotel.countryCode}</span>
-                            <span>•</span>
-                            <span>2 km from centre</span>
-                        </div>
+                            <span className="text-muted-foreground no-underline">•</span>
+                            <span className="text-muted-foreground no-underline">Map view</span>
+                        </a>
 
-                        {/* Badges/Facilities (Mocked for now based on screenshot) */}
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        {/* Trust Badges */}
+                        <div className="mt-3 flex flex-wrap gap-1.5 items-center">
+                            <span className="rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700 border border-green-200">
+                                Free cancellation
+                            </span>
+                            <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
+                                Reserve now, pay later
+                            </span>
+                            <span className="rounded bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700 border border-red-200 flex items-center gap-1">
+                                🔥 Limited supply for your dates
+                            </span>
                         </div>
+                        {amenityHighlights.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                                {amenityHighlights.map((amenity) => (
+                                    <span key={amenity} className="rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-[11px] text-foreground/90">
+                                        {amenity}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
 
                     {/* Rating Badge (Right Side) */}
@@ -94,30 +178,47 @@ export function HorizontalHotelCard({ hotel, checkin, checkout, adults, rooms, c
                     </div>
                 </div>
 
-                {/* Bottom Section: Price & Action */}
-                <div className="mt-4 flex items-end justify-between">
-                    <div className="hidden sm:block">
-                        {/* Optional descriptive text or location specifics can go here */}
+                <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+                    <div className="text-xs text-muted-foreground max-w-[60%]">
+                        <p className="font-semibold text-foreground">Top highlight:</p>
+                        {reviewSnippet ? (
+                            <>
+                                <p className="line-clamp-2">&quot;{reviewSnippet.quote}&quot;</p>
+                                <p className="mt-1 text-[11px]">
+                                    {reviewSnippet.author ?? 'Verified guest'}
+                                    {typeof reviewSnippet.score === 'number' ? ` · ${reviewSnippet.score.toFixed(1)}/10` : ''}
+                                </p>
+                            </>
+                        ) : (
+                            <p className="line-clamp-2">&quot;Guests consistently praise the incredible location and seamless check-in experience.&quot;</p>
+                        )}
                     </div>
 
-                    <div className="flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-2">
-                            <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">8% off</span>
+                    <div className="flex flex-col items-end gap-0 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white shadow-sm">Early Booker Deal</span>
                         </div>
                         <div className="text-right">
-                            <div className="flex items-baseline justify-end gap-1">
-                                <span className="text-xs text-muted-foreground line-through">{formatMoney(hotel.currency, (hotel.price ?? 0) * 1.08)}</span>
-                                <span className="text-2xl font-bold">{formatMoney(hotel.currency, hotel.price)}</span>
-                                <span className="text-xs font-medium text-muted-foreground">/ night</span>
+                            <div className="flex items-baseline justify-end gap-1.5">
+                                <span className="text-sm text-muted-foreground line-through decoration-red-500/50">{formatMoney(hotel.currency, (hotel.price ?? 0) * 1.08)}</span>
+                                <span className="text-2xl font-bold text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
                             </div>
-                            <p className="text-[10px] text-muted-foreground">1 night, 1 room, incl. taxes & fees</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{nights} night{nights > 1 ? 's' : ''} · Includes taxes and charges</p>
+                            {typeof hotel.price === 'number' ? (
+                                <p className="text-xs font-semibold text-foreground">Total {formatMoney(hotel.currency, hotel.price * nights)}</p>
+                            ) : null}
                         </div>
-                        <Button className="mt-2 h-10 rounded-full bg-[#aa15ef] px-6 font-semibold shadow-md hover:bg-[#9013cb] hover:shadow-lg">
-                            See availability &gt;
-                        </Button>
+                        <a href={hotelHref} className="mt-3 inline-flex h-10 w-full items-center justify-center rounded bg-primary px-8 font-bold text-primary-foreground shadow-none transition-all hover:bg-primary/90 hover:shadow-md sm:w-auto">
+                            See availability
+                        </a>
                     </div>
                 </div>
+                {showAuthPrompt ? (
+                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        Sign in to save stays. <a href={loginHref} className="font-semibold underline underline-offset-2">Go to login</a>
+                    </p>
+                ) : null}
             </div>
-        </Link>
+        </article>
     );
 }

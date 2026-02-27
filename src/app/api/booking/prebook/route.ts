@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
-import { buildPriceQuote } from '@/server/pricing';
+import { assertSameOrigin } from '@/server/csrf';
+import { buildPriceQuoteWithMarkup } from '@/server/pricing';
 import { prebookRate } from '@/server/liteapi';
 import { savePrebookSession } from '@/server/booking-store';
-import { toHttpError } from '@/server/errors';
+import { HttpError, toHttpError } from '@/server/errors';
 import { persistQuote } from '@/server/booking/repository';
 import { signCheckoutSession } from '@/server/booking-session';
 import { logger } from '@/server/logger';
-import { getClientIp, getCorrelationId } from '@/server/request';
+import { getRequestContext, parseRequestBody, sanitizeUnknown } from '@/server/request';
 import { assertProductionReadiness } from '@/server/env';
+import { getAppSettings } from '@/server/settings/repository';
+import { createServerSupabaseClient } from '@/server/supabase/server';
 
 const requestSchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -25,6 +28,14 @@ const requestSchema = z.object({
   ).min(1)
 });
 
+const supplierPrebookSchema = z.object({
+  prebookId: z.string().trim().min(1),
+  transactionId: z.string().trim().min(1),
+  secretKey: z.string().trim().min(1),
+  price: z.number().nonnegative(),
+  currency: z.string().trim().length(3)
+});
+
 function createClientReference(input: { hotelId: string; roomId: string; offerId: string }): string {
   const compact = `${input.hotelId}-${input.roomId}-${input.offerId}`
     .replace(/[^a-zA-Z0-9_-]/g, '')
@@ -35,22 +46,36 @@ function createClientReference(input: { hotelId: string; roomId: string; offerId
 export async function POST(request: NextRequest) {
   try {
     assertProductionReadiness();
-    const clientIp = getClientIp(request);
-    const correlationId = getCorrelationId(request);
-    await assertRateLimit(`booking-prebook:${clientIp}`);
+    assertSameOrigin(request);
 
-    const raw = await request.json();
-    const payload = requestSchema.parse(raw);
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Sign in required to continue booking.', code: 'AUTH_REQUIRED' }, { status: 401 });
+    }
+
+    const { clientIp, correlationId } = getRequestContext(request);
+    await assertRateLimit(`booking:${clientIp}:prebook`, 'booking');
+
+    const payload = await parseRequestBody(request, requestSchema);
     if (new Date(payload.checkOut) <= new Date(payload.checkIn)) {
       return NextResponse.json({ error: 'checkOut must be after checkIn' }, { status: 400 });
     }
-    const prebook = await prebookRate(payload.offerId);
-    const quote = buildPriceQuote({
+    const supplierPrebook = sanitizeUnknown(await prebookRate(payload.offerId));
+    const parsedPrebook = supplierPrebookSchema.safeParse(supplierPrebook);
+    if (!parsedPrebook.success) {
+      throw new HttpError(502, 'Supplier prebook payload is invalid');
+    }
+    const prebook = parsedPrebook.data;
+    const settings = await getAppSettings();
+    const quote = buildPriceQuoteWithMarkup({
       hotelId: payload.hotelId,
       roomId: payload.roomId,
       amount: prebook.price,
       currency: prebook.currency.toUpperCase()
-    });
+    }, settings.commissionPercent);
     const clientReference = createClientReference({
       hotelId: payload.hotelId,
       roomId: payload.roomId,

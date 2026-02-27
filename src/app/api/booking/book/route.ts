@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
+import { assertSameOrigin } from '@/server/csrf';
 import { bookRate } from '@/server/liteapi';
 import { getPrebookSession } from '@/server/booking-store';
 import { HttpError, toHttpError } from '@/server/errors';
@@ -16,7 +17,8 @@ import {
 } from '@/server/booking-idempotency';
 import { assertProductionReadiness, env } from '@/server/env';
 import { logger } from '@/server/logger';
-import { getClientIp, getCorrelationId } from '@/server/request';
+import { getRequestContext, parseRequestBody, sanitizeRecord, sanitizeUnknown, stripSupplierSecrets } from '@/server/request';
+import { createServerSupabaseClient } from '@/server/supabase/server';
 
 const requestSchema = z.object({
   prebookId: z.string().trim().min(1),
@@ -47,18 +49,39 @@ const requestSchema = z.object({
   ).min(1)
 });
 
+const supplierBookingSchema = z.object({
+  data: z.object({
+    bookingId: z.string().trim().min(1).optional(),
+    status: z.string().trim().min(1).optional()
+  }).passthrough().optional(),
+  bookingId: z.string().trim().min(1).optional(),
+  status: z.string().trim().min(1).optional()
+}).passthrough();
+
 export async function POST(request: NextRequest) {
   let lockAcquired = false;
   let transactionIdForLock: string | null = null;
 
   try {
     assertProductionReadiness();
-    const clientIp = getClientIp(request);
-    const correlationId = getCorrelationId(request);
-    await assertRateLimit(`booking-book:${clientIp}`);
+    assertSameOrigin(request);
 
-    const raw = await request.json();
-    const payload = requestSchema.parse(raw);
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Sign in required to continue booking.', code: 'AUTH_REQUIRED' }, { status: 401 });
+    }
+
+    if (!env.LITEAPI_API_KEY || env.LITEAPI_API_KEY.toLowerCase().includes('placeholder')) {
+      throw new HttpError(503, 'Booking is temporarily unavailable. Please retry shortly.');
+    }
+
+    const { clientIp, correlationId } = getRequestContext(request);
+    await assertRateLimit(`booking:${clientIp}:finalize`, 'booking');
+
+    const payload = await parseRequestBody(request, requestSchema);
     transactionIdForLock = payload.transactionId;
 
     const cachedResult = await getFinalizedBookingResult(payload.transactionId);
@@ -128,13 +151,21 @@ export async function POST(request: NextRequest) {
       throw new HttpError(400, 'Invalid quote signature');
     }
 
-    const booking = await bookRate({
+    const safeHolder = sanitizeRecord(payload.holder);
+    const safeGuests = payload.guests.map((guest) => sanitizeRecord(guest));
+
+    const supplierBooking = sanitizeUnknown(await bookRate({
       prebookId: payload.prebookId,
       transactionId: payload.transactionId,
       clientReference: session.clientReference,
-      holder: payload.holder,
-      guests: payload.guests
-    });
+      holder: safeHolder,
+      guests: safeGuests
+    }));
+    const parsedBooking = supplierBookingSchema.safeParse(supplierBooking);
+    if (!parsedBooking.success) {
+      throw new HttpError(502, 'Supplier booking payload is invalid');
+    }
+    const booking = parsedBooking.data;
 
     const bookingData = booking as {
       data?: {
@@ -145,15 +176,18 @@ export async function POST(request: NextRequest) {
       status?: string;
     };
     const liteApiBookingId = bookingData.data?.bookingId ?? bookingData.bookingId ?? null;
-    const status = bookingData.data?.status ?? bookingData.status ?? 'unknown';
+    const supplierStatus = bookingData.data?.status ?? bookingData.status ?? 'unknown';
+    const lifecycleStatus = 'pending';
     const localBookingId = await persistBooking({
       quoteId: session.quoteId,
       liteApiBookingId,
-      status,
+      status: lifecycleStatus,
       metadata: {
         clientReference: session.clientReference,
         transactionId: payload.transactionId,
         prebookId: payload.prebookId,
+        supplierStatus,
+        paymentStatus: 'pending',
         itinerary: {
           hotelId: quoteToVerify.hotelId,
           roomId: quoteToVerify.roomId,
@@ -162,8 +196,8 @@ export async function POST(request: NextRequest) {
           currency: quoteToVerify.currency,
           quoteSignature: quoteToVerify.signature
         },
-        holder: payload.holder,
-        guests: payload.guests
+        holder: safeHolder,
+        guests: safeGuests
       }
     });
     if (!localBookingId && env.NODE_ENV === 'production' && env.STRICT_PERSISTENCE_MODE) {
@@ -177,17 +211,19 @@ export async function POST(request: NextRequest) {
         transactionId: payload.transactionId,
         localBookingId,
         liteApiBookingId,
-        status
+        supplierStatus,
+        lifecycleStatus
       },
       'Booking finalized'
     );
 
     const responsePayload = {
-      booking,
+      booking: stripSupplierSecrets(booking),
       localBookingId,
       bookingViewToken,
       liteApiBookingId,
-      status,
+      status: lifecycleStatus,
+      supplierStatus,
       clientReference: session.clientReference,
       quoteSignature: quoteToVerify.signature
     };

@@ -2,33 +2,43 @@
 
 import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
 
-const moods = ['Romantic', 'Quiet', 'Near nightlife', 'Family-friendly', 'Boutique', 'Scenic'];
+const moods = [
+  { label: 'Romantic', emoji: '💕' },
+  { label: 'Quiet', emoji: '🧘' },
+  { label: 'Near nightlife', emoji: '🎶' },
+  { label: 'Family-friendly', emoji: '👨‍👩‍👧‍👦' },
+  { label: 'Boutique', emoji: '✨' },
+  { label: 'Scenic', emoji: '🌅' }
+];
 
 export function MoodDiscovery() {
   const activeMood = useSearchUIStore((state) => state.activeMood);
   const setActiveMood = useSearchUIStore((state) => state.setActiveMood);
 
   return (
-    <section className="space-y-4 rounded-2xl border border-border/80 bg-card/70 p-5">
-      <h2 className="text-2xl font-semibold">Discover by mood</h2>
-      <div className="flex flex-wrap gap-2">
+    <section className="space-y-5 rounded-3xl border border-border/60 bg-gradient-to-br from-primary/[0.04] to-transparent p-6 md:p-8">
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-primary font-semibold">Personalize</p>
+        <h2 className="mt-1 text-3xl font-heading font-bold tracking-tight">Discover by mood</h2>
+      </div>
+      <div className="flex flex-wrap gap-3">
         {moods.map((mood) => (
           <button
             type="button"
-            key={mood}
-            aria-pressed={activeMood === mood}
-            onClick={() => setActiveMood(activeMood === mood ? null : mood)}
-            className={`cursor-pointer rounded-full px-4 py-2 text-sm transition ${
-              activeMood === mood
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'border border-border bg-background hover:bg-muted'
-            }`}
+            key={mood.label}
+            aria-pressed={activeMood === mood.label}
+            onClick={() => setActiveMood(activeMood === mood.label ? null : mood.label)}
+            className={`cursor-pointer rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 ${activeMood === mood.label
+                ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105'
+                : 'border border-border/60 bg-card hover:bg-primary/5 hover:border-primary/30'
+              }`}
           >
-            {mood}
+            <span className="mr-1.5">{mood.emoji}</span>
+            {mood.label}
           </button>
         ))}
       </div>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm leading-relaxed text-muted-foreground">
         Use mood tags to narrow to properties with the right vibe before comparing price and cancellation flexibility.
       </p>
     </section>

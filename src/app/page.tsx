@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { LockKeyhole, ShieldCheck, Sparkles, Wallet } from 'lucide-react';
+import { LockKeyhole, ShieldCheck, Wallet } from 'lucide-react';
 import { HeroSearchBar } from '@/features/search/components/hero-search-bar';
 import { SearchSkeleton } from '@/features/search/components/search-skeleton';
 import { TrendingDestinations } from '@/components/home/trending-destinations';
@@ -10,8 +10,8 @@ import { TravelArticles } from '@/components/home/travel-articles';
 import { NewsletterBand } from '@/components/home/newsletter-band';
 
 export const metadata: Metadata = {
-  title: 'TravelApp | Same Stays. Better Prices.',
-  description: 'Discover premium hotels with transparent total pricing and secure checkout.',
+  title: 'Hostel Stays | Discover your perfect stay, your way.',
+  description: 'Premium hostel booking for backpackers, digital nomads, and travelers worldwide.',
   alternates: {
     canonical: '/'
   }
@@ -19,68 +19,77 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-7xl space-y-24 px-4 pb-24 pt-8 md:pt-12">
-      {/* Hero Section */}
-      <section className="relative flex min-h-[500px] flex-col justify-center overflow-visible rounded-[2rem] bg-gradient-to-br from-[#1a0b2e] to-[#2d1b4e] p-8 text-center text-white shadow-2xl md:p-16">
-        <div className="absolute inset-0 z-0 overflow-hidden rounded-[2rem]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
-            alt="Luxury Hotel Pool"
-            className="h-full w-full object-cover opacity-40 mix-blend-overlay transition-transform duration-1000 hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+    <main className="pb-24">
+      {/* ── Hero with rounded card look ── */}
+      <section className="relative px-4 pt-4 md:px-8 md:pt-6">
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-3xl">
+          {/* Background image + overlay */}
+          <div
+            className="flex flex-col items-center justify-center px-6 py-20 text-center md:py-28 lg:py-36"
+            style={{
+              backgroundImage:
+                'linear-gradient(180deg, rgba(15,10,40,0.35) 0%, rgba(15,10,40,0.75) 60%, rgba(15,10,40,0.92) 100%), url("https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=2000&q=80")',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center 40%'
+            }}
+          >
+            <h1 className="font-heading text-5xl font-extrabold leading-[1.1] text-white md:text-7xl drop-shadow-xl animate-fade-in">
+              Same Stays.
+              <br />
+              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-fuchsia-400 bg-clip-text text-transparent">
+                Better Prices.
+              </span>
+            </h1>
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 md:text-lg animate-fade-in stagger-2">
+              2 Million Hotels Worldwide. Compare rates, review full terms upfront,
+              and book with confidence.
+            </p>
+          </div>
         </div>
 
-        <div className="relative z-10 mx-auto max-w-4xl space-y-6">
-          <h1 className="font-heading text-5xl font-bold leading-tight tracking-tight md:text-7xl">
-            Same Stays. <br />
-            <span className="bg-gradient-to-r from-[#A4B6EA] via-[#C99DDB] to-[#F28A9B] bg-clip-text text-transparent">
-              Better Prices.
-            </span>
-          </h1>
-          <p className="mx-auto max-w-2xl text-lg text-white/90 md:text-xl">
-            2 Million Hotels Worldwide. Compare rates, review full terms upfront, and book with confidence.
-          </p>
-        </div>
-
-        <div className="relative z-20 mt-12 w-full">
-          <Suspense fallback={<SearchSkeleton />}>
-            <HeroSearchBar />
-          </Suspense>
+        {/* ── Search bar overlapping the hero bottom ── */}
+        <div className="relative z-30 mx-auto -mt-8 w-full max-w-5xl px-4 md:-mt-10 animate-fade-in stagger-3">
+          <div className="overflow-visible rounded-full border border-slate-200 bg-white px-3 py-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900 md:px-4 md:py-3">
+            <Suspense fallback={<SearchSkeleton />}>
+              <HeroSearchBar className="border-none shadow-none bg-transparent" />
+            </Suspense>
+          </div>
         </div>
       </section>
 
-      {/* Value Props */}
-      <section className="mx-auto grid max-w-5xl gap-8 text-center md:grid-cols-3">
-        <div className="group rounded-3xl border border-border/50 bg-card p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      {/* ── Trust Badges ── */}
+      <section className="mx-auto mt-16 grid max-w-6xl gap-0 border-y border-border/60 px-4 md:grid-cols-3 md:mt-20">
+        <div className="flex flex-col items-center p-10 text-center transition-colors hover:bg-primary/[0.03] border-b md:border-b-0 md:border-r border-border/60">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary">
             <ShieldCheck className="h-7 w-7" />
           </div>
-          <h3 className="mb-2 text-lg font-semibold">Verified Rates</h3>
-          <p className="text-sm text-muted-foreground">Direct supply connections ensure real-time availability and pricing accuracy.</p>
+          <h3 className="mb-2 text-base font-semibold">Verified Rates</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">Direct supply connections ensure real-time availability and pricing accuracy.</p>
         </div>
-        <div className="group rounded-3xl border border-border/50 bg-card p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <div className="flex flex-col items-center p-10 text-center transition-colors hover:bg-primary/[0.03] border-b md:border-b-0 md:border-r border-border/60">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary">
             <Wallet className="h-7 w-7" />
           </div>
-          <h3 className="mb-2 text-lg font-semibold">Transparent Pricing</h3>
-          <p className="text-sm text-muted-foreground">See the full total including taxes and fees before you start checkout.</p>
+          <h3 className="mb-2 text-base font-semibold">Transparent Pricing</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">See the full total including taxes and fees before you start checkout.</p>
         </div>
-        <div className="group rounded-3xl border border-border/50 bg-card p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <div className="flex flex-col items-center p-10 text-center transition-colors hover:bg-primary/[0.03]">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary">
             <LockKeyhole className="h-7 w-7" />
           </div>
-          <h3 className="mb-2 text-lg font-semibold">Secure Checkout</h3>
-          <p className="text-sm text-muted-foreground">Bank-grade encryption and signed quote verification for peace of mind.</p>
+          <h3 className="mb-2 text-base font-semibold">Secure Checkout</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">Bank-grade encryption and signed quote verification for peace of mind.</p>
         </div>
       </section>
 
-      <FeaturedDealsStrip />
-      <TrendingDestinations />
-      <MoodDiscovery />
-      <TravelArticles />
-      <NewsletterBand />
+      {/* ── Content Sections ── */}
+      <div className="mx-auto max-w-7xl space-y-24 px-4 pt-20">
+        <FeaturedDealsStrip />
+        <TrendingDestinations />
+        <MoodDiscovery />
+        <TravelArticles />
+        <NewsletterBand />
+      </div>
     </main>
   );
 }

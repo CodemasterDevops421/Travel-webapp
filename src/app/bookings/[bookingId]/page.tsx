@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getBookingById } from '@/server/booking/repository';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
 import { PreferenceLink } from '@/components/navigation/preference-link';
+import { BookingCancelAction } from '@/features/booking/components/booking-cancel-action';
 
 type BookingConfirmationPageProps = {
   params: Promise<{
@@ -33,7 +34,7 @@ type GuestMetadata = {
 };
 
 export const metadata: Metadata = {
-  title: 'Booking Confirmation | TravelApp',
+  title: 'Booking Confirmation | Hostel Stays',
   description: 'View your confirmed booking details securely.',
   robots: {
     index: false,
@@ -161,8 +162,9 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
 
           <article className="rounded-2xl border border-border bg-card/85 p-5">
             <p className="text-sm font-semibold">Support</p>
-            <p className="mt-2 text-sm text-muted-foreground">For changes/cancellation, include booking, transaction, and prebook references in your request.</p>
-            <p className="mt-2 text-sm text-muted-foreground">Email: support@travelapp.local</p>
+            <p className="mt-2 text-sm text-muted-foreground">Need to cancel? Use the in-app action below. For other changes, include booking, transaction, and prebook references.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Email: support@hostelstays.com</p>
+            <BookingCancelAction bookingId={booking.id} viewToken={viewToken} bookingStatus={booking.status} />
           </article>
         </aside>
       </section>

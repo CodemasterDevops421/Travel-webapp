@@ -61,11 +61,11 @@ export function LanguageCurrencyChooser() {
 
   return (
     <div className="flex items-center gap-2">
-      <label className="flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs">
+      <label className="flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-xs">
         <Globe2 className="h-3.5 w-3.5 text-primary" />
         <span className="sr-only">Language</span>
         <select
-          className="bg-transparent text-xs outline-none"
+          className="w-[72px] bg-transparent text-xs font-semibold outline-none"
           value={language}
           onChange={(event: ChangeEvent<HTMLSelectElement>) => {
             const value = normalizeLanguage(event.target.value) ?? DEFAULT_LANGUAGE;
@@ -80,11 +80,11 @@ export function LanguageCurrencyChooser() {
           ))}
         </select>
       </label>
-      <label className="flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs">
+      <label className="flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-xs">
         <Coins className="h-3.5 w-3.5 text-primary" />
         <span className="sr-only">Currency</span>
         <select
-          className="bg-transparent text-xs outline-none"
+          className="w-[64px] bg-transparent text-xs font-semibold outline-none"
           value={currency}
           onChange={(event: ChangeEvent<HTMLSelectElement>) => {
             const value = normalizeCurrency(event.target.value) ?? DEFAULT_CURRENCY;

@@ -4,6 +4,8 @@ import { createAdminClient } from '@/server/supabase/admin';
 import { env } from '@/server/env';
 import type { PriceQuote } from '@/server/pricing';
 import { logger } from '@/server/logger';
+import { assertValidBookingTransition, canTransitionBookingState } from '@/server/booking/lifecycle';
+import { enqueueBookingLifecycleNotification } from '@/server/booking/outbox';
 
 type GuestInput = {
   adults: number;
@@ -15,10 +17,14 @@ type PersistQuoteInput = {
   checkIn: string;
   checkOut: string;
   guests: GuestInput[];
+  userId?: string | null;
+  correlationId?: string | null;
+  searchLogId?: string | null;
 };
 
 type FallbackQuoteRecord = {
   id: string;
+  user_id: string | null;
   hotel_id: string;
   room_id: string;
   check_in: string;
@@ -27,6 +33,8 @@ type FallbackQuoteRecord = {
   total_amount: number;
   currency: string;
   price_signature: string;
+  correlation_id: string | null;
+  search_log_id: string | null;
   expires_at: string;
   created_at: string;
 };
@@ -50,10 +58,137 @@ function mergeMetadata(
   };
 }
 
+function assertCanonicalBookingState(state: string): void {
+  if (!canTransitionBookingState(state, state)) {
+    throw new Error(`Invalid booking lifecycle state: ${state}`);
+  }
+}
+
+function readNestedNumber(record: Record<string, unknown>, key: string): number | null {
+  const value = record[key];
+  return typeof value === 'number' ? value : null;
+}
+
+function readNestedString(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function deriveBookingCanonicalFields(
+  booking: Pick<
+    BookingRecord,
+    'total_amount' | 'commission_amount' | 'payment_status' | 'confirmation_code'
+  >,
+  metadata: Record<string, unknown>
+): {
+  totalAmount: number | null;
+  commissionAmount: number | null;
+  paymentStatus: string | null;
+  confirmationCode: string | null;
+} {
+  const itinerary = (metadata.itinerary as Record<string, unknown> | undefined) ?? {};
+  const pricing = (metadata.pricing as Record<string, unknown> | undefined) ?? {};
+
+  const totalAmount =
+    readNestedNumber(metadata, 'totalAmount') ??
+    readNestedNumber(itinerary, 'totalAmount') ??
+    readNestedNumber(pricing, 'totalAmount') ??
+    booking.total_amount;
+  const commissionAmount = readNestedNumber(metadata, 'commissionAmount') ?? booking.commission_amount;
+  const paymentStatus = readNestedString(metadata, 'paymentStatus') ?? booking.payment_status;
+  const confirmationCode = readNestedString(metadata, 'confirmationCode') ?? booking.confirmation_code;
+
+  return {
+    totalAmount,
+    commissionAmount,
+    paymentStatus,
+    confirmationCode
+  };
+}
+
+type LifecycleNotificationStatus = 'confirmed' | 'failed' | 'refunded';
+
+const LIFECYCLE_NOTIFICATION_STATUSES = new Set<LifecycleNotificationStatus>([
+  'confirmed',
+  'failed',
+  'refunded'
+]);
+
+function deriveInvoiceStatus(status: string, paymentStatus: string | null): string {
+  if (status === 'refunded') {
+    return 'refunded';
+  }
+
+  if (status === 'confirmed') {
+    return paymentStatus === 'captured' ? 'paid' : 'issued';
+  }
+
+  if (status === 'failed') {
+    return 'void';
+  }
+
+  return 'pending';
+}
+
+function withLifecycleMetadata(
+  metadata: Record<string, unknown>,
+  status: string,
+  paymentStatus: string | null
+): Record<string, unknown> {
+  return {
+    ...metadata,
+    invoiceStatus: deriveInvoiceStatus(status, paymentStatus)
+  };
+}
+
+type LifecycleNotificationInput = {
+  id: string;
+  status: string;
+  liteapi_booking_id: string | null;
+  confirmation_code: string | null;
+  check_in: string | null;
+  check_out: string | null;
+  total_amount: number | null;
+  currency: string | null;
+  metadata: Record<string, unknown> | null;
+};
+
+function maybeEnqueueLifecycleNotification(input: LifecycleNotificationInput): void {
+  if (!LIFECYCLE_NOTIFICATION_STATUSES.has(input.status as LifecycleNotificationStatus)) {
+    return;
+  }
+
+  const metadata = input.metadata ?? {};
+  const holder = (metadata.holder as Record<string, unknown> | undefined) ?? {};
+  const toEmail = typeof holder.email === 'string' ? holder.email : null;
+  if (!toEmail) {
+    return;
+  }
+
+  const eventStatus = input.status as LifecycleNotificationStatus;
+  const bookingReference = input.confirmation_code ?? input.liteapi_booking_id ?? input.id;
+  const invoiceStatus = typeof metadata.invoiceStatus === 'string'
+    ? metadata.invoiceStatus
+    : deriveInvoiceStatus(input.status, typeof metadata.paymentStatus === 'string' ? metadata.paymentStatus : null);
+
+  enqueueBookingLifecycleNotification({
+    bookingId: input.id,
+    transition: eventStatus,
+    toEmail,
+    bookingReference,
+    checkIn: input.check_in,
+    checkOut: input.check_out,
+    totalAmount: input.total_amount,
+    currency: input.currency,
+    invoiceStatus
+  });
+}
+
 export async function persistQuote(input: PersistQuoteInput): Promise<string | null> {
   const fallbackId = randomUUID();
   const fallbackRecord: FallbackQuoteRecord = {
     id: fallbackId,
+    user_id: input.userId ?? null,
     hotel_id: input.quote.hotelId,
     room_id: input.quote.roomId,
     check_in: input.checkIn,
@@ -62,6 +197,8 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
     total_amount: input.quote.totalAmount,
     currency: input.quote.currency,
     price_signature: input.quote.signature,
+    correlation_id: input.correlationId ?? null,
+    search_log_id: input.searchLogId ?? null,
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     created_at: new Date().toISOString()
   };
@@ -80,6 +217,7 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
   const { data, error } = await supabase
     .from('booking_quotes')
     .insert({
+      user_id: input.userId ?? null,
       hotel_id: input.quote.hotelId,
       room_id: input.quote.roomId,
       check_in: input.checkIn,
@@ -88,6 +226,7 @@ export async function persistQuote(input: PersistQuoteInput): Promise<string | n
       total_amount: input.quote.totalAmount,
       currency: input.quote.currency,
       price_signature: input.quote.signature,
+      correlation_id: input.correlationId ?? null,
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
     })
     .select('id')
@@ -115,19 +254,86 @@ type PersistBookingInput = {
   liteApiBookingId: string | null;
   status: string;
   metadata: Record<string, unknown>;
+  userId?: string | null;
+  correlationId?: string | null;
+  searchLogId?: string | null;
+  latestPaymentLogId?: string | null;
+  stripePaymentIntentId?: string | null;
+  stripeCheckoutSessionId?: string | null;
 };
 
 type FallbackBookingRecord = BookingRecord;
 const fallbackBookings = new Map<string, FallbackBookingRecord>();
 
 export async function persistBooking(input: PersistBookingInput): Promise<string | null> {
+  try {
+    assertCanonicalBookingState(input.status);
+  } catch (error) {
+    logger.warn({ error, status: input.status }, 'Rejected booking persist with invalid lifecycle status');
+    return null;
+  }
+
+  const itinerary = (input.metadata.itinerary as Record<string, unknown> | undefined) ?? {};
+  const stayDates = (input.metadata.stayDates as Record<string, unknown> | undefined) ?? {};
+  const pricing = (input.metadata.pricing as Record<string, unknown> | undefined) ?? {};
+
+  const hotelId = typeof itinerary.hotelId === 'string' ? itinerary.hotelId : null;
+  const roomId = typeof itinerary.roomId === 'string' ? itinerary.roomId : null;
+  const checkIn = typeof stayDates.checkIn === 'string' ? stayDates.checkIn : null;
+  const checkOut = typeof stayDates.checkOut === 'string' ? stayDates.checkOut : null;
+  const totalAmount = typeof itinerary.totalAmount === 'number'
+    ? itinerary.totalAmount
+    : typeof pricing.totalAmount === 'number'
+      ? pricing.totalAmount
+      : null;
+  const paymentStatus = typeof input.metadata.paymentStatus === 'string' ? input.metadata.paymentStatus : 'pending';
+  const confirmationCode = typeof input.metadata.confirmationCode === 'string' ? input.metadata.confirmationCode : null;
+  const commissionAmount = typeof input.metadata.commissionAmount === 'number' ? input.metadata.commissionAmount : null;
+  const searchLogIdFromMetadata = typeof input.metadata.searchLogId === 'string' ? input.metadata.searchLogId : null;
+  const latestPaymentLogIdFromMetadata = typeof input.metadata.latestPaymentLogId === 'string'
+    ? input.metadata.latestPaymentLogId
+    : typeof input.metadata.paymentLogId === 'string'
+      ? input.metadata.paymentLogId
+      : null;
+  const stripePaymentIntentId = typeof input.stripePaymentIntentId === 'string'
+    ? input.stripePaymentIntentId
+    : typeof input.metadata.stripePaymentIntentId === 'string'
+      ? input.metadata.stripePaymentIntentId
+      : null;
+  const stripeCheckoutSessionId = typeof input.stripeCheckoutSessionId === 'string'
+    ? input.stripeCheckoutSessionId
+    : typeof input.metadata.stripeCheckoutSessionId === 'string'
+      ? input.metadata.stripeCheckoutSessionId
+      : null;
+  const currency = typeof itinerary.currency === 'string'
+    ? itinerary.currency
+    : typeof pricing.currency === 'string'
+      ? pricing.currency
+      : null;
+  const normalizedMetadata = withLifecycleMetadata(input.metadata, input.status, paymentStatus);
+
   const fallbackId = randomUUID();
   const fallbackRecord: FallbackBookingRecord = {
     id: fallbackId,
+    user_id: input.userId ?? null,
     liteapi_booking_id: input.liteApiBookingId,
     status: input.status,
     quote_id: input.quoteId,
-    metadata: input.metadata,
+    hotel_id: hotelId,
+    room_id: roomId,
+    check_in: checkIn,
+    check_out: checkOut,
+    total_amount: totalAmount,
+    currency,
+    commission_amount: commissionAmount,
+    payment_status: paymentStatus,
+    confirmation_code: confirmationCode,
+    correlation_id: input.correlationId ?? null,
+    search_log_id: input.searchLogId ?? searchLogIdFromMetadata,
+    latest_payment_log_id: input.latestPaymentLogId ?? latestPaymentLogIdFromMetadata,
+    stripe_payment_intent_id: stripePaymentIntentId,
+    stripe_checkout_session_id: stripeCheckoutSessionId,
+    metadata: normalizedMetadata,
     created_at: new Date().toISOString()
   };
 
@@ -146,10 +352,25 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
     .from('bookings')
     .insert({
       quote_id: input.quoteId,
+      user_id: input.userId ?? null,
       liteapi_booking_id: input.liteApiBookingId,
       status: input.status,
-      metadata: input.metadata
-    })
+      hotel_id: hotelId,
+      room_id: roomId,
+      check_in: checkIn,
+      check_out: checkOut,
+      total_amount: totalAmount,
+      currency,
+      payment_status: paymentStatus,
+      confirmation_code: confirmationCode,
+      commission_amount: commissionAmount,
+      correlation_id: input.correlationId ?? null,
+       search_log_id: input.searchLogId ?? searchLogIdFromMetadata,
+       latest_payment_log_id: input.latestPaymentLogId ?? latestPaymentLogIdFromMetadata,
+       stripe_payment_intent_id: stripePaymentIntentId,
+       stripe_checkout_session_id: stripeCheckoutSessionId,
+       metadata: normalizedMetadata
+      })
     .select('id')
     .single();
 
@@ -164,17 +385,38 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
       return null;
     }
     fallbackBookings.set(fallbackId, fallbackRecord);
+    maybeEnqueueLifecycleNotification(fallbackRecord);
     return fallbackId;
   }
 
-  return data?.id ?? fallbackId;
+  const persistedId = data?.id ?? fallbackId;
+  maybeEnqueueLifecycleNotification({
+    ...fallbackRecord,
+    id: persistedId
+  });
+  return persistedId;
 }
 
 export type BookingRecord = {
   id: string;
+  user_id: string | null;
   liteapi_booking_id: string | null;
   status: string;
   quote_id: string | null;
+  hotel_id: string | null;
+  room_id: string | null;
+  check_in: string | null;
+  check_out: string | null;
+  total_amount: number | null;
+  currency: string | null;
+  commission_amount: number | null;
+  payment_status: string | null;
+  confirmation_code: string | null;
+  correlation_id: string | null;
+  search_log_id: string | null;
+  latest_payment_log_id: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_checkout_session_id: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
 };
@@ -190,7 +432,9 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, liteapi_booking_id, status, quote_id, metadata, created_at')
+    .select(
+      'id, user_id, liteapi_booking_id, status, quote_id, hotel_id, room_id, check_in, check_out, total_amount, currency, commission_amount, payment_status, confirmation_code, correlation_id, search_log_id, latest_payment_log_id, stripe_payment_intent_id, stripe_checkout_session_id, metadata, created_at'
+    )
     .eq('id', id)
     .single();
 
@@ -210,6 +454,147 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
   return (data as BookingRecord) ?? fallbackBookings.get(id) ?? null;
 }
 
+export async function updateBookingStatusById(
+  bookingId: string,
+  status: string,
+  metadata: Record<string, unknown>
+): Promise<boolean> {
+  if (supabaseSchemaUnavailable) {
+    const booking = fallbackBookings.get(bookingId);
+    if (!booking) {
+      return false;
+    }
+
+    try {
+      assertValidBookingTransition(booking.status, status);
+    } catch (error) {
+      logger.warn({ error, bookingId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
+      return false;
+    }
+
+    const mergedMetadata = mergeMetadata(booking.metadata, metadata);
+    const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
+    const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+    const updatedBooking: FallbackBookingRecord = {
+      ...booking,
+      status,
+      total_amount: fields.totalAmount,
+      commission_amount: fields.commissionAmount,
+      payment_status: fields.paymentStatus,
+      confirmation_code: fields.confirmationCode,
+      metadata: normalizedMetadata
+    };
+
+    fallbackBookings.set(bookingId, updatedBooking);
+    maybeEnqueueLifecycleNotification(updatedBooking);
+    return true;
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, status, liteapi_booking_id, check_in, check_out, currency, metadata, total_amount, commission_amount, payment_status, confirmation_code, stripe_payment_intent_id, stripe_checkout_session_id')
+    .eq('id', bookingId)
+    .single();
+
+  if (error || !data?.id) {
+    if (isSchemaMissingError(error)) {
+      supabaseSchemaUnavailable = true;
+      logger.warn({ error, bookingId }, 'Supabase booking schema missing during lookup by booking id.');
+    } else {
+      logger.warn({ error, bookingId }, 'Booking lookup by booking id failed');
+    }
+    return false;
+  }
+
+  try {
+    assertValidBookingTransition(data.status, status);
+  } catch (transitionError) {
+    logger.warn({ error: transitionError, bookingId, from: data.status, to: status }, 'Rejected invalid booking lifecycle transition');
+    return false;
+  }
+
+  const mergedMetadata = mergeMetadata(data.metadata as Record<string, unknown> | null | undefined, metadata);
+  const fields = deriveBookingCanonicalFields(
+    {
+      total_amount: data.total_amount as number | null,
+      commission_amount: data.commission_amount as number | null,
+      payment_status: data.payment_status as string | null,
+      confirmation_code: data.confirmation_code as string | null
+    },
+    mergedMetadata
+  );
+  const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+
+  const { error: updateError } = await supabase
+    .from('bookings')
+    .update({
+      status,
+      total_amount: fields.totalAmount,
+      commission_amount: fields.commissionAmount,
+      payment_status: fields.paymentStatus,
+      confirmation_code: fields.confirmationCode,
+      metadata: normalizedMetadata
+    })
+    .eq('id', data.id);
+
+  if (updateError) {
+    logger.error({ updateError, bookingId }, 'Failed to update booking by booking id');
+    return false;
+  }
+
+  maybeEnqueueLifecycleNotification({
+    id: data.id as string,
+    status,
+    liteapi_booking_id: (data.liteapi_booking_id as string | null) ?? null,
+    confirmation_code: fields.confirmationCode,
+    check_in: (data.check_in as string | null) ?? null,
+    check_out: (data.check_out as string | null) ?? null,
+    total_amount: fields.totalAmount,
+    currency: (data.currency as string | null) ?? null,
+    metadata: normalizedMetadata
+  });
+
+  return true;
+}
+
+export async function getBookingByTransactionId(transactionId: string): Promise<BookingRecord | null> {
+  for (const booking of fallbackBookings.values()) {
+    const existingTransactionId = typeof booking.metadata?.transactionId === 'string'
+      ? booking.metadata.transactionId
+      : null;
+    if (existingTransactionId === transactionId) {
+      return booking;
+    }
+  }
+
+  if (supabaseSchemaUnavailable) {
+    return null;
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(
+      'id, user_id, liteapi_booking_id, status, quote_id, hotel_id, room_id, check_in, check_out, total_amount, currency, commission_amount, payment_status, confirmation_code, correlation_id, search_log_id, latest_payment_log_id, stripe_payment_intent_id, stripe_checkout_session_id, metadata, created_at'
+    )
+    .contains('metadata', { transactionId })
+    .limit(1)
+    .single();
+
+  if (error) {
+    if (isSchemaMissingError(error)) {
+      supabaseSchemaUnavailable = true;
+      logger.warn({ error, transactionId }, 'Supabase booking schema missing during lookup by transaction id.');
+    } else {
+      logger.warn({ error, transactionId }, 'Booking lookup by transaction id failed');
+    }
+    return null;
+  }
+
+  return (data as BookingRecord) ?? null;
+}
+
 export async function updateBookingStatusByLiteApiId(
   liteApiBookingId: string,
   status: string,
@@ -217,11 +602,37 @@ export async function updateBookingStatusByLiteApiId(
 ): Promise<boolean> {
   for (const [id, booking] of fallbackBookings) {
     if (booking.liteapi_booking_id === liteApiBookingId) {
-      fallbackBookings.set(id, {
+      try {
+        assertValidBookingTransition(booking.status, status);
+      } catch (error) {
+        logger.warn({ error, liteApiBookingId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
+        return false;
+      }
+
+      const mergedMetadata = mergeMetadata(booking.metadata, metadata);
+      const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
+        ? mergedMetadata.stripePaymentIntentId
+        : booking.stripe_payment_intent_id;
+      const stripeCheckoutSessionId = typeof mergedMetadata.stripeCheckoutSessionId === 'string'
+        ? mergedMetadata.stripeCheckoutSessionId
+        : booking.stripe_checkout_session_id;
+      const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
+      const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+      const updatedBooking: FallbackBookingRecord = {
         ...booking,
         status,
-        metadata: mergeMetadata(booking.metadata, metadata)
+        total_amount: fields.totalAmount,
+        commission_amount: fields.commissionAmount,
+        payment_status: fields.paymentStatus,
+        confirmation_code: fields.confirmationCode,
+        stripe_payment_intent_id: stripePaymentIntentId,
+        stripe_checkout_session_id: stripeCheckoutSessionId,
+        metadata: normalizedMetadata
+      };
+      fallbackBookings.set(id, {
+        ...updatedBooking
       });
+      maybeEnqueueLifecycleNotification(updatedBooking);
       return true;
     }
   }
@@ -233,7 +644,7 @@ export async function updateBookingStatusByLiteApiId(
   const supabase = createAdminClient();
   const { data, error: lookupError } = await supabase
     .from('bookings')
-    .select('id, metadata')
+    .select('id, status, liteapi_booking_id, check_in, check_out, currency, metadata, total_amount, commission_amount, payment_status, confirmation_code, stripe_payment_intent_id, stripe_checkout_session_id')
     .eq('liteapi_booking_id', liteApiBookingId)
     .limit(1)
     .single();
@@ -248,15 +659,44 @@ export async function updateBookingStatusByLiteApiId(
     return false;
   }
 
+  try {
+    assertValidBookingTransition(data.status, status);
+  } catch (error) {
+    logger.warn({ error, liteApiBookingId, from: data.status, to: status }, 'Rejected invalid booking lifecycle transition');
+    return false;
+  }
+
   const mergedMetadata = mergeMetadata(
     data.metadata as Record<string, unknown> | null | undefined,
     metadata
   );
+  const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
+    ? mergedMetadata.stripePaymentIntentId
+    : (data.stripe_payment_intent_id as string | null);
+  const stripeCheckoutSessionId = typeof mergedMetadata.stripeCheckoutSessionId === 'string'
+    ? mergedMetadata.stripeCheckoutSessionId
+    : (data.stripe_checkout_session_id as string | null);
+  const fields = deriveBookingCanonicalFields(
+    {
+      total_amount: data.total_amount as number | null,
+      commission_amount: data.commission_amount as number | null,
+      payment_status: data.payment_status as string | null,
+      confirmation_code: data.confirmation_code as string | null
+    },
+    mergedMetadata
+  );
+  const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
   const { error } = await supabase
     .from('bookings')
     .update({
       status,
-      metadata: mergedMetadata
+      total_amount: fields.totalAmount,
+      commission_amount: fields.commissionAmount,
+      payment_status: fields.paymentStatus,
+      confirmation_code: fields.confirmationCode,
+      stripe_payment_intent_id: stripePaymentIntentId,
+      stripe_checkout_session_id: stripeCheckoutSessionId,
+      metadata: normalizedMetadata
     })
     .eq('id', data.id);
 
@@ -269,6 +709,18 @@ export async function updateBookingStatusByLiteApiId(
     }
     return false;
   }
+
+  maybeEnqueueLifecycleNotification({
+    id: data.id as string,
+    status,
+    liteapi_booking_id: (data.liteapi_booking_id as string | null) ?? null,
+    confirmation_code: fields.confirmationCode,
+    check_in: (data.check_in as string | null) ?? null,
+    check_out: (data.check_out as string | null) ?? null,
+    total_amount: fields.totalAmount,
+    currency: (data.currency as string | null) ?? null,
+    metadata: normalizedMetadata
+  });
 
   return true;
 }
@@ -283,11 +735,37 @@ export async function updateBookingStatusByTransactionId(
       ? booking.metadata.transactionId
       : null;
     if (existingTransactionId === transactionId) {
-      fallbackBookings.set(id, {
+      try {
+        assertValidBookingTransition(booking.status, status);
+      } catch (error) {
+        logger.warn({ error, transactionId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
+        return false;
+      }
+
+      const mergedMetadata = mergeMetadata(booking.metadata, metadata);
+      const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
+        ? mergedMetadata.stripePaymentIntentId
+        : booking.stripe_payment_intent_id;
+      const stripeCheckoutSessionId = typeof mergedMetadata.stripeCheckoutSessionId === 'string'
+        ? mergedMetadata.stripeCheckoutSessionId
+        : booking.stripe_checkout_session_id;
+      const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
+      const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+      const updatedBooking: FallbackBookingRecord = {
         ...booking,
         status,
-        metadata: mergeMetadata(booking.metadata, metadata)
+        total_amount: fields.totalAmount,
+        commission_amount: fields.commissionAmount,
+        payment_status: fields.paymentStatus,
+        confirmation_code: fields.confirmationCode,
+        stripe_payment_intent_id: stripePaymentIntentId,
+        stripe_checkout_session_id: stripeCheckoutSessionId,
+        metadata: normalizedMetadata
+      };
+      fallbackBookings.set(id, {
+        ...updatedBooking
       });
+      maybeEnqueueLifecycleNotification(updatedBooking);
       return true;
     }
   }
@@ -299,7 +777,7 @@ export async function updateBookingStatusByTransactionId(
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, metadata')
+    .select('id, status, liteapi_booking_id, check_in, check_out, currency, metadata, total_amount, commission_amount, payment_status, confirmation_code, stripe_payment_intent_id, stripe_checkout_session_id')
     .contains('metadata', { transactionId })
     .limit(1)
     .single();
@@ -314,15 +792,44 @@ export async function updateBookingStatusByTransactionId(
     return false;
   }
 
+  try {
+    assertValidBookingTransition(data.status, status);
+  } catch (transitionError) {
+    logger.warn({ error: transitionError, transactionId, from: data.status, to: status }, 'Rejected invalid booking lifecycle transition');
+    return false;
+  }
+
   const mergedMetadata = mergeMetadata(
     data.metadata as Record<string, unknown> | null | undefined,
     metadata
   );
+  const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
+    ? mergedMetadata.stripePaymentIntentId
+    : (data.stripe_payment_intent_id as string | null);
+  const stripeCheckoutSessionId = typeof mergedMetadata.stripeCheckoutSessionId === 'string'
+    ? mergedMetadata.stripeCheckoutSessionId
+    : (data.stripe_checkout_session_id as string | null);
+  const fields = deriveBookingCanonicalFields(
+    {
+      total_amount: data.total_amount as number | null,
+      commission_amount: data.commission_amount as number | null,
+      payment_status: data.payment_status as string | null,
+      confirmation_code: data.confirmation_code as string | null
+    },
+    mergedMetadata
+  );
+  const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
   const { error: updateError } = await supabase
     .from('bookings')
     .update({
       status,
-      metadata: mergedMetadata
+      total_amount: fields.totalAmount,
+      commission_amount: fields.commissionAmount,
+      payment_status: fields.paymentStatus,
+      confirmation_code: fields.confirmationCode,
+      stripe_payment_intent_id: stripePaymentIntentId,
+      stripe_checkout_session_id: stripeCheckoutSessionId,
+      metadata: normalizedMetadata
     })
     .eq('id', data.id);
 
@@ -330,6 +837,18 @@ export async function updateBookingStatusByTransactionId(
     logger.error({ updateError, transactionId }, 'Failed to update booking by transactionId');
     return false;
   }
+
+  maybeEnqueueLifecycleNotification({
+    id: data.id as string,
+    status,
+    liteapi_booking_id: (data.liteapi_booking_id as string | null) ?? null,
+    confirmation_code: fields.confirmationCode,
+    check_in: (data.check_in as string | null) ?? null,
+    check_out: (data.check_out as string | null) ?? null,
+    total_amount: fields.totalAmount,
+    currency: (data.currency as string | null) ?? null,
+    metadata: normalizedMetadata
+  });
 
   return true;
 }

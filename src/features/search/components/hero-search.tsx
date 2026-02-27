@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { Calendar, Search, Shield, Users } from 'lucide-react';
+import { Search, Shield, Users, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
 import { usePropertyPreview } from '@/features/search/hooks/use-property-preview';
 import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
@@ -23,6 +24,15 @@ export function HeroSearch() {
   const [activeQuery, setActiveQuery] = useState('');
   const [checkIn, setCheckIn] = useState(defaultCheckIn.toISOString().slice(0, 10));
   const [checkOut, setCheckOut] = useState(defaultCheckOut.toISOString().slice(0, 10));
+
+  useEffect(() => {
+    if (checkOut <= checkIn) {
+      const nextDay = new Date(checkIn);
+      nextDay.setDate(nextDay.getDate() + 1);
+      setCheckOut(nextDay.toISOString().slice(0, 10));
+    }
+  }, [checkIn, checkOut]);
+
   const [adults, setAdults] = useState(2);
   const [rooms, setRooms] = useState(1);
   const [showSuggestions, setShowSuggestions] = useState(true);
@@ -39,6 +49,7 @@ export function HeroSearch() {
     data: propertyPreview,
     isFetching: isPreviewLoading
   } = usePropertyPreview(activeQuery, language, currency, checkIn, checkOut, adults, rooms);
+  const previewListings = propertyPreview?.data ?? [];
   const selectedNights = (() => {
     const start = new Date(checkIn);
     const end = new Date(checkOut);
@@ -86,7 +97,6 @@ export function HeroSearch() {
         suggestionLength: name.length
       }
     });
-    onSearch(name);
   };
 
   const onAutocompleteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -233,6 +243,7 @@ export function HeroSearch() {
               type="date"
               className="rounded-md border border-border bg-background px-2 py-1 text-sm"
               value={checkIn}
+              min={today.toISOString().slice(0, 10)}
               onChange={(event) => setCheckIn(event.target.value)}
               aria-label="Check-in date"
             />
@@ -241,6 +252,7 @@ export function HeroSearch() {
               type="date"
               className="rounded-md border border-border bg-background px-2 py-1 text-sm"
               value={checkOut}
+              min={checkIn}
               onChange={(event) => setCheckOut(event.target.value)}
               aria-label="Check-out date"
             />
@@ -290,7 +302,7 @@ export function HeroSearch() {
             <p className="text-sm text-muted-foreground">Loading properties...</p>
           ) : (
             <div className="grid gap-3 md:grid-cols-3">
-              {(propertyPreview ?? []).map((hotel, idx) => (
+              {previewListings.map((hotel, idx) => (
                 <PreferenceLink
                   key={hotel.hotelId}
                   href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkIn)}&checkout=${encodeURIComponent(checkOut)}&adults=${adults}&rooms=${rooms}&currency=${encodeURIComponent(currency)}`}
@@ -307,13 +319,15 @@ export function HeroSearch() {
                   }
                 >
                   {hotel.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={hotel.imageUrl}
-                      alt={hotel.name}
-                      className="h-40 w-full object-cover"
-                      loading="lazy"
-                    />
+                    <div className="relative h-40 w-full">
+                      <Image
+                        src={hotel.imageUrl}
+                        alt={hotel.name}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover"
+                      />
+                    </div>
                   ) : (
                     <div className="h-40 w-full bg-[linear-gradient(120deg,hsl(var(--muted))_0%,hsl(var(--card))_55%,hsl(var(--muted))_100%)]" />
                   )}

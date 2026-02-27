@@ -1,14 +1,42 @@
 import 'server-only';
 import LiteAPI from 'liteapi-node-sdk';
-import { env } from '@/server/env';
+import { env, getLiteApiRuntimeConfig, getLiteApiRuntimeConfigForMode } from '@/server/env';
 import { logger } from '@/server/logger';
 import { HttpError } from '@/server/errors';
+import { getAppSettings } from '@/server/settings/repository';
 
-const liteApiClient = new LiteAPI({
-  apiKey: env.LITEAPI_API_KEY,
-  baseURL: env.LITEAPI_BASE_URL,
-  timeout: env.LITEAPI_TIMEOUT_MS
-} as never);
+const RUNTIME_MODE_CACHE_TTL_MS = 5_000;
+
+let cachedRuntimeConfig: {
+  value: ReturnType<typeof getLiteApiRuntimeConfig>;
+  expiresAt: number;
+} | null = null;
+
+async function resolveLiteApiRuntimeConfig() {
+  const now = Date.now();
+  if (cachedRuntimeConfig && cachedRuntimeConfig.expiresAt > now) {
+    return cachedRuntimeConfig.value;
+  }
+
+  const envRuntime = getLiteApiRuntimeConfig();
+
+  try {
+    const settings = await getAppSettings();
+    const runtime = getLiteApiRuntimeConfigForMode(settings.environmentMode);
+    cachedRuntimeConfig = {
+      value: runtime,
+      expiresAt: now + RUNTIME_MODE_CACHE_TTL_MS
+    };
+    return runtime;
+  } catch (error) {
+    logger.warn({ error }, 'Failed to resolve app settings environment mode. Using env runtime mode.');
+    cachedRuntimeConfig = {
+      value: envRuntime,
+      expiresAt: now + RUNTIME_MODE_CACHE_TTL_MS
+    };
+    return envRuntime;
+  }
+}
 
 type AutocompleteEntity = {
   id: string;
@@ -27,12 +55,50 @@ export type PropertyPreview = {
   name: string;
   city: string;
   countryCode?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   starRating: number | null;
   reviewScore?: number | null;
   reviewCount?: number | null;
   imageUrl?: string;
   price: number | null;
   currency: string;
+  amenities: string[];
+};
+
+export type SupplierDegradedReason = 'timeout' | 'partial' | 'unavailable';
+
+export type PropertyPreviewSearchResult = {
+  properties: PropertyPreview[];
+  degraded: boolean;
+  degradedReason: SupplierDegradedReason | null;
+  asOf: string;
+  freshness: 'fresh' | 'stale';
+};
+
+export type SemanticHotelMatch = {
+  hotelId: string;
+  name: string;
+  city: string;
+  countryCode: string | null;
+  address: string | null;
+  imageUrl: string | null;
+  score: number | null;
+  tags: string[];
+  story: string | null;
+};
+
+export type RoomSearchMatch = {
+  hotelId: string;
+  hotelName: string;
+  city: string | null;
+  countryCode: string | null;
+  rating: number | null;
+  rooms: Array<{
+    name: string;
+    imageUrl: string | null;
+    score: number | null;
+  }>;
 };
 
 export type LiteApiPrebookResponse = {
@@ -43,35 +109,103 @@ export type LiteApiPrebookResponse = {
   currency: string;
 };
 
+export type HotelGuestReview = {
+  author: string | null;
+  travelerType: string | null;
+  comment: string;
+  score: number | null;
+  createdAt: string | null;
+  pros: string | null;
+  cons: string | null;
+};
+
+export type HotelPolicyDetails = {
+  checkInFrom: string | null;
+  checkInUntil: string | null;
+  checkOutFrom: string | null;
+  checkOutUntil: string | null;
+  cancellation: string[];
+  payment: string[];
+  pets: string[];
+  children: string[];
+  extra: string[];
+};
+
+export type HotelLocationContext = {
+  addressLine: string | null;
+  city: string | null;
+  countryCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  neighborhood: string | null;
+  transit: string[];
+  nearbyLandmarks: string[];
+};
+
+export type HotelProsAndCons = {
+  pros: string[];
+  cons: string[];
+};
+
+export type HotelFacilityCategory = {
+  category: string;
+  items: string[];
+};
+
+export type HotelAreaInfoItem = {
+  label: string;
+  value: string;
+};
+
+export type HotelRestaurantInfo = {
+  name: string;
+  cuisine: string | null;
+  description: string | null;
+};
+
+export type HotelHouseRuleItem = {
+  title: string;
+  detail: string;
+};
+
+export type HotelDetailCompleteness = {
+  isPartial: boolean;
+  missingSections: string[];
+  message: string;
+};
+
 export type HotelDetails = {
   id: string;
   name: string;
   city: string;
-  countryCode?: string;
-  address?: string;
-  mainPhoto?: string;
-  photos?: string[];
-  facilities?: string[];
-  description?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  starRating?: number | null;
-  reviewScore?: number | null;
-  reviewCount?: number | null;
-  reviewBreakdown?: Array<{ label: string; score: number }>;
-  reviews?: Array<{
-    author?: string;
-    travelerType?: string;
-    comment: string;
-    score?: number | null;
-    createdAt?: string;
-  }>;
+  countryCode: string | null;
+  address: string | null;
+  mainPhoto: string | null;
+  photos: string[];
+  facilities: string[];
+  description: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  starRating: number | null;
+  reviewScore: number | null;
+  reviewCount: number | null;
+  reviewBreakdown: Array<{ label: string; score: number }>;
+  reviews: HotelGuestReview[];
+  policies: HotelPolicyDetails;
+  locationContext: HotelLocationContext;
+  prosAndCons: HotelProsAndCons;
+  facilityCategories?: HotelFacilityCategory[];
+  areaInfo?: HotelAreaInfoItem[];
+  nearbyRestaurants?: HotelRestaurantInfo[];
+  houseRulesDetailed?: HotelHouseRuleItem[];
+  completeness: HotelDetailCompleteness;
 };
 
 export type HotelRateOption = {
   offerId: string;
   roomId: string;
   roomName: string;
+  imageUrl?: string | null;
   boardName: string;
   refundableTag: string;
   cancelTime?: string | null;
@@ -111,11 +245,41 @@ function nextStayWindow(): { checkin: string; checkout: string } {
   };
 }
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> {
+import { Redis } from '@upstash/redis';
+
+const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN ? Redis.fromEnv() : null;
+
+type DetailedFetchResult<T> = {
+  data: T | null;
+  degradedReason: Exclude<SupplierDegradedReason, 'partial'> | null;
+};
+
+function isTimeoutLikeError(error: unknown): boolean {
+  return error instanceof Error && (error.name === 'AbortError' || /timeout|aborted/i.test(error.message));
+}
+
+async function fetchJsonWithBackoffDetailed<T>(
+  url: string,
+  init?: RequestInit,
+  retries = 3,
+  delay = 500
+): Promise<DetailedFetchResult<T>> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   try {
-    const response = await fetch(url, init);
+    const timeoutMs = Math.max(1_000, env.LITEAPI_TIMEOUT_MS);
+    const controller = new AbortController();
+    timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(url, {
+      ...init,
+      signal: init?.signal ?? controller.signal
+    });
     const text = await response.text();
     if (!response.ok) {
+      if (response.status === 429 && retries > 0) {
+        logger.warn({ url, retriesLeft: retries }, 'LiteAPI rate limited. Retrying...');
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return fetchJsonWithBackoffDetailed<T>(url, init, retries - 1, delay * 2);
+      }
       logger.warn(
         {
           url,
@@ -124,13 +288,36 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> 
         },
         'LiteAPI request failed'
       );
-      return null;
+      return {
+        data: null,
+        degradedReason: 'unavailable'
+      };
     }
-    return JSON.parse(text) as T;
+    return {
+      data: JSON.parse(text) as T,
+      degradedReason: null
+    };
   } catch (error) {
+    if (retries > 0) {
+      logger.warn({ error, url, retriesLeft: retries }, 'LiteAPI request errored. Retrying...');
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return fetchJsonWithBackoffDetailed<T>(url, init, retries - 1, delay * 2);
+    }
     logger.warn({ error, url }, 'LiteAPI request errored');
-    return null;
+    return {
+      data: null,
+      degradedReason: isTimeoutLikeError(error) ? 'timeout' : 'unavailable'
+    };
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
   }
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> {
+  const result = await fetchJsonWithBackoffDetailed<T>(url, init);
+  return result.data;
 }
 
 function parseRateAmount(rate: Record<string, unknown>): { amount: number | null; currency: string | null } {
@@ -155,6 +342,45 @@ function parseRateAmount(rate: Record<string, unknown>): { amount: number | null
 function parseNumber(value: unknown): number | null {
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function cleanString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function pickStringValue(data: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = cleanString(data[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
+function pickStringList(data: Record<string, unknown>, keys: string[]): string[] {
+  for (const key of keys) {
+    const candidate = data[key];
+    if (!Array.isArray(candidate)) continue;
+    const list = candidate
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (!item || typeof item !== 'object') return '';
+        const row = item as Record<string, unknown>;
+        return (
+          cleanString(row.text) ??
+          cleanString(row.label) ??
+          cleanString(row.name) ??
+          cleanString(row.value) ??
+          ''
+        );
+      })
+      .filter(Boolean);
+    if (list.length > 0) {
+      return list;
+    }
+  }
+  return [];
 }
 
 function pickImageUrl(hotel: Record<string, unknown>): string | undefined {
@@ -214,9 +440,41 @@ function pickImageUrls(hotel: Record<string, unknown>): string[] {
           }
         }
       }
-      if (picked.size >= 6) break;
+      if (picked.size >= 24) break;
     }
-    if (picked.size >= 6) break;
+    if (picked.size >= 24) break;
+  }
+
+  return Array.from(picked);
+}
+
+function pickImageUrlsFromUnknown(value: unknown): string[] {
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+
+  const record = value as Record<string, unknown>;
+  const picked = new Set<string>(pickImageUrls(record));
+  const extraArrayKeys = ['roomImages', 'photoUrls', 'media', 'assets'];
+  for (const key of extraArrayKeys) {
+    const candidate = record[key];
+    if (!Array.isArray(candidate)) {
+      continue;
+    }
+
+    for (const item of candidate) {
+      if (typeof item === 'string' && item.trim().length > 0) {
+        picked.add(item.trim());
+        continue;
+      }
+      if (item && typeof item === 'object') {
+        const row = item as Record<string, unknown>;
+        const url = cleanString(row.url) ?? cleanString(row.image) ?? cleanString(row.imageUrl) ?? cleanString(row.src);
+        if (url) {
+          picked.add(url);
+        }
+      }
+    }
   }
 
   return Array.from(picked);
@@ -239,7 +497,7 @@ function pickFacilities(data: Record<string, unknown>): string[] {
       })
       .filter(Boolean);
     if (names.length > 0) {
-      return names.slice(0, 20);
+      return names.slice(0, 80);
     }
   }
   return [];
@@ -288,7 +546,7 @@ function pickReviewBreakdown(data: Record<string, unknown>): Array<{ label: stri
   return [];
 }
 
-function pickGuestReviews(data: Record<string, unknown>) {
+function pickGuestReviews(data: Record<string, unknown>): HotelGuestReview[] {
   const candidates = [
     data.reviews,
     (data.reviewData as Record<string, unknown> | undefined)?.reviews,
@@ -310,41 +568,280 @@ function pickGuestReviews(data: Record<string, unknown>) {
                 ? row.text
                 : '';
         if (!comment.trim()) return null;
+        const pros = cleanString(row.pros) ?? cleanString(row.positive);
+        const cons = cleanString(row.cons) ?? cleanString(row.negative);
+
         return {
-          author:
-            typeof row.author === 'string'
-              ? row.author
-              : typeof row.userName === 'string'
-                ? row.userName
-                : typeof row.guest === 'string'
-                  ? row.guest
-                  : undefined,
-          travelerType:
-            typeof row.travelerType === 'string'
-              ? row.travelerType
-              : typeof row.tripType === 'string'
-                ? row.tripType
-                : undefined,
+          author: cleanString(row.author) ?? cleanString(row.userName) ?? cleanString(row.guest),
+          travelerType: cleanString(row.travelerType) ?? cleanString(row.tripType),
           comment: comment.trim(),
           score: parseNumber(row.score) ?? parseNumber(row.rating),
-          createdAt:
-            typeof row.createdAt === 'string'
-              ? row.createdAt
-              : typeof row.date === 'string'
-                ? row.date
-                : undefined
-        } as {
-          author?: string;
-          travelerType?: string;
-          comment: string;
-          score?: number | null;
-          createdAt?: string;
-        };
+          createdAt: cleanString(row.createdAt) ?? cleanString(row.date),
+          pros,
+          cons
+        } satisfies HotelGuestReview;
       })
       .filter((item) => item !== null);
     if (mapped.length > 0) return mapped.slice(0, 20);
   }
   return [];
+}
+
+function pickPolicies(data: Record<string, unknown>): HotelPolicyDetails {
+  const policyRoot =
+    (data.policies as Record<string, unknown> | undefined) ??
+    (data.policy as Record<string, unknown> | undefined) ??
+    {};
+
+  const checkIn =
+    (policyRoot.checkIn as Record<string, unknown> | undefined) ??
+    (data.checkIn as Record<string, unknown> | undefined) ??
+    {};
+  const checkOut =
+    (policyRoot.checkOut as Record<string, unknown> | undefined) ??
+    (data.checkOut as Record<string, unknown> | undefined) ??
+    {};
+
+  return {
+    checkInFrom:
+      cleanString(checkIn.from) ??
+      cleanString(checkIn.start) ??
+      pickStringValue(policyRoot, ['checkInFrom', 'checkinFrom', 'checkInStart']),
+    checkInUntil:
+      cleanString(checkIn.until) ??
+      cleanString(checkIn.end) ??
+      pickStringValue(policyRoot, ['checkInUntil', 'checkinUntil', 'checkInEnd']),
+    checkOutFrom:
+      cleanString(checkOut.from) ??
+      cleanString(checkOut.start) ??
+      pickStringValue(policyRoot, ['checkOutFrom', 'checkoutFrom', 'checkOutStart']),
+    checkOutUntil:
+      cleanString(checkOut.until) ??
+      cleanString(checkOut.end) ??
+      pickStringValue(policyRoot, ['checkOutUntil', 'checkoutUntil', 'checkOutEnd']),
+    cancellation: pickStringList(policyRoot, ['cancellation', 'cancellationPolicies', 'cancellationPolicy'])
+      .concat(pickStringList(data, ['cancellationPolicy']))
+      .slice(0, 20),
+    payment: pickStringList(policyRoot, ['payment', 'paymentTerms']).slice(0, 20),
+    pets: pickStringList(policyRoot, ['pets', 'petPolicy']).slice(0, 20),
+    children: pickStringList(policyRoot, ['children', 'childPolicy', 'childrenPolicy']).slice(0, 20),
+    extra: pickStringList(policyRoot, ['other', 'extra', 'importantNotes']).slice(0, 20)
+  };
+}
+
+function pickLocationContext(data: Record<string, unknown>, city: string, countryCode: string | null): HotelLocationContext {
+  const { latitude, longitude } = pickCoordinates(data);
+  const locationRoot =
+    (data.location as Record<string, unknown> | undefined) ??
+    (data.area as Record<string, unknown> | undefined) ??
+    {};
+
+  return {
+    addressLine: cleanString(data.address),
+    city: cleanString(data.city) ?? city,
+    countryCode,
+    latitude,
+    longitude,
+    neighborhood: pickStringValue(locationRoot, ['neighborhood', 'district', 'areaName']),
+    transit: pickStringList(locationRoot, ['transit', 'transport', 'publicTransport', 'metro', 'bus', 'airport']).slice(0, 20),
+    nearbyLandmarks: pickStringList(locationRoot, ['nearby', 'landmarks', 'pointsOfInterest', 'attractions', 'poi']).slice(0, 20)
+  };
+}
+
+function pickFacilityCategories(data: Record<string, unknown>, facilities: string[]): HotelFacilityCategory[] {
+  const directGroups = data.facilitiesByCategory ?? data.facilityGroups ?? data.hotelFacilities;
+  if (Array.isArray(directGroups)) {
+    const mapped = directGroups
+      .map((group) => {
+        if (!group || typeof group !== 'object') return null;
+        const row = group as Record<string, unknown>;
+        const category = cleanString(row.category) ?? cleanString(row.name) ?? cleanString(row.title);
+        const items = pickStringList(row, ['items', 'facilities', 'amenities']);
+        if (!category || items.length === 0) return null;
+        return { category, items: items.slice(0, 18) } satisfies HotelFacilityCategory;
+      })
+      .filter((item): item is HotelFacilityCategory => Boolean(item));
+    if (mapped.length > 0) return mapped.slice(0, 8);
+  }
+
+  if (facilities.length === 0) {
+    return [];
+  }
+
+  const buckets: Record<string, string[]> = {
+    'Most popular facilities': [],
+    Services: [],
+    'Room amenities': [],
+    'Food & drink': [],
+    'Safety & security': []
+  };
+
+  for (const facility of facilities) {
+    const text = facility.toLowerCase();
+    if (/(wifi|internet|desk|tv|air|bath|shower|linen|wardrobe|socket)/.test(text)) {
+      buckets['Room amenities'].push(facility);
+    } else if (/(restaurant|bar|breakfast|coffee|kitchen|dining)/.test(text)) {
+      buckets['Food & drink'].push(facility);
+    } else if (/(security|cctv|alarm|safe|fire|smoke)/.test(text)) {
+      buckets['Safety & security'].push(facility);
+    } else if (/(concierge|front desk|housekeeping|laundry|parking|shuttle|car hire|luggage)/.test(text)) {
+      buckets.Services.push(facility);
+    } else {
+      buckets['Most popular facilities'].push(facility);
+    }
+  }
+
+  return Object.entries(buckets)
+    .map(([category, items]) => ({ category, items: Array.from(new Set(items)).slice(0, 18) }))
+    .filter((group) => group.items.length > 0);
+}
+
+function pickAreaInfo(data: Record<string, unknown>, location: HotelLocationContext): HotelAreaInfoItem[] {
+  const area: HotelAreaInfoItem[] = [];
+  if (location.addressLine) {
+    area.push({ label: 'Address', value: location.addressLine });
+  }
+  if (location.neighborhood) {
+    area.push({ label: 'Neighborhood', value: location.neighborhood });
+  }
+  if (location.transit.length > 0) {
+    area.push({ label: 'Transit', value: location.transit.slice(0, 3).join(', ') });
+  }
+  if (location.nearbyLandmarks.length > 0) {
+    area.push({ label: 'Nearby places', value: location.nearbyLandmarks.slice(0, 4).join(', ') });
+  }
+  if (location.city) {
+    area.push({ label: 'City', value: location.city });
+  }
+  if (location.countryCode) {
+    area.push({ label: 'Country', value: location.countryCode });
+  }
+  if (location.latitude !== null && location.longitude !== null) {
+    area.push({ label: 'Coordinates', value: `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` });
+  }
+
+  const distances = (data.distances as Array<Record<string, unknown>> | undefined) ?? [];
+  for (const distance of distances.slice(0, 4)) {
+    const name = cleanString(distance.name) ?? cleanString(distance.place) ?? null;
+    const value = cleanString(distance.distance) ?? cleanString(distance.value) ?? null;
+    if (name && value) {
+      area.push({ label: name, value });
+    }
+  }
+
+  return area.slice(0, 8);
+}
+
+function pickNearbyRestaurants(data: Record<string, unknown>): HotelRestaurantInfo[] {
+  const candidates = [data.restaurants, data.dining, data.nearbyRestaurants];
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const mapped = candidate
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const row = item as Record<string, unknown>;
+        const name = cleanString(row.name) ?? cleanString(row.title);
+        if (!name) return null;
+        return {
+          name,
+          cuisine: cleanString(row.cuisine) ?? cleanString(row.type),
+          description: cleanString(row.description) ?? cleanString(row.summary)
+        } satisfies HotelRestaurantInfo;
+      })
+      .filter((item): item is HotelRestaurantInfo => Boolean(item));
+    if (mapped.length > 0) {
+      return mapped.slice(0, 6);
+    }
+  }
+  return [];
+}
+
+function pickHouseRulesDetailed(data: Record<string, unknown>, policies: HotelPolicyDetails): HotelHouseRuleItem[] {
+  const rulesRoot = (data.houseRules as Array<Record<string, unknown>> | undefined) ?? [];
+  const mapped = rulesRoot
+    .map((item) => {
+      const title = cleanString(item.title) ?? cleanString(item.name);
+      const detail = cleanString(item.detail) ?? cleanString(item.value) ?? cleanString(item.description);
+      if (!title || !detail) return null;
+      return { title, detail } satisfies HotelHouseRuleItem;
+    })
+    .filter((item): item is HotelHouseRuleItem => Boolean(item));
+
+  if (mapped.length > 0) {
+    return mapped.slice(0, 10);
+  }
+
+  const fallback: HotelHouseRuleItem[] = [];
+  if (policies.children.length > 0) {
+    fallback.push({ title: 'Children policy', detail: policies.children.join(' ') });
+  }
+  if (policies.pets.length > 0) {
+    fallback.push({ title: 'Pet policy', detail: policies.pets.join(' ') });
+  }
+  if (policies.cancellation.length > 0) {
+    fallback.push({ title: 'Cancellation', detail: policies.cancellation[0] });
+  }
+  if (policies.payment.length > 0) {
+    fallback.push({ title: 'Payment', detail: policies.payment[0] });
+  }
+
+  return fallback;
+}
+
+function pickProsAndCons(reviews: HotelGuestReview[]): HotelProsAndCons {
+  const pros = new Set<string>();
+  const cons = new Set<string>();
+
+  for (const review of reviews) {
+    if (review.pros) pros.add(review.pros);
+    if (review.cons) cons.add(review.cons);
+    if (pros.size >= 6 && cons.size >= 6) break;
+  }
+
+  return {
+    pros: Array.from(pros).slice(0, 6),
+    cons: Array.from(cons).slice(0, 6)
+  };
+}
+
+function buildCompleteness(details: {
+  photos: string[];
+  facilities: string[];
+  policies: HotelPolicyDetails;
+  locationContext: HotelLocationContext;
+  reviews: HotelGuestReview[];
+  prosAndCons: HotelProsAndCons;
+}): HotelDetailCompleteness {
+  const missingSections: string[] = [];
+  if (details.photos.length === 0) missingSections.push('gallery');
+  if (details.facilities.length === 0) missingSections.push('amenities');
+  if (
+    details.policies.cancellation.length === 0 &&
+    details.policies.checkInFrom === null &&
+    details.policies.checkOutUntil === null
+  ) {
+    missingSections.push('policies');
+  }
+  if (
+    details.locationContext.addressLine === null &&
+    details.locationContext.latitude === null &&
+    details.locationContext.nearbyLandmarks.length === 0
+  ) {
+    missingSections.push('location');
+  }
+  if (details.reviews.length === 0) missingSections.push('reviews');
+  if (details.prosAndCons.pros.length === 0 && details.prosAndCons.cons.length === 0) {
+    missingSections.push('pros-cons');
+  }
+
+  return {
+    isPartial: missingSections.length > 0,
+    missingSections,
+    message:
+      missingSections.length > 0
+        ? `Some supplier details are currently unavailable: ${missingSections.join(', ')}.`
+        : 'Supplier content for key hotel sections is available.'
+  };
 }
 
 function pickReviewScore(data: Record<string, unknown>): number | null {
@@ -369,28 +866,29 @@ function shouldEnrichReviews(
   reviewScore: number | null,
   reviewCount: number | null,
   reviewBreakdown: Array<{ label: string; score: number }>,
-  reviews: Array<{ author?: string; travelerType?: string; comment: string; score?: number | null; createdAt?: string }>
+  reviews: HotelGuestReview[]
 ): boolean {
   return reviewScore === null || reviewCount === null || reviewBreakdown.length === 0 || reviews.length === 0;
 }
 
 async function fetchReviewEnrichmentFromRates(
   hotelId: string,
+  runtime: Awaited<ReturnType<typeof resolveLiteApiRuntimeConfig>>,
   currency?: string
 ): Promise<{
   reviewScore: number | null;
   reviewCount: number | null;
   reviewBreakdown: Array<{ label: string; score: number }>;
-  reviews: Array<{ author?: string; travelerType?: string; comment: string; score?: number | null; createdAt?: string }>;
+  reviews: HotelGuestReview[];
 } | null> {
   try {
     const stayWindow = nextStayWindow();
-    const response = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+    const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': runtime.apiKey
       },
       body: JSON.stringify({
         hotelIds: [hotelId],
@@ -475,18 +973,22 @@ function mapRatesResponse(
       parseNumber(hotel.reviewsCount) ??
       parseNumber(hotel.numReviews) ??
       parseNumber(hotel.totalReviews);
+    const { latitude, longitude } = pickCoordinates(hotel);
 
     return {
       hotelId: hotelId || String(hotel.id ?? `hotel-${Math.random().toString(16).slice(2, 8)}`),
       name: String(hotel.name ?? 'Hotel'),
       city: String(hotel.city ?? fallbackCity),
       countryCode: typeof hotel.countryCode === 'string' ? hotel.countryCode : undefined,
+      latitude,
+      longitude,
       starRating: Number.isFinite(parsedStar) ? parsedStar : null,
       reviewScore,
       reviewCount,
       imageUrl: pickImageUrl(hotel),
       price: amountInfo.amount,
-      currency: amountInfo.currency ?? env.DEFAULT_CURRENCY
+      currency: amountInfo.currency ?? env.DEFAULT_CURRENCY,
+      amenities: pickFacilities(hotel)
     } satisfies PropertyPreview;
   });
 
@@ -502,26 +1004,136 @@ function mapRatesResponse(
   return Array.from(deduped.values());
 }
 
-async function searchRates(payload: RatesSearchPayload, fallbackCity: string): Promise<PropertyPreview[]> {
-  const response = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+type SearchRatesResult = {
+  items: PropertyPreview[];
+  degradedReason: Exclude<SupplierDegradedReason, 'partial'> | null;
+};
+
+async function searchRates(
+  payload: RatesSearchPayload,
+  fallbackCity: string,
+  runtime: Awaited<ReturnType<typeof resolveLiteApiRuntimeConfig>>
+): Promise<SearchRatesResult> {
+  let cacheKey: string | null = null;
+  if (redis) {
+    try {
+      cacheKey = `liteapi:rates:${Buffer.from(JSON.stringify(payload)).toString('base64')}`;
+      const cached = await redis.get<PropertyPreview[]>(cacheKey);
+      if (cached) {
+        return {
+          items: cached,
+          degradedReason: null
+        };
+      }
+    } catch {
+      // ignore cache errors
+    }
+  }
+
+  const response = await fetchJsonWithBackoffDetailed<LiteApiResponse<Array<Record<string, unknown>>>>(`${runtime.baseUrl}/hotels/rates`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     body: JSON.stringify(payload),
     next: { revalidate: 300 }
   });
 
-  if (!response) {
+  if (!response.data) {
+    return {
+      items: [],
+      degradedReason: response.degradedReason
+    };
+  }
+
+  const mapped = mapRatesResponse(response.data, fallbackCity);
+  if (redis && cacheKey && mapped.length > 0) {
+    try {
+      await redis.set(cacheKey, mapped, { ex: 300 });
+    } catch {
+      // ignore
+    }
+  }
+  return {
+    items: mapped,
+    degradedReason: null
+  };
+}
+
+async function fetchPhotoEnrichmentFromRates(
+  hotelId: string,
+  runtime: Awaited<ReturnType<typeof resolveLiteApiRuntimeConfig>>,
+  currency?: string
+): Promise<string[]> {
+  try {
+    const stayWindow = nextStayWindow();
+    const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'X-API-Key': runtime.apiKey
+      },
+      body: JSON.stringify({
+        hotelIds: [hotelId],
+        checkin: stayWindow.checkin,
+        checkout: stayWindow.checkout,
+        occupancies: [{ adults: 2 }],
+        guestNationality: env.DEFAULT_GUEST_NATIONALITY,
+        currency: currency ?? env.DEFAULT_CURRENCY,
+        includeHotelData: true,
+        roomMapping: true,
+        maxRatesPerHotel: 6
+      }),
+      next: { revalidate: 300 }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = (await response.json()) as LiteApiResponse<Array<Record<string, unknown>>>;
+    const photos = new Set<string>();
+
+    for (const hotel of payload.hotels ?? []) {
+      for (const image of pickImageUrlsFromUnknown(hotel)) {
+        photos.add(image);
+      }
+    }
+
+    for (const entry of payload.data ?? []) {
+      const hotelData = (entry.hotel as Record<string, unknown> | undefined) ?? (entry.hotelData as Record<string, unknown> | undefined) ?? {};
+      for (const image of pickImageUrlsFromUnknown(hotelData)) {
+        photos.add(image);
+      }
+
+      const roomTypes = (entry.roomTypes as Array<Record<string, unknown>> | undefined) ?? [];
+      for (const roomType of roomTypes) {
+        for (const image of pickImageUrlsFromUnknown(roomType)) {
+          photos.add(image);
+        }
+        const rates = (roomType.rates as Array<Record<string, unknown>> | undefined) ?? [];
+        for (const rate of rates) {
+          for (const image of pickImageUrlsFromUnknown(rate)) {
+            photos.add(image);
+          }
+        }
+      }
+    }
+
+    return Array.from(photos).slice(0, 40);
+  } catch (error) {
+    logger.warn({ error, hotelId }, 'LiteAPI photo enrichment failed');
     return [];
   }
-  return mapRatesResponse(response, fallbackCity);
 }
 
 export async function autocomplete(query: string, language?: string): Promise<AutocompleteEntity[]> {
-  if (!hasConfiguredLiteApiKey()) {
+  const runtime = await resolveLiteApiRuntimeConfig();
+
+  if (!hasConfiguredLiteApiKey(runtime.apiKey)) {
     return fallbackProperties.map((item) => ({
       id: item.hotelId,
       name: item.city,
@@ -532,11 +1144,11 @@ export async function autocomplete(query: string, language?: string): Promise<Au
 
   try {
     const placesResponse = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(
-      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=8${language ? `&language=${encodeURIComponent(language)}` : ''}`,
+      `${runtime.baseUrl}/data/places?textQuery=${encodeURIComponent(query)}&limit=8${language ? `&language=${encodeURIComponent(language)}` : ''}`,
       {
         headers: {
           accept: 'application/json',
-          'X-API-Key': env.LITEAPI_API_KEY
+          'X-API-Key': runtime.apiKey
         },
         next: { revalidate: 3600 }
       }
@@ -562,6 +1174,11 @@ export async function autocomplete(query: string, language?: string): Promise<Au
       return places.slice(0, 8);
     }
 
+    const liteApiClient = new LiteAPI({
+      apiKey: runtime.apiKey,
+      baseURL: runtime.baseUrl,
+      timeout: env.LITEAPI_TIMEOUT_MS
+    } as never);
     const response = await liteApiClient.data.cities({ query });
     const cities = (response?.data ?? []).slice(0, 8).map((item: Record<string, string>) => ({
       id: item.id,
@@ -589,7 +1206,8 @@ const fallbackProperties: PropertyPreview[] = [
     countryCode: 'AE',
     starRating: 5,
     price: 249,
-    currency: 'USD'
+    currency: 'USD',
+    amenities: []
   },
   {
     hotelId: 'fallback-bali-1',
@@ -598,7 +1216,8 @@ const fallbackProperties: PropertyPreview[] = [
     countryCode: 'ID',
     starRating: 4,
     price: 138,
-    currency: 'USD'
+    currency: 'USD',
+    amenities: []
   },
   {
     hotelId: 'fallback-zurich-1',
@@ -607,12 +1226,173 @@ const fallbackProperties: PropertyPreview[] = [
     countryCode: 'CH',
     starRating: 4,
     price: 201,
-    currency: 'USD'
+    currency: 'USD',
+    amenities: []
   }
 ];
 
-function hasConfiguredLiteApiKey(): boolean {
-  return Boolean(env.LITEAPI_API_KEY && env.LITEAPI_API_KEY !== 'liteapi-placeholder-key');
+function hasConfiguredLiteApiKey(apiKey: string): boolean {
+  return Boolean(apiKey && apiKey !== 'liteapi-placeholder-key');
+}
+
+export async function askHotelQuestionWithLiteApi(
+  hotelId: string,
+  question: string,
+  allowWebSearch = false
+): Promise<string | null> {
+  try {
+    const runtime = await resolveLiteApiRuntimeConfig();
+    const url = new URL(`${runtime.baseUrl}/data/hotel/ask`);
+    url.searchParams.set('hotelId', hotelId);
+    url.searchParams.set('question', question);
+    if (allowWebSearch) {
+      url.searchParams.set('allowWebSearch', 'true');
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        accept: 'application/json',
+        'X-API-Key': runtime.apiKey
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const json = (await response.json()) as Record<string, unknown>;
+    const directAnswer = typeof json.answer === 'string' ? json.answer : null;
+    const dataAnswer = typeof (json.data as Record<string, unknown> | undefined)?.answer === 'string'
+      ? String((json.data as Record<string, unknown>).answer)
+      : null;
+    const text = (directAnswer ?? dataAnswer)?.trim();
+    return text && text.length > 0 ? text : null;
+  } catch (error) {
+    logger.warn({ error, hotelId }, 'LiteAPI hotel ask failed');
+    return null;
+  }
+}
+
+function mapSemanticMatch(entry: Record<string, unknown>): SemanticHotelMatch | null {
+  const hotelId = cleanString(entry.hotelId) ?? cleanString(entry.id);
+  const name = cleanString(entry.name);
+  if (!hotelId || !name) {
+    return null;
+  }
+
+  const tagsRaw = entry.tags;
+  const tags = Array.isArray(tagsRaw)
+    ? tagsRaw.map((item) => String(item).trim()).filter((item) => item.length > 0)
+    : [];
+
+  return {
+    hotelId,
+    name,
+    city: cleanString(entry.city) ?? '',
+    countryCode: cleanString(entry.countryCode),
+    address: cleanString(entry.address),
+    imageUrl: cleanString(entry.mainPhoto) ?? cleanString(entry.image) ?? cleanString(entry.photo),
+    score: parseNumber(entry.score) ?? parseNumber(entry.relevanceScore),
+    tags,
+    story: cleanString(entry.story) ?? cleanString(entry.description)
+  };
+}
+
+export async function searchHotelsBySemanticQuery(
+  query: string,
+  language?: string,
+  limit = 8
+): Promise<SemanticHotelMatch[]> {
+  try {
+    const runtime = await resolveLiteApiRuntimeConfig();
+    const url = new URL(`${runtime.baseUrl}/data/hotels/semantic-search`);
+    url.searchParams.set('query', query);
+    url.searchParams.set('limit', String(Math.max(1, Math.min(12, limit))));
+    if (language) {
+      url.searchParams.set('language', language);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        accept: 'application/json',
+        'X-API-Key': runtime.apiKey
+      },
+      next: { revalidate: 600 }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const json = (await response.json()) as { data?: Array<Record<string, unknown>> };
+    return (json.data ?? []).map(mapSemanticMatch).filter((item): item is SemanticHotelMatch => item !== null);
+  } catch (error) {
+    logger.warn({ error, query }, 'LiteAPI semantic hotel search failed');
+    return [];
+  }
+}
+
+export async function searchHotelRoomsByText(
+  query: string,
+  options?: {
+    language?: string;
+    city?: string;
+    countryCode?: string;
+    limit?: number;
+  }
+): Promise<RoomSearchMatch[]> {
+  try {
+    const runtime = await resolveLiteApiRuntimeConfig();
+    const url = new URL(`${runtime.baseUrl}/data/hotels/room-search`);
+    url.searchParams.set('query', query);
+    url.searchParams.set('limit', String(Math.max(1, Math.min(10, options?.limit ?? 6))));
+    if (options?.language) {
+      url.searchParams.set('language', options.language);
+    }
+    if (options?.city) {
+      url.searchParams.set('city', options.city);
+    }
+    if (options?.countryCode) {
+      url.searchParams.set('country', options.countryCode);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        accept: 'application/json',
+        'X-API-Key': runtime.apiKey
+      },
+      next: { revalidate: 600 }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const json = (await response.json()) as { data?: Array<Record<string, unknown>> };
+    return (json.data ?? []).map((hotel) => {
+      const hotelId = cleanString(hotel.hotelId) ?? cleanString(hotel.id) ?? '';
+      const hotelName = cleanString(hotel.name) ?? 'Hotel';
+      const roomCandidates = (hotel.rooms as Array<Record<string, unknown>> | undefined) ?? [];
+      const rooms = roomCandidates.map((room) => ({
+        name: cleanString(room.name) ?? 'Room',
+        imageUrl: cleanString(room.imageUrl) ?? cleanString(room.image),
+        score: parseNumber(room.score)
+      }));
+
+      return {
+        hotelId,
+        hotelName,
+        city: cleanString(hotel.city),
+        countryCode: cleanString(hotel.countryCode),
+        rating: parseNumber(hotel.rating) ?? parseNumber(hotel.starRating),
+        rooms
+      } satisfies RoomSearchMatch;
+    }).filter((item) => item.hotelId.length > 0);
+  } catch (error) {
+    logger.warn({ error, query }, 'LiteAPI room search failed');
+    return [];
+  }
 }
 
 export async function searchPropertyPreviews(
@@ -629,18 +1409,31 @@ export async function searchPropertyPreviews(
     minGuestRating?: number;
     maxPrice?: number;
   }
-): Promise<PropertyPreview[]> {
-  if (!hasConfiguredLiteApiKey()) {
-    return fallbackProperties;
+): Promise<PropertyPreviewSearchResult> {
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const asOf = new Date().toISOString();
+  const toResult = (
+    properties: PropertyPreview[],
+    degradedReason: SupplierDegradedReason | null
+  ): PropertyPreviewSearchResult => ({
+    properties,
+    degraded: degradedReason !== null,
+    degradedReason,
+    asOf,
+    freshness: degradedReason ? 'stale' : 'fresh'
+  });
+
+  if (!hasConfiguredLiteApiKey(runtime.apiKey)) {
+    return toResult(fallbackProperties, 'unavailable');
   }
 
   try {
     const placeResponse = await fetchJson<LiteApiResponse<Array<Record<string, unknown>>>>(
-      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}&limit=5${language ? `&language=${encodeURIComponent(language)}` : ''}`,
+      `${runtime.baseUrl}/data/places?textQuery=${encodeURIComponent(query)}&limit=5${language ? `&language=${encodeURIComponent(language)}` : ''}`,
       {
         headers: {
           accept: 'application/json',
-          'X-API-Key': env.LITEAPI_API_KEY
+          'X-API-Key': runtime.apiKey
         },
         next: { revalidate: 3600 }
       }
@@ -694,17 +1487,23 @@ export async function searchPropertyPreviews(
       });
     };
 
+    let degradedReason: SupplierDegradedReason | null = null;
+
     if (trimmedBrief) {
       const byAiSearch = await searchRates(
         {
           ...basePayload,
           aiSearch: aiSearchQuery
         },
-        query
+        query,
+        runtime
       );
-      const filtered = applyFilters(byAiSearch);
+      if (byAiSearch.degradedReason) {
+        degradedReason = byAiSearch.degradedReason;
+      }
+      const filtered = applyFilters(byAiSearch.items);
       if (filtered.length > 0) {
-        return filtered.slice(0, 8);
+        return toResult(filtered.slice(0, 8), degradedReason === null ? null : 'partial');
       }
     }
 
@@ -714,11 +1513,15 @@ export async function searchPropertyPreviews(
           ...basePayload,
           placeId: firstPlaceId
         },
-        query
+        query,
+        runtime
       );
-      const filtered = applyFilters(byPlace);
+      if (byPlace.degradedReason) {
+        degradedReason = byPlace.degradedReason;
+      }
+      const filtered = applyFilters(byPlace.items);
       if (filtered.length > 0) {
-        return filtered.slice(0, 8);
+        return toResult(filtered.slice(0, 8), degradedReason === null ? null : 'partial');
       }
     }
 
@@ -727,11 +1530,15 @@ export async function searchPropertyPreviews(
         ...basePayload,
         cityName: query
       },
-      query
+      query,
+      runtime
     );
-    const filteredByCity = applyFilters(byCity);
+    if (byCity.degradedReason) {
+      degradedReason = byCity.degradedReason;
+    }
+    const filteredByCity = applyFilters(byCity.items);
     if (filteredByCity.length > 0) {
-      return filteredByCity.slice(0, 8);
+      return toResult(filteredByCity.slice(0, 8), degradedReason === null ? null : 'partial');
     }
 
     const byAiSearch = await searchRates(
@@ -739,19 +1546,45 @@ export async function searchPropertyPreviews(
         ...basePayload,
         aiSearch: aiSearchQuery
       },
-      query
+      query,
+      runtime
     );
-    const filteredByAiSearch = applyFilters(byAiSearch);
+    if (byAiSearch.degradedReason) {
+      degradedReason = byAiSearch.degradedReason;
+    }
+    const filteredByAiSearch = applyFilters(byAiSearch.items);
     if (filteredByAiSearch.length > 0) {
-      return filteredByAiSearch.slice(0, 8);
+      return toResult(filteredByAiSearch.slice(0, 8), degradedReason === null ? null : 'partial');
+    }
+
+    const semanticMatches = await searchHotelsBySemanticQuery(aiSearchQuery, language, 8);
+    if (semanticMatches.length > 0) {
+      const semanticMapped = applyFilters(
+        semanticMatches.map((match) => ({
+          hotelId: match.hotelId,
+          name: match.name,
+          city: match.city || query,
+          countryCode: match.countryCode ?? undefined,
+          starRating: null,
+          reviewScore: match.score,
+          reviewCount: null,
+          imageUrl: match.imageUrl ?? undefined,
+          price: null,
+          currency: selectedCurrency,
+          amenities: match.tags
+        }))
+      );
+      if (semanticMapped.length > 0) {
+        return toResult(semanticMapped.slice(0, 8), degradedReason === null ? null : 'partial');
+      }
     }
 
     const placeRes = await fetch(
-      `${env.LITEAPI_BASE_URL}/data/places?textQuery=${encodeURIComponent(query)}${language ? `&language=${encodeURIComponent(language)}` : ''}`,
+      `${runtime.baseUrl}/data/places?textQuery=${encodeURIComponent(query)}${language ? `&language=${encodeURIComponent(language)}` : ''}`,
       {
         headers: {
           accept: 'application/json',
-          'X-API-Key': env.LITEAPI_API_KEY
+          'X-API-Key': runtime.apiKey
         },
         next: { revalidate: 3600 }
       }
@@ -762,15 +1595,15 @@ export async function searchPropertyPreviews(
     const fallbackPlaceResponse = (await placeRes.json()) as { data?: Array<{ id?: string }> };
     const fallbackPlaceId = fallbackPlaceResponse?.data?.[0]?.id;
     if (!fallbackPlaceId) {
-      return fallbackProperties;
+      return toResult(fallbackProperties, degradedReason ?? 'unavailable');
     }
 
-    const ratesRes = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+    const ratesRes = await fetch(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': runtime.apiKey
       },
       body: JSON.stringify({
         placeId: fallbackPlaceId,
@@ -792,20 +1625,25 @@ export async function searchPropertyPreviews(
     const ratesResponse = (await ratesRes.json()) as LiteApiResponse<Array<Record<string, unknown>>>;
     const mapped = applyFilters(mapRatesResponse(ratesResponse, query)).slice(0, 8);
 
-    return mapped.length > 0 ? mapped : fallbackProperties;
+    if (mapped.length > 0) {
+      return toResult(mapped, degradedReason === null ? null : 'partial');
+    }
+
+    return toResult(fallbackProperties, degradedReason ?? 'unavailable');
   } catch (error) {
     logger.warn({ error }, 'LiteAPI property preview search failed');
-    return fallbackProperties;
+    return toResult(fallbackProperties, isTimeoutLikeError(error) ? 'timeout' : 'unavailable');
   }
 }
 
 export async function prebookRate(offerId: string): Promise<LiteApiPrebookResponse> {
-  const response = await fetch(`${env.LITEAPI_BOOK_BASE_URL}/rates/prebook`, {
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const response = await fetch(`${runtime.bookBaseUrl}/rates/prebook`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     body: JSON.stringify({
       offerId,
@@ -848,12 +1686,13 @@ type BookPayload = {
 };
 
 export async function bookRate(payload: BookPayload) {
-  const response = await fetch(`${env.LITEAPI_BOOK_BASE_URL}/rates/book`, {
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const response = await fetch(`${runtime.bookBaseUrl}/rates/book`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     body: JSON.stringify({
       prebookId: payload.prebookId,
@@ -881,7 +1720,8 @@ export async function bookRate(payload: BookPayload) {
 }
 
 export async function listBookings(params: { clientReference: string; timeoutSeconds?: number }) {
-  const url = new URL(`${env.LITEAPI_BOOK_BASE_URL}/bookings`);
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const url = new URL(`${runtime.bookBaseUrl}/bookings`);
   url.searchParams.set('clientReference', params.clientReference);
   if (typeof params.timeoutSeconds === 'number' && Number.isFinite(params.timeoutSeconds)) {
     url.searchParams.set('timeout', String(params.timeoutSeconds));
@@ -890,7 +1730,7 @@ export async function listBookings(params: { clientReference: string; timeoutSec
   const response = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     cache: 'no-store'
   });
@@ -912,7 +1752,8 @@ export async function listBookings(params: { clientReference: string; timeoutSec
 }
 
 export async function getBooking(params: { bookingId: string; timeoutSeconds?: number }) {
-  const url = new URL(`${env.LITEAPI_BOOK_BASE_URL}/bookings/${encodeURIComponent(params.bookingId)}`);
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const url = new URL(`${runtime.bookBaseUrl}/bookings/${encodeURIComponent(params.bookingId)}`);
   if (typeof params.timeoutSeconds === 'number' && Number.isFinite(params.timeoutSeconds)) {
     url.searchParams.set('timeout', String(params.timeoutSeconds));
   }
@@ -920,7 +1761,7 @@ export async function getBooking(params: { bookingId: string; timeoutSeconds?: n
   const response = await fetch(url.toString(), {
     headers: {
       accept: 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     cache: 'no-store'
   });
@@ -942,7 +1783,8 @@ export async function getBooking(params: { bookingId: string; timeoutSeconds?: n
 }
 
 export async function cancelBooking(params: { bookingId: string; timeoutSeconds?: number }) {
-  const url = new URL(`${env.LITEAPI_BOOK_BASE_URL}/bookings/${encodeURIComponent(params.bookingId)}`);
+  const runtime = await resolveLiteApiRuntimeConfig();
+  const url = new URL(`${runtime.bookBaseUrl}/bookings/${encodeURIComponent(params.bookingId)}`);
   if (typeof params.timeoutSeconds === 'number' && Number.isFinite(params.timeoutSeconds)) {
     url.searchParams.set('timeout', String(params.timeoutSeconds));
   }
@@ -951,7 +1793,7 @@ export async function cancelBooking(params: { bookingId: string; timeoutSeconds?
     method: 'PUT',
     headers: {
       accept: 'application/json',
-      'X-API-Key': env.LITEAPI_API_KEY
+      'X-API-Key': runtime.apiKey
     },
     cache: 'no-store'
   });
@@ -974,10 +1816,11 @@ export async function cancelBooking(params: { bookingId: string; timeoutSeconds?
 
 export async function getHotelDetails(hotelId: string, language?: string, currency?: string): Promise<HotelDetails | null> {
   try {
-    const response = await fetch(`${env.LITEAPI_BASE_URL}/data/hotel?hotelId=${encodeURIComponent(hotelId)}${language ? `&language=${encodeURIComponent(language)}` : ''}`, {
+    const runtime = await resolveLiteApiRuntimeConfig();
+    const response = await fetch(`${runtime.baseUrl}/data/hotel?hotelId=${encodeURIComponent(hotelId)}${language ? `&language=${encodeURIComponent(language)}` : ''}`, {
       headers: {
         accept: 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': runtime.apiKey
       },
       cache: 'no-store'
     });
@@ -987,42 +1830,71 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
 
     const json = (await response.json()) as { data?: Record<string, unknown> };
     const data = json.data ?? {};
-    const photos = pickImageUrls(data);
-    const mainPhoto = typeof data.main_photo === 'string' ? data.main_photo : photos[0];
+    const city = String(data.city ?? '');
+    const countryCode = cleanString(data.countryCode);
+    const basePhotos = pickImageUrls(data);
+    const enrichedPhotos = basePhotos.length >= 8
+      ? []
+      : await fetchPhotoEnrichmentFromRates(hotelId, runtime, currency);
+    const photos = Array.from(new Set([...basePhotos, ...enrichedPhotos])).slice(0, 40);
+    const mainPhoto = cleanString(data.main_photo) ?? photos[0] ?? null;
     const { latitude, longitude } = pickCoordinates(data);
     const reviewBreakdown = pickReviewBreakdown(data);
-    const reviews = await getGuestReviews(hotelId) ?? [];
+    const reviews = (await getGuestReviews(hotelId, 50, runtime)) ?? [];
     const reviewScore = pickReviewScore(data);
     const reviewCount = pickReviewCount(data);
 
     // If we have no reviews from /data/hotel or /data/reviews, try enrichment as a last resort
     // but prefer the dedicated reviews endpoint data if available
-    const enrichment = (reviews.length === 0 && (reviewScore === null || reviewCount === null))
-      ? await fetchReviewEnrichmentFromRates(hotelId, currency)
+    const enrichment = shouldEnrichReviews(reviewScore, reviewCount, reviewBreakdown, reviews)
+      ? await fetchReviewEnrichmentFromRates(hotelId, runtime, currency)
       : null;
+
+    const resolvedReviews = reviews.length > 0 ? reviews : (enrichment?.reviews ?? []);
+    const policies = pickPolicies(data);
+    const locationContext = pickLocationContext(data, city, countryCode);
+    const prosAndCons = pickProsAndCons(resolvedReviews);
+    const facilities = pickFacilities(data);
+    const facilityCategories = pickFacilityCategories(data, facilities);
+    const areaInfo = pickAreaInfo(data, locationContext);
+    const nearbyRestaurants = pickNearbyRestaurants(data);
+    const houseRulesDetailed = pickHouseRulesDetailed(data, policies);
+    const completeness = buildCompleteness({
+      photos,
+      facilities,
+      policies,
+      locationContext,
+      reviews: resolvedReviews,
+      prosAndCons
+    });
 
     return {
       id: String(data.id ?? hotelId),
       name: String(data.name ?? 'Hotel'),
-      city: String(data.city ?? ''),
-      countryCode: typeof data.countryCode === 'string' ? data.countryCode : undefined,
-      address: typeof data.address === 'string' ? data.address : undefined,
+      city,
+      countryCode,
+      address: cleanString(data.address),
       mainPhoto,
       photos,
-      facilities: pickFacilities(data),
+      facilities,
       description:
-        typeof data.description === 'string'
-          ? data.description
-          : typeof data.overview === 'string'
-            ? data.overview
-            : undefined,
+        cleanString(data.description) ??
+        cleanString(data.overview),
       latitude,
       longitude,
       starRating: parseNumber(data.starRating),
       reviewScore: reviewScore ?? enrichment?.reviewScore ?? null,
       reviewCount: reviewCount ?? enrichment?.reviewCount ?? null,
       reviewBreakdown: reviewBreakdown.length > 0 ? reviewBreakdown : (enrichment?.reviewBreakdown ?? []),
-      reviews: reviews.length > 0 ? reviews : (enrichment?.reviews ?? [])
+      reviews: resolvedReviews,
+      policies,
+      locationContext,
+      prosAndCons,
+      facilityCategories,
+      areaInfo,
+      nearbyRestaurants,
+      houseRulesDetailed,
+      completeness
     };
   } catch (error) {
     logger.warn({ error, hotelId }, 'LiteAPI hotel details failed');
@@ -1030,23 +1902,60 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
   }
 }
 
-export async function getGuestReviews(hotelId: string, limit: number = 10): Promise<HotelDetails['reviews'] | null> {
+export async function getGuestReviews(
+  hotelId: string,
+  limit: number = 50,
+  runtime?: Awaited<ReturnType<typeof resolveLiteApiRuntimeConfig>>
+): Promise<HotelDetails['reviews'] | null> {
   try {
-    const response = await fetch(`${env.LITEAPI_BASE_URL}/data/reviews?hotelId=${encodeURIComponent(hotelId)}&limit=${limit}`, {
-      headers: {
-        accept: 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
-      },
-      next: { revalidate: 3600 }
-    });
+    const activeRuntime = runtime ?? await resolveLiteApiRuntimeConfig();
+    const hardCap = 300;
+    const chunkSize = Math.max(10, Math.min(50, limit));
+    const collected: Array<Record<string, unknown>> = [];
+    const seen = new Set<string>();
 
-    if (!response.ok) {
-      // If 404 or other error, return null so caller can fallback
-      return null;
+    for (let offset = 0; offset < hardCap; offset += chunkSize) {
+      const response = await fetch(
+        `${activeRuntime.baseUrl}/data/reviews?hotelId=${encodeURIComponent(hotelId)}&limit=${chunkSize}&offset=${offset}`,
+        {
+          headers: {
+            accept: 'application/json',
+            'X-API-Key': activeRuntime.apiKey
+          },
+          next: { revalidate: 3600 }
+        }
+      );
+
+      if (!response.ok) {
+        if (offset === 0) {
+          return null;
+        }
+        break;
+      }
+
+      const json = (await response.json()) as { data?: Array<Record<string, unknown>> };
+      const pageItems = json.data ?? [];
+      if (pageItems.length === 0) {
+        break;
+      }
+
+      let added = 0;
+      for (const item of pageItems) {
+        const key = `${String(item.name ?? '')}|${String(item.date ?? '')}|${String(item.pros ?? '')}|${String(item.cons ?? '')}`;
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        collected.push(item);
+        added += 1;
+      }
+
+      if (pageItems.length < chunkSize || added === 0 || collected.length >= hardCap) {
+        break;
+      }
     }
 
-    const json = (await response.json()) as { data?: Array<Record<string, unknown>> };
-    return (json.data ?? []).map((item) => {
+    return collected.map((item) => {
       const pros = String(item.pros ?? '').trim();
       const cons = String(item.cons ?? '').trim();
       const headline = String(item.headline ?? '').trim();
@@ -1061,11 +1970,13 @@ export async function getGuestReviews(hotelId: string, limit: number = 10): Prom
         : headline;
 
       return {
-        author: String(item.name ?? 'Guest'),
-        travelerType: String(item.type ?? 'Traveler'),
+        author: cleanString(item.name) ?? 'Guest',
+        travelerType: cleanString(item.type) ?? 'Traveler',
         comment,
         score: parseNumber(item.averageScore),
-        createdAt: String(item.date ?? '')
+        createdAt: cleanString(item.date),
+        pros: pros || null,
+        cons: cons || null
       };
     }).filter(r => r.comment.length > 0);
   } catch (error) {
@@ -1084,15 +1995,16 @@ export async function getHotelRates(params: {
   guestNationality?: string;
 }): Promise<HotelRateOption[]> {
   try {
+    const runtime = await resolveLiteApiRuntimeConfig();
     const numRooms = params.rooms ?? 1;
     const occupancies = Array.from({ length: numRooms }, () => ({ adults: params.adults }));
 
-    const response = await fetch(`${env.LITEAPI_BASE_URL}/hotels/rates`, {
+    const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
-        'X-API-Key': env.LITEAPI_API_KEY
+        'X-API-Key': runtime.apiKey
       },
       body: JSON.stringify({
         hotelIds: [params.hotelId],
@@ -1128,6 +2040,13 @@ export async function getHotelRates(params: {
           offerId: offerId || `offer-${idx}`,
           roomId: String(rate.mappedRoomId ?? rate.roomId ?? `room-${idx}`),
           roomName: String(rate.name ?? 'Room'),
+          imageUrl:
+            cleanString(rate.imageUrl) ??
+            cleanString(rate.image) ??
+            cleanString((rate.room as Record<string, unknown> | undefined)?.imageUrl) ??
+            cleanString((rate.room as Record<string, unknown> | undefined)?.image) ??
+            cleanString((roomType as Record<string, unknown>).imageUrl) ??
+            cleanString((roomType as Record<string, unknown>).image),
           boardName: String(rate.boardName ?? 'N/A'),
           refundableTag: String(policies?.refundableTag ?? 'N/A'),
           cancelTime: typeof infos?.[0]?.cancelTime === 'string' ? String(infos[0].cancelTime) : null,

@@ -90,7 +90,7 @@ function clearCheckoutSession(transactionId: string): void {
 export function BookingReturnClient() {
   const params = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
+  const [status, setStatus] = useState<'loading' | 'processing' | 'error' | 'success'>('loading');
   const [message, setMessage] = useState('Finalizing booking...');
   const [fallbackBookingId, setFallbackBookingId] = useState<string | null>(null);
 
@@ -105,6 +105,8 @@ export function BookingReturnClient() {
 
   useEffect(() => {
     let active = true;
+
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     async function run() {
       if (!canFinalize) {
@@ -149,31 +151,69 @@ export function BookingReturnClient() {
           throw new Error(json.error ?? 'Failed to finalize booking');
         }
 
-        clearCheckoutSession(transactionId);
-        if (json.localBookingId && json.bookingViewToken) {
-          const bookingParams = new URLSearchParams({
-            viewToken: String(json.bookingViewToken)
-          });
-          if (language) {
-            bookingParams.set('language', language);
-          }
-          if (currency) {
-            bookingParams.set('currency', currency);
-          }
-          const bookingUrl = `/bookings/${encodeURIComponent(json.localBookingId)}?${bookingParams.toString()}`;
-          router.replace(bookingUrl as never);
-          return;
-        }
-        if (json.localBookingId) {
-          if (!active) return;
-          setStatus('success');
-          setFallbackBookingId(String(json.localBookingId));
-          setMessage('Booking completed. Keep this reference and contact support if confirmation view is unavailable.');
-          return;
-        }
         if (!active) return;
-        setStatus('error');
-        setMessage('Booking finalized but secure view token missing. Please restart checkout.');
+        setStatus('processing');
+        setMessage('Payment captured. Waiting for booking lifecycle confirmation...');
+
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+          const statusResponse = await fetch('/api/booking/status', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              transactionId,
+              prebookId,
+              clientReference: session.clientReference,
+              quoteId: session.quoteId,
+              quoteSignature: session.quoteSignature,
+              sessionSignature: session.sessionSignature,
+              holderEmail: session.holder.email
+            })
+          });
+          const statusJson = await statusResponse.json();
+          if (!statusResponse.ok) {
+            throw new Error(statusJson.error ?? 'Failed to read booking lifecycle status');
+          }
+
+          if (statusJson.outcome === 'confirmed') {
+            clearCheckoutSession(transactionId);
+            if (statusJson.localBookingId && statusJson.bookingViewToken) {
+              const bookingParams = new URLSearchParams({
+                viewToken: String(statusJson.bookingViewToken)
+              });
+              if (language) {
+                bookingParams.set('language', language);
+              }
+              if (currency) {
+                bookingParams.set('currency', currency);
+              }
+              const bookingUrl = `/bookings/${encodeURIComponent(statusJson.localBookingId)}?${bookingParams.toString()}`;
+              router.replace(bookingUrl as never);
+              return;
+            }
+
+            if (!active) return;
+            setStatus('success');
+            setFallbackBookingId(String(statusJson.localBookingId ?? json.localBookingId ?? ''));
+            setMessage('Booking confirmed, but secure confirmation link is unavailable. Keep this reference and contact support.');
+            return;
+          }
+
+          if (statusJson.outcome === 'failed') {
+            if (!active) return;
+            setStatus('error');
+            setMessage(statusJson.message ?? 'Booking failed. Please restart checkout.');
+            return;
+          }
+
+          if (!active) return;
+          setStatus('processing');
+          setMessage(statusJson.message ?? 'Booking is still processing.');
+          await wait(1500);
+        }
+
+        if (!active) return;
+        setStatus('processing');
+        setMessage('Booking is still processing. We will keep checking automatically.');
       } catch (error) {
         finalizedRequestRef.current = null;
         if (!active) return;

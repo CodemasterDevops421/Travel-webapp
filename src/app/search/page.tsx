@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
-import { SearchResultsPage } from '@/features/search/components/search-results-page';
-import { parseListingSearchParams } from '@/features/search/lib/listing-search-params';
+import { redirect } from 'next/navigation';
+import type { Route } from 'next';
+import { buildDestinationPath, getDestinationByLabel } from '@/features/search/lib/destination-seo';
+import { parseDiscoveryQuery, serializeDiscoveryQuery } from '@/features/search/lib/discovery-query';
 
 export const metadata: Metadata = {
-  title: 'Search Results | TravelApp',
+  title: 'Search Results | Hostel Stays',
   description: 'Browse hotel listings with photos, ratings, and live prices.',
   alternates: {
-    canonical: '/search'
+    canonical: '/stays/dubai'
   }
 };
 
@@ -16,17 +18,23 @@ type SearchPageProps = {
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
-  const listingParams = parseListingSearchParams(params);
+  const queryState = parseDiscoveryQuery(params, { defaultDestination: 'Dubai' });
+  const destination = getDestinationByLabel(queryState.destination);
 
-  return (
-    <SearchResultsPage
-      query={listingParams.query}
-      checkin={listingParams.checkin}
-      checkout={listingParams.checkout}
-      adults={listingParams.adults}
-      rooms={listingParams.rooms}
-      language={listingParams.language}
-      currency={listingParams.currency}
-    />
-  );
+  const rawSlug = queryState.destination
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  const slug = (destination?.slug ?? rawSlug) || 'dubai';
+
+  const canonicalQuery = serializeDiscoveryQuery({
+    ...queryState,
+    destination: ''
+  });
+  const queryString = canonicalQuery.toString();
+  const destinationPath = buildDestinationPath(slug);
+
+  redirect((queryString ? `${destinationPath}?${queryString}` : destinationPath) as Route);
 }

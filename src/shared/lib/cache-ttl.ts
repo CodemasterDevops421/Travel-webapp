@@ -1,8 +1,14 @@
+export const DISCOVERY_SUPPLIER_TTL_SECONDS = {
+  min: 300,
+  standard: 600,
+  max: 900
+} as const;
+
 export const CACHE_TTL_SECONDS = {
   autocomplete: 90,
-  propertyPreview: 300,
+  propertyPreview: DISCOVERY_SUPPLIER_TTL_SECONDS.standard,
   hotelDetails: 1800,
-  hotelRates: 300
+  hotelRates: DISCOVERY_SUPPLIER_TTL_SECONDS.standard
 } as const;
 
 export const CACHE_STALE_TIME_MS = {

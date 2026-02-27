@@ -26,7 +26,7 @@ describe('env parsing', () => {
   it('fails fast in production when critical config is missing', async () => {
     vi.resetModules();
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('LITEAPI_API_KEY', 'liteapi-placeholder-key');
+    vi.stubEnv('LITEAPI_API_KEY', 'test-live-key');
     vi.stubEnv('QUOTE_SIGNING_SECRET', '');
     vi.stubEnv('BOOKING_VIEW_TOKEN_SECRET', '');
     vi.stubEnv('LITEAPI_WEBHOOK_SECRET', '');
@@ -38,5 +38,28 @@ describe('env parsing', () => {
 
     const { assertProductionReadiness } = await import('@/server/env');
     expect(() => assertProductionReadiness()).toThrow(/Production configuration invalid/i);
+  });
+
+  it('selects LiteAPI runtime config from environment mode', async () => {
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('LITEAPI_ENV', 'production');
+    vi.stubEnv('LITEAPI_SANDBOX_API_KEY', 'sandbox-key');
+    vi.stubEnv('LITEAPI_PRODUCTION_API_KEY', 'production-key');
+    vi.stubEnv('LITEAPI_SANDBOX_BASE_URL', 'https://sandbox.example.com/v3');
+    vi.stubEnv('LITEAPI_PRODUCTION_BASE_URL', 'https://api.example.com/v3');
+    vi.stubEnv('LITEAPI_SANDBOX_BOOK_BASE_URL', 'https://sandbox-book.example.com/v3');
+    vi.stubEnv('LITEAPI_PRODUCTION_BOOK_BASE_URL', 'https://book.example.com/v3');
+
+    const { env, getLiteApiRuntimeConfig } = await import('@/server/env');
+    const selected = getLiteApiRuntimeConfig();
+
+    expect(selected.mode).toBe('production');
+    expect(selected.apiKey).toBe('production-key');
+    expect(selected.baseUrl).toBe('https://api.example.com/v3');
+    expect(selected.bookBaseUrl).toBe('https://book.example.com/v3');
+    expect(env.LITEAPI_API_KEY).toBe('production-key');
+    expect(env.LITEAPI_BASE_URL).toBe('https://api.example.com/v3');
+    expect(env.LITEAPI_BOOK_BASE_URL).toBe('https://book.example.com/v3');
   });
 });

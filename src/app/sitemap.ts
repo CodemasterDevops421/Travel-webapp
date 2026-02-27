@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { SUPPORTED_DESTINATIONS, buildDestinationPath } from '@/features/search/lib/destination-seo';
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 const staticRoutes: Array<{
@@ -13,11 +14,20 @@ const staticRoutes: Array<{
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-
-  return staticRoutes.map((route) => ({
-    url: `${appUrl}${route.path}`,
+  const destinationRoutes: MetadataRoute.Sitemap = SUPPORTED_DESTINATIONS.map((destination) => ({
+    url: `${appUrl}${buildDestinationPath(destination.slug)}`,
     lastModified: now,
-    changeFrequency: route.changeFrequency,
-    priority: route.priority
+    changeFrequency: 'daily',
+    priority: 0.9
   }));
+
+  return [
+    ...staticRoutes.map((route) => ({
+      url: `${appUrl}${route.path}`,
+      lastModified: now,
+      changeFrequency: route.changeFrequency,
+      priority: route.priority
+    })),
+    ...destinationRoutes
+  ];
 }

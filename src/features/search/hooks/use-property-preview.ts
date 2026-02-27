@@ -8,19 +8,34 @@ export type PropertyPreview = {
   name: string;
   city: string;
   countryCode?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   starRating: number | null;
   reviewScore?: number | null;
   reviewCount?: number | null;
   imageUrl?: string;
   price: number | null;
   currency: string;
+  amenities?: string[];
 };
 
 export type PropertyPreviewFilters = {
   brief?: string;
+  minPrice?: number;
   minStars?: number;
   minGuestRating?: number;
   maxPrice?: number;
+  page?: number;
+  limit?: number;
+};
+
+export type PropertyPreviewEnvelope = {
+  data: PropertyPreview[];
+  results: PropertyPreview[];
+  degraded: boolean;
+  degradedReason: 'timeout' | 'partial' | 'unavailable' | null;
+  asOf: string;
+  freshness: 'fresh' | 'stale';
 };
 
 async function fetchPropertyPreview(
@@ -32,7 +47,7 @@ async function fetchPropertyPreview(
   adults: number,
   rooms: number,
   filters?: PropertyPreviewFilters
-): Promise<PropertyPreview[]> {
+): Promise<PropertyPreviewEnvelope> {
   const brief = filters?.brief;
   const params = new URLSearchParams({
     q: query,
@@ -49,16 +64,54 @@ async function fetchPropertyPreview(
   if (typeof filters?.minStars === 'number') {
     params.set('minStars', String(filters.minStars));
   }
+  if (typeof filters?.minPrice === 'number') {
+    params.set('minPrice', String(filters.minPrice));
+  }
   if (typeof filters?.minGuestRating === 'number') {
     params.set('minGuestRating', String(filters.minGuestRating));
   }
   if (typeof filters?.maxPrice === 'number') {
     params.set('maxPrice', String(filters.maxPrice));
   }
+  if (typeof filters?.page === 'number') {
+    params.set('page', String(filters.page));
+  }
+  if (typeof filters?.limit === 'number') {
+    params.set('limit', String(filters.limit));
+  }
 
   const response = await fetch(`/api/property-preview?${params.toString()}`);
   if (!response.ok) throw new Error('Property preview failed');
-  return response.json();
+  const payload = (await response.json()) as PropertyPreview[] | PropertyPreviewEnvelope;
+  if (Array.isArray(payload)) {
+    const now = new Date().toISOString();
+    return {
+      data: payload,
+      results: payload,
+      degraded: false,
+      degradedReason: null,
+      asOf: now,
+      freshness: 'fresh'
+    };
+  }
+
+  if (Array.isArray(payload.data) && Array.isArray(payload.results)) {
+    return payload;
+  }
+
+  const normalizedResults = Array.isArray(payload.results)
+    ? payload.results
+    : Array.isArray(payload.data)
+      ? payload.data
+      : [];
+  return {
+    data: normalizedResults,
+    results: normalizedResults,
+    degraded: Boolean(payload.degraded),
+    degradedReason: payload.degradedReason ?? null,
+    asOf: payload.asOf ?? new Date().toISOString(),
+    freshness: payload.freshness === 'stale' ? 'stale' : 'fresh'
+  };
 }
 
 export function usePropertyPreview(
@@ -72,9 +125,12 @@ export function usePropertyPreview(
   filters?: PropertyPreviewFilters
 ) {
   const resolvedBrief = filters?.brief?.trim() ?? '';
+  const resolvedMinPrice = filters?.minPrice ?? null;
   const resolvedMinStars = filters?.minStars ?? null;
   const resolvedMinGuestRating = filters?.minGuestRating ?? null;
   const resolvedMaxPrice = filters?.maxPrice ?? null;
+  const resolvedPage = filters?.page ?? null;
+  const resolvedLimit = filters?.limit ?? null;
   return useQuery({
     queryKey: [
       'property-preview',
@@ -86,9 +142,12 @@ export function usePropertyPreview(
       adults,
       rooms,
       resolvedBrief,
+      resolvedMinPrice,
       resolvedMinStars,
       resolvedMinGuestRating,
-      resolvedMaxPrice
+      resolvedMaxPrice,
+      resolvedPage,
+      resolvedLimit
     ],
     queryFn: () => fetchPropertyPreview(query, language, currency, checkin, checkout, adults, rooms, filters),
     enabled: query.length > 2,
