@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+const HOTEL_DETAIL_REGRESSION_COMMAND =
+  'npm run test -- tests/hotel-detail-content.test.ts tests/hotel-ai-grounding.test.ts tests/hotel-booking-card.test.ts';
+
 describe('hotel detail content completeness and truthful fallbacks', () => {
   const source = readFileSync(
     resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'),
@@ -71,6 +74,12 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
     expect(liteApiSource).toContain('Review comments are available, but recurring topics are too sparse for a reliable summary.');
     expect(liteApiSource).toContain('Description is synthesized from available supplier fields because narrative text is unavailable.');
     expect(liteApiSource).toContain("mode: 'unavailable'");
+  });
+
+  it('documents a single hotel-detail regression verification command', () => {
+    expect(HOTEL_DETAIL_REGRESSION_COMMAND).toContain('tests/hotel-detail-content.test.ts');
+    expect(HOTEL_DETAIL_REGRESSION_COMMAND).toContain('tests/hotel-ai-grounding.test.ts');
+    expect(HOTEL_DETAIL_REGRESSION_COMMAND).toContain('tests/hotel-booking-card.test.ts');
   });
 
   it('avoids implied completeness by removing synthetic amenity defaults', () => {
