@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Phase 06 - Auth and Booking Security Gap Closure
+**Current focus:** Phase 07 - Canonical Data Wiring and Observability Closure
 
 ## Current Position
 
-Phase: 06-auth-and-booking-security-gap-closure
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-02-28 - Completed 06-02-PLAN.md
+Phase: 07-canonical-data-wiring-and-observability-closure
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-02-28 - Completed 07-01-PLAN.md
 
 Progress: [##########] 100%
 
@@ -55,6 +55,7 @@ Progress: [##########] 100%
 | Phase 04 P04 | 6 min | 3 tasks | 10 files |
 | Phase 06-auth-and-booking-security-gap-closure P01 | 1 min | 2 tasks | 2 files |
 | Phase 06 P02 | 6 min | 2 tasks | 6 files |
+| Phase 07-canonical-data-wiring-and-observability-closure P01 | 11 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -105,10 +106,13 @@ Recent decisions affecting current work:
 - [Phase 06-auth-and-booking-security-gap-closure]: Fail callback completion when profile upsert fails by signing out and redirecting with callback_failed.
 - [Phase 06]: Expose payment bootstrap credential as paymentToken in prebook client contract to avoid secret-like key names while preserving checkout bootstrap behavior.
 - [Phase 06]: Centralize security-route test mocks to keep regression setup deterministic and prevent route dependency drift from masking redaction failures.
+- [Phase 07-canonical-data-wiring-and-observability-closure]: Webhook reconciliation persists payment_logs first and propagates latest payment log linkage through booking lifecycle metadata.
+- [Phase 07-canonical-data-wiring-and-observability-closure]: Commission tracking is lifecycle-authoritative in booking repository transitions for payment_authorized/confirmed/refunded/failed states.
+- [Phase 07-canonical-data-wiring-and-observability-closure]: Review snippets now use canonical reviews_cache stale-aware read-through while retaining Redis as additive fast-path cache.
 
 ### Pending Todos
 
-- None - Phase 06 execution plans are complete.
+- Continue with 07-02-PLAN.md and 07-03-PLAN.md to complete ARCH-04 and ARCH-05 closure work.
 
 ### Blockers/Concerns
 
@@ -116,6 +120,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-28 07:56
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-02-28 16:14
+Stopped at: Completed 07-01-PLAN.md
 Resume file: None
