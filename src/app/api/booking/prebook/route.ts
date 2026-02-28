@@ -8,7 +8,7 @@ import { savePrebookSession } from '@/server/booking-store';
 import { HttpError, toHttpError } from '@/server/errors';
 import { persistQuote } from '@/server/booking/repository';
 import { signCheckoutSession } from '@/server/booking-session';
-import { logger } from '@/server/logger';
+import { logger, logStructuredEvent } from '@/server/logger';
 import { getRequestContext, parseRequestBody, sanitizeUnknown } from '@/server/request';
 import { assertProductionReadiness } from '@/server/env';
 import { createServerSupabaseClient } from '@/server/supabase/server';
@@ -53,6 +53,12 @@ const clientPrebookResponseSchema = z.object({
   })
 });
 
+function emitStructuredEvent(level: 'error' | 'warn' | 'info' | 'debug', event: string, context: Record<string, unknown>) {
+  if (typeof logStructuredEvent === 'function') {
+    logStructuredEvent(level, event, context);
+  }
+}
+
 function createClientReference(input: { hotelId: string; roomId: string; offerId: string }): string {
   const compact = `${input.hotelId}-${input.roomId}-${input.offerId}`
     .replace(/[^a-zA-Z0-9_-]/g, '')
@@ -74,6 +80,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { clientIp, correlationId } = getRequestContext(request);
+    emitStructuredEvent('info', 'booking.prebook.received', {
+      correlation_id: correlationId,
+      route: 'booking-prebook',
+      module: 'booking.prebook'
+    });
     await assertRateLimit(`booking:${clientIp}:prebook`, 'booking');
 
     const payload = await parseRequestBody(request, requestSchema);
@@ -132,6 +143,14 @@ export async function POST(request: NextRequest) {
       },
       'Prebook session created'
     );
+    emitStructuredEvent('info', 'booking.prebook.succeeded', {
+      correlation_id: correlationId,
+      route: 'booking-prebook',
+      module: 'booking.prebook',
+      prebook_id: prebook.prebookId,
+      transaction_id: prebook.transactionId,
+      quote_id: quoteId
+    });
 
     const responsePayload = clientPrebookResponseSchema.parse({
       prebookId: prebook.prebookId,

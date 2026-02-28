@@ -650,8 +650,12 @@ describe('booking route handlers', () => {
       updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
       persistBooking: vi.fn().mockResolvedValue(null)
     }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog: vi.fn().mockResolvedValue('payment-log-1')
+    }));
     vi.doMock('@/server/logger', () => ({
-      logger: { info: loggerInfo }
+      logger: { info: loggerInfo },
+      logStructuredEvent: vi.fn()
     }));
 
     const raw = JSON.stringify({
@@ -711,8 +715,12 @@ describe('booking route handlers', () => {
       updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
       persistBooking: vi.fn().mockResolvedValue(null)
     }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog: vi.fn().mockResolvedValue('payment-log-1')
+    }));
     vi.doMock('@/server/logger', () => ({
-      logger: { info: loggerInfo }
+      logger: { info: loggerInfo },
+      logStructuredEvent: vi.fn()
     }));
 
     const raw = JSON.stringify({
@@ -769,8 +777,12 @@ describe('booking route handlers', () => {
       updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
       persistBooking: vi.fn().mockResolvedValue(null)
     }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog: vi.fn().mockResolvedValue('payment-log-1')
+    }));
     vi.doMock('@/server/logger', () => ({
-      logger: { info: loggerInfo, warn: vi.fn() }
+      logger: { info: loggerInfo, warn: vi.fn() },
+      logStructuredEvent: vi.fn()
     }));
 
     const raw = JSON.stringify({
@@ -827,8 +839,12 @@ describe('booking route handlers', () => {
       updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
       persistBooking: vi.fn().mockResolvedValue(null)
     }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog: vi.fn().mockResolvedValue('payment-log-1')
+    }));
     vi.doMock('@/server/logger', () => ({
-      logger: { info: vi.fn(), warn: loggerWarn }
+      logger: { info: vi.fn(), warn: loggerWarn },
+      logStructuredEvent: vi.fn()
     }));
 
     const raw = JSON.stringify({

@@ -1,7 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { assertProductionReadiness, env } from '@/server/env';
-import { logger } from '@/server/logger';
+import { logger, logStructuredEvent } from '@/server/logger';
 import { assertRateLimit } from '@/server/ratelimit';
 import { claimWebhookEvent, finalizeWebhookEvent } from '@/server/webhook-idempotency';
 import { toHttpError } from '@/server/errors';
@@ -13,6 +13,16 @@ import {
 import { insertPaymentLog } from '@/server/payment-logs-repository';
 import { getClientIp, getCorrelationId } from '@/server/request';
 import { normalizeSupplierBookingState } from '@/server/booking/lifecycle';
+
+function emitStructuredEvent(
+  level: 'error' | 'warn' | 'info' | 'debug',
+  event: string,
+  context: Record<string, unknown>
+): void {
+  if (typeof logStructuredEvent === 'function') {
+    logStructuredEvent(level, event, context);
+  }
+}
 
 type ReconciliationUpdate = {
   bookingId: string | null;
@@ -163,6 +173,12 @@ export async function POST(request: NextRequest) {
     assertProductionReadiness();
     const clientIp = getClientIp(request);
     await assertRateLimit(`webhook-liteapi:${clientIp}`);
+    const correlationId = getCorrelationId(request);
+    emitStructuredEvent('info', 'webhook.liteapi.received', {
+      correlation_id: correlationId,
+      route: 'webhook-liteapi',
+      module: 'webhook.liteapi'
+    });
 
     const rawBody = await request.text();
     const signature = readSignatureHeader(request);
@@ -178,11 +194,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    const correlationId = getCorrelationId(request);
     const eventId = String(event.id ?? createHash('sha256').update(rawBody).digest('hex'));
     const claimed = await claimWebhookEvent(eventId, 'liteapi', 60);
     if (!claimed) {
       logger.info({ correlationId, eventId }, 'Duplicate LiteAPI webhook ignored');
+      emitStructuredEvent('info', 'webhook.liteapi.duplicate', {
+        correlation_id: correlationId,
+        route: 'webhook-liteapi',
+        module: 'webhook.liteapi',
+        event_id: eventId
+      });
       return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
     }
 
@@ -260,10 +281,26 @@ export async function POST(request: NextRequest) {
       },
       'LiteAPI webhook received'
     );
+    emitStructuredEvent('info', 'webhook.liteapi.reconciled', {
+      correlation_id: correlationId,
+      route: 'webhook-liteapi',
+      module: 'webhook.liteapi',
+      event_id: eventId,
+      event_type: String(event.type ?? 'unknown'),
+      booking_id: update.bookingId,
+      transaction_id: update.transactionId,
+      booking_status: update.status
+    });
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    const httpError = toHttpError(error);
+    const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    const httpError = toHttpError(error, {
+      route: 'webhook-liteapi',
+      module: 'webhook.liteapi',
+      event: 'webhook.liteapi.failed',
+      correlationId
+    });
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   }
 }

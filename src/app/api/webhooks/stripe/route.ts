@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import { NextRequest, NextResponse } from 'next/server';
 import { assertProductionReadiness } from '@/server/env';
 import { toHttpError } from '@/server/errors';
-import { logger } from '@/server/logger';
+import { logger, logStructuredEvent } from '@/server/logger';
 import { constructStripeEvent } from '@/server/payments/stripe';
 import { assertRateLimit } from '@/server/ratelimit';
 import {
@@ -12,6 +12,16 @@ import {
 import { insertPaymentLog } from '@/server/payment-logs-repository';
 import { getClientIp, getCorrelationId } from '@/server/request';
 import { claimWebhookEvent, finalizeWebhookEvent } from '@/server/webhook-idempotency';
+
+function emitStructuredEvent(
+  level: 'error' | 'warn' | 'info' | 'debug',
+  event: string,
+  context: Record<string, unknown>
+): void {
+  if (typeof logStructuredEvent === 'function') {
+    logStructuredEvent(level, event, context);
+  }
+}
 
 type ReconciliationUpdate = {
   transactionId: string | null;
@@ -126,6 +136,12 @@ export async function POST(request: NextRequest) {
   try {
     assertProductionReadiness();
     await assertRateLimit(`webhook-stripe:${getClientIp(request)}`);
+    const correlationId = getCorrelationId(request);
+    emitStructuredEvent('info', 'webhook.stripe.received', {
+      correlation_id: correlationId,
+      route: 'webhook-stripe',
+      module: 'webhook.stripe'
+    });
 
     const rawBody = await request.text();
     const signature = request.headers.get('stripe-signature');
@@ -146,6 +162,13 @@ export async function POST(request: NextRequest) {
     const claimed = await claimWebhookEvent(event.id, 'stripe', 60);
     if (!claimed) {
       logger.info({ eventId: event.id, eventType: event.type }, 'Duplicate Stripe webhook ignored');
+      emitStructuredEvent('info', 'webhook.stripe.duplicate', {
+        correlation_id: correlationId,
+        route: 'webhook-stripe',
+        module: 'webhook.stripe',
+        event_id: event.id,
+        event_type: event.type
+      });
       return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
     }
 
@@ -156,7 +179,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, ignored: true }, { status: 200 });
     }
 
-    const correlationId = getCorrelationId(request);
     const amountAndCurrency = readStripeAmountAndCurrency(event);
     const paymentLogId = await insertPaymentLog({
       provider: 'stripe',
@@ -228,10 +250,25 @@ export async function POST(request: NextRequest) {
       },
       'Stripe webhook received'
     );
+    emitStructuredEvent('info', 'webhook.stripe.reconciled', {
+      correlation_id: correlationId,
+      route: 'webhook-stripe',
+      module: 'webhook.stripe',
+      event_id: event.id,
+      event_type: event.type,
+      transaction_id: update.transactionId,
+      booking_status: update.status
+    });
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
-    const httpError = toHttpError(error);
+    const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    const httpError = toHttpError(error, {
+      route: 'webhook-stripe',
+      module: 'webhook.stripe',
+      event: 'webhook.stripe.failed',
+      correlationId
+    });
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   }
 }

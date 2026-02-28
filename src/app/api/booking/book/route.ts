@@ -16,9 +16,15 @@ import {
   saveFinalizedBookingResult
 } from '@/server/booking-idempotency';
 import { assertProductionReadiness, env } from '@/server/env';
-import { logger } from '@/server/logger';
+import { logger, logStructuredEvent } from '@/server/logger';
 import { getRequestContext, parseRequestBody, sanitizeRecord, sanitizeUnknown, stripSupplierSecrets } from '@/server/request';
 import { createServerSupabaseClient } from '@/server/supabase/server';
+
+function emitStructuredEvent(level: 'error' | 'warn' | 'info' | 'debug', event: string, context: Record<string, unknown>) {
+  if (typeof logStructuredEvent === 'function') {
+    logStructuredEvent(level, event, context);
+  }
+}
 
 const requestSchema = z.object({
   prebookId: z.string().trim().min(1),
@@ -79,6 +85,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { clientIp, correlationId } = getRequestContext(request);
+    emitStructuredEvent('info', 'booking.finalize.received', {
+      correlation_id: correlationId,
+      route: 'booking-book',
+      module: 'booking.finalize'
+    });
     await assertRateLimit(`booking:${clientIp}:finalize`, 'booking');
 
     const payload = await parseRequestBody(request, requestSchema);
@@ -87,6 +98,12 @@ export async function POST(request: NextRequest) {
     const cachedResult = await getFinalizedBookingResult(payload.transactionId);
     if (cachedResult) {
       logger.info({ correlationId, transactionId: payload.transactionId }, 'Returning cached finalized booking response');
+      emitStructuredEvent('info', 'booking.finalize.cache_hit', {
+        correlation_id: correlationId,
+        route: 'booking-book',
+        module: 'booking.finalize',
+        transaction_id: payload.transactionId
+      });
       return NextResponse.json(cachedResult);
     }
 
@@ -216,6 +233,14 @@ export async function POST(request: NextRequest) {
       },
       'Booking finalized'
     );
+    emitStructuredEvent('info', 'booking.finalize.succeeded', {
+      correlation_id: correlationId,
+      route: 'booking-book',
+      module: 'booking.finalize',
+      transaction_id: payload.transactionId,
+      booking_id: localBookingId,
+      supplier_booking_id: liteApiBookingId
+    });
 
     const responsePayload = {
       booking: stripSupplierSecrets(booking),
@@ -233,7 +258,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(responsePayload);
   } catch (error) {
     logger.warn({ error, route: 'booking-book' }, 'Book request failed');
-    const httpError = toHttpError(error);
+    const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    const httpError = toHttpError(error, {
+      route: 'booking-book',
+      module: 'booking.finalize',
+      event: 'booking.finalize.failed',
+      correlationId,
+      metadata: {
+        transactionId: transactionIdForLock
+      }
+    });
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   } finally {
     if (lockAcquired && transactionIdForLock) {

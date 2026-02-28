@@ -3,12 +3,18 @@ import { z } from 'zod';
 import { assertSameOrigin } from '@/server/csrf';
 import { toHttpError } from '@/server/errors';
 import { assertProductionReadiness, env, usesStripePayments } from '@/server/env';
-import { logger } from '@/server/logger';
+import { logger, logStructuredEvent } from '@/server/logger';
 import { createStripeCheckoutIntent } from '@/server/payments/stripe';
 import { getPrebookSession } from '@/server/booking-store';
 import { updateBookingStatusByTransactionId } from '@/server/booking/repository';
 import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
 import { getRequestContext, parseRequestBody } from '@/server/request';
+
+function emitStructuredEvent(level: 'error' | 'warn' | 'info' | 'debug', event: string, context: Record<string, unknown>) {
+  if (typeof logStructuredEvent === 'function') {
+    logStructuredEvent(level, event, context);
+  }
+}
 
 const requestSchema = z.object({
   prebookId: z.string().trim().min(1),
@@ -44,6 +50,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { clientIp, correlationId } = getRequestContext(request);
+    emitStructuredEvent('info', 'booking.checkout_session.received', {
+      correlation_id: correlationId,
+      route: 'checkout-session',
+      module: 'booking.checkout'
+    });
     await assertRateLimit(createRateLimitKey('booking', clientIp, 'checkout-session'), 'booking');
 
     const payload = await parseRequestBody(request, requestSchema);
@@ -99,6 +110,15 @@ export async function POST(request: NextRequest) {
       },
       'Stripe checkout session created'
     );
+    emitStructuredEvent('info', 'booking.checkout_session.succeeded', {
+      correlation_id: correlationId,
+      route: 'checkout-session',
+      module: 'booking.checkout',
+      transaction_id: payload.transactionId,
+      prebook_id: payload.prebookId,
+      stripe_checkout_session_id: stripeSession.sessionId,
+      persistence_linked: linkagePersisted
+    });
 
     return NextResponse.json({
       checkoutSessionId: stripeSession.sessionId,

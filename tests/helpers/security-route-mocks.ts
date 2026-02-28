@@ -16,7 +16,8 @@ export function mockSecurityRouteDependencies(options: SecurityRouteMockOptions 
   const commissionPercent = options.commissionPercent ?? 12;
 
   vi.doMock('@/server/logger', () => ({
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    logStructuredEvent: vi.fn()
   }));
 
   vi.doMock('@/server/ratelimit', () => ({
