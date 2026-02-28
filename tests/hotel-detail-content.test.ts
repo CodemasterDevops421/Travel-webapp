@@ -13,6 +13,11 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
     'utf8'
   );
 
+  const liteApiSource = readFileSync(
+    resolve(process.cwd(), 'src/server/liteapi.ts'),
+    'utf8'
+  );
+
   it('renders required HOTL-01 section anchors', () => {
     expect(source).toContain("{ id: 'amenities', label: 'Amenities' }");
     expect(source).toContain("{ id: 'policies', label: 'Policies' }");
@@ -48,6 +53,16 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
     expect(sectionsSource).toContain('Consider before booking');
     expect(sectionsSource).toContain('mentioned in {topic.mentions} reviews');
     expect(sectionsSource).toContain("Not enough verified review volume to generate stable topic highlights yet.");
+  });
+
+  it('enforces description hierarchy and sectioned narrative rendering', () => {
+    expect(liteApiSource).toContain('function composeDescriptionNarrative');
+    expect(liteApiSource).toContain("mode: 'supplier'");
+    expect(liteApiSource).toContain("mode: 'synthesized'");
+    expect(liteApiSource).toContain("mode: 'unavailable'");
+    expect(sectionsSource).toContain('const descriptionNarrative = hotel?.descriptionNarrative;');
+    expect(sectionsSource).toContain('{section.source}');
+    expect(sectionsSource).toContain('{descriptionNarrative?.message ?? \'Property description is currently unavailable.\'}');
   });
 
   it('avoids implied completeness by removing synthetic amenity defaults', () => {
