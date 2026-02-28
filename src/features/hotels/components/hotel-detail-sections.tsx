@@ -123,6 +123,7 @@ export function HotelDetailSections({
   const houseRulesDetailed = hotel?.houseRulesDetailed ?? [];
   const smartHighlights = hotel?.smartHighlights ?? [];
   const reviewHighlights = hotel?.reviewHighlights;
+  const descriptionNarrative = hotel?.descriptionNarrative;
   const sortedReviews = useMemo(() => {
     const items = [...reviews];
     if (reviewSort === 'newest') {
@@ -672,9 +673,21 @@ export function HotelDetailSections({
 
       <section id="description" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('description')}>
         <h2 className="text-xl font-semibold">Property description</h2>
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-          {hotel?.description ?? 'Property description is currently unavailable.'}
-        </p>
+        {descriptionNarrative && descriptionNarrative.sections.length > 0 ? (
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {descriptionNarrative.sections.map((section, index) => (
+              <article key={`${section.title}-${index}`} className="rounded-xl border border-border bg-background/70 p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{section.source}</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{section.title}</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{section.body}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            {descriptionNarrative?.message ?? 'Property description is currently unavailable.'}
+          </p>
+        )}
       </section>
 
       <section id="facilities-detail" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('facilities-detail')}>
