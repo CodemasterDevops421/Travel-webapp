@@ -17,6 +17,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Hotel Detail and User Workspace** - Ship rich hotel pages, contextual AI Q&A, and wishlist-driven user value. (completed 2026-02-25)
 - [ ] **Phase 4: Checkout and Booking Lifecycle Integrity** - Implement payment-safe checkout with idempotent booking state transitions.
 - [ ] **Phase 5: Admin Monetization and Launch Operations** - Operationalize revenue visibility, controls, analytics, and deployment readiness.
+- [ ] **Phase 6: Auth and Booking Security Gap Closure** - Close milestone-blocking auth-linking and booking security regression gaps from audit.
+- [ ] **Phase 7: Canonical Data Wiring and Observability Closure** - Close canonical runtime wiring and structured observability integration gaps from audit.
 
 ## Phase Details
 
@@ -102,10 +104,33 @@ Plans:
   5. Production deployment and webhook setup are executable from documented configs with domain-ready settings.
 **Plans**: TBD
 
+### Phase 6: Auth and Booking Security Gap Closure
+**Goal**: Milestone-blocking auth and booking security gaps identified by audit are closed with test-backed behavior.
+**Depends on**: Phase 4
+**Requirements**: AUTH-02, ARCH-01, AUTH-05
+**Gap Closure**: Closes gaps from `.planning/v1.0-v1.0-MILESTONE-AUDIT.md` (AUTH-02 unsatisfied, ARCH-01 partial, AUTH-05 verification flow break)
+**Success Criteria** (what must be TRUE):
+  1. OAuth callback explicitly supports same-email account-link semantics for AUTH-02 and is covered by tests.
+  2. Booking prebook/payment secret exposure policy is enforced so frontend receives only minimal required ephemeral payment data.
+  3. Security regression tests run green without mock drift and verify redaction/forgery protections as intended.
+  4. End-to-end booking security and OAuth-linking flows pass without manual workarounds.
+**Plans**: TBD
+
+### Phase 7: Canonical Data Wiring and Observability Closure
+**Goal**: Canonical data consumers and structured logging are fully wired for production operations.
+**Depends on**: Phase 6
+**Requirements**: ARCH-04, ARCH-05
+**Gap Closure**: Closes gaps from `.planning/v1.0-v1.0-MILESTONE-AUDIT.md` (ARCH-04 partial runtime wiring, ARCH-05 integration orphan)
+**Success Criteria** (what must be TRUE):
+  1. Runtime consumers persist and query `payment_logs`, `commission_tracking`, and `reviews_cache` for live platform operations.
+  2. Booking/supplier-critical server paths emit structured events through the shared helper with actionable metadata.
+  3. Data and observability wiring is validated by tests and aligns with requirements traceability.
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -114,3 +139,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 3. Hotel Detail and User Workspace | 4/4 | Complete | 2026-02-25 |
 | 4. Checkout and Booking Lifecycle Integrity | 0/4 | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |
+| 6. Auth and Booking Security Gap Closure | 0/TBD | Not started | - |
+| 7. Canonical Data Wiring and Observability Closure | 0/TBD | Not started | - |
