@@ -49,6 +49,7 @@ function makeHotel(overrides: Partial<HotelDetails> = {}): HotelDetails {
       pros: ['Clean rooms'],
       cons: []
     },
+    smartHighlights: [],
     completeness: {
       isPartial: false,
       missingSections: [],

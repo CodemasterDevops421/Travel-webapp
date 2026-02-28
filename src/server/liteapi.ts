@@ -168,6 +168,12 @@ export type HotelHouseRuleItem = {
   detail: string;
 };
 
+export type HotelSmartHighlight = {
+  title: string;
+  detail: string;
+  source: 'reviews' | 'location' | 'amenities' | 'policies';
+};
+
 export type HotelDetailCompleteness = {
   isPartial: boolean;
   missingSections: string[];
@@ -198,6 +204,7 @@ export type HotelDetails = {
   areaInfo?: HotelAreaInfoItem[];
   nearbyRestaurants?: HotelRestaurantInfo[];
   houseRulesDetailed?: HotelHouseRuleItem[];
+  smartHighlights: HotelSmartHighlight[];
   completeness: HotelDetailCompleteness;
 };
 
@@ -802,6 +809,73 @@ function pickProsAndCons(reviews: HotelGuestReview[]): HotelProsAndCons {
     pros: Array.from(pros).slice(0, 6),
     cons: Array.from(cons).slice(0, 6)
   };
+}
+
+function composeSmartHighlights(input: {
+  city: string;
+  reviewScore: number | null;
+  reviewCount: number | null;
+  locationContext: HotelLocationContext;
+  facilities: string[];
+  policies: HotelPolicyDetails;
+}): HotelSmartHighlight[] {
+  const highlights: HotelSmartHighlight[] = [];
+
+  if (typeof input.reviewScore === 'number') {
+    const scoreLabel = input.reviewScore >= 9 ? 'Excellent' : input.reviewScore >= 8 ? 'Very good' : 'Good';
+    const reviewCountCopy =
+      typeof input.reviewCount === 'number'
+        ? `based on ${Math.round(input.reviewCount).toLocaleString()} reviews`
+        : 'based on available supplier reviews';
+    highlights.push({
+      title: 'Guest sentiment',
+      detail: `${scoreLabel} rating of ${input.reviewScore.toFixed(1)} / 10, ${reviewCountCopy}.`,
+      source: 'reviews'
+    });
+  }
+
+  if (input.locationContext.nearbyLandmarks.length > 0) {
+    highlights.push({
+      title: 'Area context',
+      detail: `Close to ${input.locationContext.nearbyLandmarks.slice(0, 3).join(', ')}.`,
+      source: 'location'
+    });
+  } else if (input.locationContext.addressLine || input.locationContext.neighborhood) {
+    const locationLabel =
+      input.locationContext.neighborhood ??
+      input.locationContext.addressLine ??
+      `central ${input.city}`;
+    highlights.push({
+      title: 'Area context',
+      detail: `Located around ${locationLabel}.`,
+      source: 'location'
+    });
+  }
+
+  if (input.facilities.length > 0) {
+    highlights.push({
+      title: 'Popular amenities',
+      detail: `Top amenities include ${input.facilities.slice(0, 4).join(', ')}.`,
+      source: 'amenities'
+    });
+  }
+
+  if (
+    input.policies.cancellation.length > 0 ||
+    input.policies.checkInFrom !== null ||
+    input.policies.checkOutUntil !== null
+  ) {
+    const checkIn = input.policies.checkInFrom ?? 'not provided';
+    const checkOut = input.policies.checkOutUntil ?? 'not provided';
+    const cancellation = input.policies.cancellation[0] ?? 'Cancellation terms depend on selected room and rate.';
+    highlights.push({
+      title: 'Arrival and cancellation',
+      detail: `Check-in from ${checkIn}, check-out until ${checkOut}. ${cancellation}`,
+      source: 'policies'
+    });
+  }
+
+  return highlights.slice(0, 5);
 }
 
 function buildCompleteness(details: {
@@ -1903,6 +1977,14 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
     const areaInfo = pickAreaInfo(data, locationContext);
     const nearbyRestaurants = pickNearbyRestaurants(data);
     const houseRulesDetailed = pickHouseRulesDetailed(data, policies);
+    const smartHighlights = composeSmartHighlights({
+      city,
+      reviewScore: reviewScore ?? enrichment?.reviewScore ?? null,
+      reviewCount: reviewCount ?? enrichment?.reviewCount ?? null,
+      locationContext,
+      facilities,
+      policies
+    });
     const completeness = buildCompleteness({
       photos,
       facilities,
@@ -1938,6 +2020,7 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       areaInfo,
       nearbyRestaurants,
       houseRulesDetailed,
+      smartHighlights,
       completeness
     };
   } catch (error) {
