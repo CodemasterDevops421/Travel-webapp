@@ -169,6 +169,9 @@ describe('booking notification lifecycle', () => {
     vi.doMock('@/server/logger', () => ({
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
     }));
+    vi.doMock('@/server/commission-tracking-repository', () => ({
+      upsertCommissionTracking: vi.fn().mockResolvedValue('commission-1')
+    }));
     vi.doMock('@/server/notifications/email', () => ({ sendLifecycleEmail }));
 
     const repo = await import('@/server/booking/repository');

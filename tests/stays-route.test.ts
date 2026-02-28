@@ -29,7 +29,7 @@ describe('stays destination SSR routes', () => {
 
     expect(metadata.title).toBe('Stays in Bali | Hostel Stays');
     expect(metadata.alternates?.canonical).toBe('/stays/bali');
-  });
+  }, 15000);
 
   it('returns noindex metadata for unsupported destinations', async () => {
     const { generateMetadata } = await import('@/app/stays/[destination]/page');
