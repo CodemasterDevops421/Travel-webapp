@@ -4,6 +4,7 @@ import { getBookingById } from '@/server/booking/repository';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
 import { PreferenceLink } from '@/components/navigation/preference-link';
 import { BookingCancelAction } from '@/features/booking/components/booking-cancel-action';
+import { BookingSupportHandoffAction } from '@/features/booking/components/booking-support-handoff-action';
 
 type BookingConfirmationPageProps = {
   params: Promise<{
@@ -165,6 +166,7 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
             <p className="mt-2 text-sm text-muted-foreground">Need to cancel? Use the in-app action below. For other changes, include booking, transaction, and prebook references.</p>
             <p className="mt-2 text-sm text-muted-foreground">Email: support@hostelstays.com</p>
             <BookingCancelAction bookingId={booking.id} viewToken={viewToken} bookingStatus={booking.status} />
+            <BookingSupportHandoffAction bookingId={booking.id} viewToken={viewToken} />
           </article>
         </aside>
       </section>
