@@ -5,6 +5,7 @@ import { getClientIp } from '@/server/request';
 import { getOrSetRedisCache } from '@/server/cache';
 import { getGuestReviews } from '@/server/liteapi';
 import { toHttpError } from '@/server/errors';
+import { getReviewsCache, isReviewsCacheStale, upsertReviewsCache } from '@/server/reviews-cache-repository';
 import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
 
 type ReviewSnippet = {
@@ -12,6 +13,10 @@ type ReviewSnippet = {
   quote: string;
   author: string | null;
   score: number | null;
+};
+
+type ReviewSnippetCachePayload = {
+  snippet: ReviewSnippet | null;
 };
 
 const querySchema = z.object({
@@ -29,8 +34,21 @@ function truncateSnippet(value: string): string {
 async function loadSnippet(hotelId: string): Promise<ReviewSnippet | null> {
   const cacheKey = `review-snippet:${hotelId}`;
   return getOrSetRedisCache(cacheKey, CACHE_TTL_SECONDS.propertyPreview, async () => {
+    const canonical = await getReviewsCache(hotelId);
+    if (canonical && !isReviewsCacheStale(canonical)) {
+      const payload = canonical.payload as ReviewSnippetCachePayload | null;
+      if (payload && typeof payload === 'object' && 'snippet' in payload) {
+        return payload.snippet;
+      }
+    }
+
     const reviews = await getGuestReviews(hotelId, 3);
     if (!reviews || reviews.length === 0) {
+      await upsertReviewsCache({
+        hotelId,
+        payload: { snippet: null },
+        ttlSeconds: CACHE_TTL_SECONDS.propertyPreview
+      });
       return null;
     }
 
@@ -41,6 +59,12 @@ async function loadSnippet(hotelId: string): Promise<ReviewSnippet | null> {
       author: firstReview.author,
       score: firstReview.score
     };
+
+    await upsertReviewsCache({
+      hotelId,
+      payload: { snippet },
+      ttlSeconds: CACHE_TTL_SECONDS.propertyPreview
+    });
 
     return snippet;
   });
