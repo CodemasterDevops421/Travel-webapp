@@ -27,11 +27,19 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
   });
 
   it('uses truthful fallback copy for missing supplier blocks', () => {
+    expect(sectionsSource).toContain('Smart highlights are currently unavailable because supplier detail signals are limited for this property.');
     expect(sectionsSource).toContain('Amenities data is currently unavailable from the supplier for this property.');
     expect(sectionsSource).toContain('Cancellation policy details are currently unavailable from the supplier.');
     expect(sectionsSource).toContain('Address details are currently unavailable from the supplier.');
     expect(sectionsSource).toContain('Detailed guest comments are currently unavailable from the supplier.');
     expect(sectionsSource).toContain('Pros and cons summaries are currently unavailable from supplier reviews.');
+  });
+
+  it('renders smart highlights from normalized hotel payload when available', () => {
+    expect(sectionsSource).toContain('const smartHighlights = hotel?.smartHighlights ?? []');
+    expect(sectionsSource).toContain("{highlight.source}");
+    expect(sectionsSource).toContain('{highlight.title}');
+    expect(sectionsSource).toContain('{highlight.detail}');
   });
 
   it('avoids implied completeness by removing synthetic amenity defaults', () => {
