@@ -65,6 +65,14 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
     expect(sectionsSource).toContain('{descriptionNarrative?.message ?? \'Property description is currently unavailable.\'}');
   });
 
+  it('keeps review and description intelligence deterministic and source-bounded', () => {
+    expect(liteApiSource).toContain('const REVIEW_TOPIC_PATTERNS');
+    expect(liteApiSource).toContain('const minimumMentions = reviews.length >= 10 ? 3 : 2;');
+    expect(liteApiSource).toContain('Review comments are available, but recurring topics are too sparse for a reliable summary.');
+    expect(liteApiSource).toContain('Description is synthesized from available supplier fields because narrative text is unavailable.');
+    expect(liteApiSource).toContain("mode: 'unavailable'");
+  });
+
   it('avoids implied completeness by removing synthetic amenity defaults', () => {
     expect(source).not.toContain("'Free WiFi', '24-hour front desk', 'Luggage storage'");
   });
