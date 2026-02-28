@@ -216,4 +216,37 @@ describe('stripe webhook route', () => {
       })
     }));
   });
+
+  it('captures centralized error telemetry when webhook processing throws', async () => {
+    const captureException = vi.fn();
+
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException
+    }));
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockRejectedValue(new Error('rate limit backend down'))
+    }));
+
+    const { POST } = await import('@/app/api/webhooks/stripe/route');
+    const req = {
+      headers: new Headers({
+        'stripe-signature': 'sig',
+        'x-request-id': 'cid-webhook-1'
+      }),
+      text: async () => '{"id":"evt_failure"}'
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toMatch(/internal server error/i);
+    expect(captureException).toHaveBeenCalledOnce();
+    const [, scope] = captureException.mock.calls[0] as [unknown, { tags?: Record<string, unknown>; extra?: Record<string, unknown> }];
+    expect(scope.tags).toMatchObject({
+      event: 'webhook.stripe.failed',
+      route: 'webhook-stripe'
+    });
+    expect((scope.extra?.metadata as Record<string, unknown>).transactionId ?? null).toBeNull();
+  });
 });
