@@ -8,6 +8,7 @@ import { CACHE_TTL_SECONDS } from '@/shared/lib/cache-ttl';
 import { env } from '@/server/env';
 import { getRequestContext, stripSupplierSecrets } from '@/server/request';
 import type { HotelRateOption } from '@/server/liteapi';
+import { getAppSettings } from '@/server/settings/repository';
 
 type RateWithCancellationContext = HotelRateOption & {
     isRefundable: boolean | null;
@@ -78,6 +79,7 @@ export async function GET(request: NextRequest) {
         const { hotelId, checkin, checkout, adults, rooms, currency, guestNationality } = result.data;
         const { clientIp } = getRequestContext(request);
         await assertRateLimit(`hotel-rates:${clientIp}`);
+        const settings = await getAppSettings();
 
         const cacheKey = `hotel-rates:${hotelId}:${checkin}:${checkout}:${adults}:${rooms}:${currency ?? 'USD'}:${guestNationality ?? 'US'}`;
         const payload = await getOrSetRedisCache(
@@ -91,7 +93,8 @@ export async function GET(request: NextRequest) {
                     adults,
                     rooms,
                     currency,
-                    guestNationality
+                    guestNationality,
+                    margin: settings.commissionPercent
                 });
             }
         );

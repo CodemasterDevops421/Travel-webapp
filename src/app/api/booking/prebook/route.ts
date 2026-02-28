@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
 import { assertSameOrigin } from '@/server/csrf';
-import { buildPriceQuoteWithMarkup } from '@/server/pricing';
+import { buildPriceQuoteExact } from '@/server/pricing';
 import { prebookRate } from '@/server/liteapi';
 import { savePrebookSession } from '@/server/booking-store';
 import { HttpError, toHttpError } from '@/server/errors';
@@ -11,7 +11,6 @@ import { signCheckoutSession } from '@/server/booking-session';
 import { logger } from '@/server/logger';
 import { getRequestContext, parseRequestBody, sanitizeUnknown } from '@/server/request';
 import { assertProductionReadiness } from '@/server/env';
-import { getAppSettings } from '@/server/settings/repository';
 import { createServerSupabaseClient } from '@/server/supabase/server';
 
 const requestSchema = z.object({
@@ -69,13 +68,12 @@ export async function POST(request: NextRequest) {
       throw new HttpError(502, 'Supplier prebook payload is invalid');
     }
     const prebook = parsedPrebook.data;
-    const settings = await getAppSettings();
-    const quote = buildPriceQuoteWithMarkup({
+    const quote = buildPriceQuoteExact({
       hotelId: payload.hotelId,
       roomId: payload.roomId,
       amount: prebook.price,
       currency: prebook.currency.toUpperCase()
-    }, settings.commissionPercent);
+    });
     const clientReference = createClientReference({
       hotelId: payload.hotelId,
       roomId: payload.roomId,

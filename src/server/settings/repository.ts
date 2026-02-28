@@ -26,7 +26,7 @@ const FALLBACK_KEY = 'global';
 let schemaUnavailable = false;
 const fallbackSettings: AppSettings = {
   commissionPercent: Number.isFinite(env.PRICE_MARKUP_PERCENT)
-    ? Math.min(15, Math.max(5, env.PRICE_MARKUP_PERCENT))
+    ? Math.min(40, Math.max(0, env.PRICE_MARKUP_PERCENT))
     : 12,
   environmentMode: env.LITEAPI_ENV,
   requireLoginForBooking: false,
@@ -44,7 +44,7 @@ function normalizeCommissionPercent(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return fallbackSettings.commissionPercent;
   }
-  return Math.min(15, Math.max(5, value));
+  return Math.min(40, Math.max(0, value));
 }
 
 function normalizeEnvironmentMode(value: unknown): OperatingMode {

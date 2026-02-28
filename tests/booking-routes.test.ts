@@ -51,11 +51,11 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/pricing', () => ({
-      buildPriceQuoteWithMarkup: vi.fn().mockReturnValue({
+      buildPriceQuoteExact: vi.fn().mockReturnValue({
         hotelId: 'h1',
         roomId: 'r1',
         baseAmount: 100,
-        totalAmount: 112,
+        totalAmount: 100,
         currency: 'USD',
         signature: 'sig-1'
       })
@@ -148,11 +148,11 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/pricing', () => ({
-      buildPriceQuoteWithMarkup: vi.fn().mockReturnValue({
+      buildPriceQuoteExact: vi.fn().mockReturnValue({
         hotelId: 'h1',
         roomId: 'r1',
         baseAmount: 100,
-        totalAmount: 112,
+        totalAmount: 100,
         currency: 'USD',
         signature: 'sig-1'
       })
@@ -560,7 +560,8 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/webhook-idempotency', () => ({
-      markWebhookEventProcessed: vi.fn().mockResolvedValue(true)
+      claimWebhookEvent: vi.fn().mockResolvedValue(true),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking/repository', () => ({
       updateBookingStatusByLiteApiId: updateByLiteApiId,
@@ -620,7 +621,8 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/webhook-idempotency', () => ({
-      markWebhookEventProcessed: vi.fn().mockResolvedValue(false)
+      claimWebhookEvent: vi.fn().mockResolvedValue(false),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking/repository', () => ({
       updateBookingStatusByLiteApiId: updateByLiteApiId,
@@ -660,5 +662,121 @@ describe('booking route handlers', () => {
     expect(body.duplicate).toBe(true);
     expect(updateByLiteApiId).not.toHaveBeenCalled();
     expect(loggerInfo).toHaveBeenCalled();
+  });
+
+  it('webhook route ignores unsupported supplier status', async () => {
+    process.env.LITEAPI_WEBHOOK_SECRET = 'test-webhook-secret';
+    process.env.QUOTE_SIGNING_SECRET = 'replace-with-strong-quote-signing-secret';
+    process.env.LITEAPI_API_KEY = 'test';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
+
+    const updateByLiteApiId = vi.fn();
+    const loggerInfo = vi.fn();
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/webhook-idempotency', () => ({
+      claimWebhookEvent: vi.fn().mockResolvedValue(true),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      updateBookingStatusByLiteApiId: updateByLiteApiId,
+      updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
+      persistBooking: vi.fn().mockResolvedValue(null)
+    }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: loggerInfo, warn: vi.fn() }
+    }));
+
+    const raw = JSON.stringify({
+      id: 'evt-unsupported',
+      type: 'booking_notice',
+      data: {
+        bookingId: 'lite-booking-1',
+        status: 'queued_for_manual_review'
+      }
+    });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac('sha256', process.env.LITEAPI_WEBHOOK_SECRET).update(`${timestamp}.${raw}`).digest('hex');
+
+    const { POST } = await import('@/app/api/webhooks/liteapi/route');
+    const req = {
+      headers: new Headers({
+        'x-liteapi-signature': signature,
+        'x-liteapi-timestamp': timestamp,
+        'x-request-id': 'rid-unsupported'
+      }),
+      text: async () => raw
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.ignored).toBe(true);
+    expect(updateByLiteApiId).not.toHaveBeenCalled();
+    expect(loggerInfo).toHaveBeenCalled();
+  });
+
+  it('webhook route returns 500 when reconciliation persistence fails', async () => {
+    process.env.LITEAPI_WEBHOOK_SECRET = 'test-webhook-secret';
+    process.env.QUOTE_SIGNING_SECRET = 'replace-with-strong-quote-signing-secret';
+    process.env.LITEAPI_API_KEY = 'test';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
+
+    const claimWebhookEvent = vi.fn().mockResolvedValue(true);
+    const finalizeWebhookEvent = vi.fn().mockResolvedValue(undefined);
+    const loggerWarn = vi.fn();
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/webhook-idempotency', () => ({
+      claimWebhookEvent,
+      finalizeWebhookEvent
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      updateBookingStatusByLiteApiId: vi.fn().mockResolvedValue(false),
+      updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
+      persistBooking: vi.fn().mockResolvedValue(null)
+    }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: vi.fn(), warn: loggerWarn }
+    }));
+
+    const raw = JSON.stringify({
+      id: 'evt-persist-fail',
+      type: 'booking_confirmed',
+      data: {
+        bookingId: 'lite-booking-fail',
+        status: 'confirmed'
+      }
+    });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac('sha256', process.env.LITEAPI_WEBHOOK_SECRET).update(`${timestamp}.${raw}`).digest('hex');
+
+    const { POST } = await import('@/app/api/webhooks/liteapi/route');
+    const req = {
+      headers: new Headers({
+        'x-liteapi-signature': signature,
+        'x-liteapi-timestamp': timestamp,
+        'x-request-id': 'rid-persist-fail'
+      }),
+      text: async () => raw
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toMatch(/reconciliation failed/i);
+    expect(claimWebhookEvent).toHaveBeenCalledOnce();
+    expect(finalizeWebhookEvent).not.toHaveBeenCalled();
+    expect(loggerWarn).toHaveBeenCalled();
   });
 });

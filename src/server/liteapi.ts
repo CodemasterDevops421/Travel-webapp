@@ -1993,11 +1993,31 @@ export async function getHotelRates(params: {
   rooms?: number;
   currency?: string;
   guestNationality?: string;
+  margin?: number;
+  additionalMarkup?: number;
 }): Promise<HotelRateOption[]> {
   try {
     const runtime = await resolveLiteApiRuntimeConfig();
     const numRooms = params.rooms ?? 1;
     const occupancies = Array.from({ length: numRooms }, () => ({ adults: params.adults }));
+
+    const ratePayload: Record<string, unknown> = {
+      hotelIds: [params.hotelId],
+      checkin: params.checkin,
+      checkout: params.checkout,
+      occupancies,
+      guestNationality: params.guestNationality ?? env.DEFAULT_GUEST_NATIONALITY,
+      currency: params.currency ?? env.DEFAULT_CURRENCY,
+      includeHotelData: true,
+      roomMapping: true
+    };
+
+    if (typeof params.margin === 'number' && Number.isFinite(params.margin)) {
+      ratePayload.margin = params.margin;
+    }
+    if (typeof params.additionalMarkup === 'number' && Number.isFinite(params.additionalMarkup)) {
+      ratePayload.additionalMarkup = params.additionalMarkup;
+    }
 
     const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
@@ -2006,16 +2026,7 @@ export async function getHotelRates(params: {
         'content-type': 'application/json',
         'X-API-Key': runtime.apiKey
       },
-      body: JSON.stringify({
-        hotelIds: [params.hotelId],
-        checkin: params.checkin,
-        checkout: params.checkout,
-        occupancies,
-        guestNationality: params.guestNationality ?? env.DEFAULT_GUEST_NATIONALITY,
-        currency: params.currency ?? env.DEFAULT_CURRENCY,
-        includeHotelData: true,
-        roomMapping: true
-      }),
+      body: JSON.stringify(ratePayload),
       cache: 'no-store'
     });
     if (!response.ok) {
