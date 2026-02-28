@@ -122,6 +122,42 @@ describe('hotel-ai grounding guardrails', () => {
     expect(response.answer.toLowerCase()).toContain('review the final booking terms');
   });
 
+  it('stays grounded when description is synthesized or unavailable', () => {
+    const synthesized = answerHotelQuestion(
+      'Tell me about this hotel',
+      contextFrom({
+        description: null,
+        descriptionNarrative: {
+          mode: 'synthesized',
+          sections: [
+            {
+              title: 'Stay essentials',
+              body: 'Supplier-listed amenities include Parking, Breakfast included, Free WiFi.',
+              source: 'synthesized'
+            }
+          ],
+          message: 'Description is synthesized from available supplier fields because narrative text is unavailable.'
+        }
+      })
+    );
+    const unavailable = answerHotelQuestion(
+      'Tell me about this hotel',
+      contextFrom({
+        description: null,
+        descriptionNarrative: {
+          mode: 'unavailable',
+          sections: [],
+          message: 'Property description is currently unavailable.'
+        }
+      })
+    );
+
+    expect(synthesized.grounded).toBe(true);
+    expect(unavailable.grounded).toBe(true);
+    expect(unavailable.answer.toLowerCase()).toContain('clean rooms');
+    expect(unavailable.answer.toLowerCase()).not.toContain('spa');
+  });
+
   it('handles missing hotel payload with explicit unavailable message', () => {
     const response = answerHotelQuestion('What time is check-in?', null);
 
