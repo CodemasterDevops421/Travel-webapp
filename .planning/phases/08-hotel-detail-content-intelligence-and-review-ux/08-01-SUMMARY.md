@@ -88,13 +88,21 @@ Each task was committed atomically:
 - **Verification:** `npm run typecheck` passed after fixture update.
 - **Committed in:** `d3c578d` (part of task commit)
 
+**2. [Rule 3 - Blocking] Bypassed gsd-tools git-path limitation for docs metadata commit**
+- **Found during:** Final metadata commit step
+- **Issue:** `gsd-tools commit` failed because `git` was not available on PATH in this shell (`'git' is not recognized...`).
+- **Fix:** Used absolute Git binary (`C:\Program Files\Git\cmd\git.exe`) to stage and commit `STATE.md` and `08-01-SUMMARY.md` manually.
+- **Files modified:** None (execution environment only)
+- **Verification:** Metadata commit `e262bd8` created successfully with expected docs message.
+- **Committed in:** `e262bd8`
+
 ---
 
-**Total deviations:** 1 auto-fixed (1 blocking)
-**Impact on plan:** No scope creep; fix was required to keep test fixtures aligned with the new normalized contract.
+**Total deviations:** 2 auto-fixed (2 blocking)
+**Impact on plan:** No scope creep; both fixes were execution blockers required to complete plan verification and metadata commit steps.
 
 ## Issues Encountered
-- None beyond expected contract ripple into test fixture typing.
+- `gsd-tools` state helper could not parse this repository's existing `STATE.md` formatting for `advance-plan` and `update-progress`; state position/session fields were updated manually while preserving recorded metrics and decisions.
 
 ## User Setup Required
 
