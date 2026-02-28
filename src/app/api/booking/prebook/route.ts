@@ -35,6 +35,24 @@ const supplierPrebookSchema = z.object({
   currency: z.string().trim().length(3)
 });
 
+const clientPrebookResponseSchema = z.object({
+  prebookId: z.string().trim().min(1),
+  transactionId: z.string().trim().min(1),
+  clientReference: z.string().trim().min(1),
+  paymentToken: z.string().trim().min(1),
+  paymentSdk: z.literal(true),
+  quoteId: z.string().trim().min(1).nullable(),
+  sessionSignature: z.string().trim().min(1),
+  quote: z.object({
+    hotelId: z.string().trim().min(1),
+    roomId: z.string().trim().min(1),
+    baseAmount: z.number().nonnegative(),
+    totalAmount: z.number().nonnegative(),
+    currency: z.string().trim().length(3),
+    signature: z.string().trim().min(1)
+  })
+});
+
 function createClientReference(input: { hotelId: string; roomId: string; offerId: string }): string {
   const compact = `${input.hotelId}-${input.roomId}-${input.offerId}`
     .replace(/[^a-zA-Z0-9_-]/g, '')
@@ -115,16 +133,18 @@ export async function POST(request: NextRequest) {
       'Prebook session created'
     );
 
-    return NextResponse.json({
+    const responsePayload = clientPrebookResponseSchema.parse({
       prebookId: prebook.prebookId,
       transactionId: prebook.transactionId,
       clientReference,
-      secretKey: prebook.secretKey,
+      paymentToken: prebook.secretKey,
       paymentSdk: true,
       quoteId,
       sessionSignature,
       quote
     });
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
     logger.warn({ error, route: 'booking-prebook' }, 'Prebook request failed');
     const httpError = toHttpError(error);

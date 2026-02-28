@@ -31,7 +31,7 @@ type PrebookResult = {
   prebookId: string;
   transactionId: string;
   clientReference: string;
-  secretKey: string;
+  paymentToken: string;
   quoteId: string | null;
   sessionSignature: string;
   quote: {
@@ -444,7 +444,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     const returnUrl = `${window.location.origin}/booking/return?${returnParams.toString()}`;
     const liteAPIPayment = new window.LiteAPIPayment({
       publicKey: publicEnv.NEXT_PUBLIC_LITEAPI_ENV,
-      secretKey: activePrebook.secretKey,
+      secretKey: activePrebook.paymentToken,
       returnUrl,
       targetElement: '#liteapi-payment-target',
       appearance: { theme: 'flat' },
