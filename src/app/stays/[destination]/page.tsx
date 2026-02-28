@@ -68,6 +68,7 @@ export default async function DestinationPage({ params, searchParams }: Destinat
   return (
     <SearchResultsPage
       query={listingParams.query}
+      mode={listingParams.mode}
       checkin={listingParams.checkin}
       checkout={listingParams.checkout}
       adults={listingParams.adults}

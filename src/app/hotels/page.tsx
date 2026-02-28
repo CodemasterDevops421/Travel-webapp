@@ -23,6 +23,7 @@ export default async function HotelsPage({ searchParams }: HotelsPageProps) {
   return (
     <SearchResultsPage
       query={listingParams.query}
+      mode={listingParams.mode}
       checkin={listingParams.checkin}
       checkout={listingParams.checkout}
       adults={listingParams.adults}

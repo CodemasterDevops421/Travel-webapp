@@ -9,6 +9,7 @@ import { getClientIp } from '@/server/request';
 
 const querySchema = z.object({
   q: z.string().trim().min(2).max(120),
+  mode: z.enum(['destination', 'vibe']).optional(),
   language: z.string().trim().toLowerCase().length(2).optional(),
   currency: z.string().trim().toUpperCase().length(3).optional(),
   checkin: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
   try {
     const parsed = querySchema.safeParse({
       q: request.nextUrl.searchParams.get('q'),
+      mode: request.nextUrl.searchParams.get('mode') ?? undefined,
       language: request.nextUrl.searchParams.get('language') ?? undefined,
       currency: request.nextUrl.searchParams.get('currency') ?? undefined,
       checkin: request.nextUrl.searchParams.get('checkin') ?? undefined,
@@ -71,6 +73,7 @@ export async function GET(request: NextRequest) {
     }
 
     const q = parsed.data.q;
+    const mode = parsed.data.mode ?? 'destination';
     const language = parsed.data.language;
     const currency = parsed.data.currency;
     const checkin = parsed.data.checkin;
@@ -91,10 +94,11 @@ export async function GET(request: NextRequest) {
       typeof maxPrice === 'number' ? `max-${maxPrice}` : 'max-any'
     ].join(':');
     const payload = await getOrSetRedisCache(
-      `property-preview:${q.toLowerCase()}:${language ?? 'en'}:${currency ?? 'default'}:${checkin ?? 'auto'}:${checkout ?? 'auto'}:${adults ?? 2}:${rooms ?? 1}:${briefKey}:${filterKey}`,
+      `property-preview:${mode}:${q.toLowerCase()}:${language ?? 'en'}:${currency ?? 'default'}:${checkin ?? 'auto'}:${checkout ?? 'auto'}:${adults ?? 2}:${rooms ?? 1}:${briefKey}:${filterKey}`,
       CACHE_TTL_SECONDS.propertyPreview,
       async () => {
         return searchPropertyPreviews(q, language, currency, checkin, checkout, adults, rooms, {
+          searchMode: mode,
           brief,
           minStars,
           minGuestRating,

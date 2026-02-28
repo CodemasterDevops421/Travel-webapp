@@ -1404,6 +1404,7 @@ export async function searchPropertyPreviews(
   adults?: number,
   rooms?: number,
   filters?: {
+    searchMode?: 'destination' | 'vibe';
     brief?: string;
     minStars?: number;
     minGuestRating?: number;
@@ -1447,6 +1448,7 @@ export async function searchPropertyPreviews(
     const occupancies = Array.from({ length: activeRooms }, () => ({ adults: activeAdults }));
     const selectedCurrency = currency ?? env.DEFAULT_CURRENCY;
     const trimmedBrief = filters?.brief?.trim();
+    const searchMode = filters?.searchMode ?? 'destination';
     const aiSearchQuery = trimmedBrief ? `${query} ${trimmedBrief}` : query;
     const timeoutSeconds = Math.max(1, Math.round(env.LITEAPI_TIMEOUT_MS / 1000));
     const normalizedMinStars = typeof filters?.minStars === 'number' ? Math.min(5, Math.max(0, filters.minStars)) : undefined;
@@ -1488,6 +1490,48 @@ export async function searchPropertyPreviews(
     };
 
     let degradedReason: SupplierDegradedReason | null = null;
+
+    if (searchMode === 'vibe') {
+      const byAiSearch = await searchRates(
+        {
+          ...basePayload,
+          aiSearch: aiSearchQuery
+        },
+        query,
+        runtime
+      );
+      if (byAiSearch.degradedReason) {
+        degradedReason = byAiSearch.degradedReason;
+      }
+      const filteredByAiSearch = applyFilters(byAiSearch.items);
+      if (filteredByAiSearch.length > 0) {
+        return toResult(filteredByAiSearch.slice(0, 8), degradedReason === null ? null : 'partial');
+      }
+
+      const semanticMatches = await searchHotelsBySemanticQuery(aiSearchQuery, language, 8);
+      if (semanticMatches.length > 0) {
+        const semanticMapped = applyFilters(
+          semanticMatches.map((match) => ({
+            hotelId: match.hotelId,
+            name: match.name,
+            city: match.city || query,
+            countryCode: match.countryCode ?? undefined,
+            starRating: null,
+            reviewScore: match.score,
+            reviewCount: null,
+            imageUrl: match.imageUrl ?? undefined,
+            price: null,
+            currency: selectedCurrency,
+            amenities: match.tags
+          }))
+        );
+        if (semanticMapped.length > 0) {
+          return toResult(semanticMapped.slice(0, 8), degradedReason === null ? null : 'partial');
+        }
+      }
+
+      return toResult(fallbackProperties, degradedReason ?? 'unavailable');
+    }
 
     if (trimmedBrief) {
       const byAiSearch = await searchRates(

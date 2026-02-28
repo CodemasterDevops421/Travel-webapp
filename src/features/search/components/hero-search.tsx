@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { PreferenceLink } from '@/components/navigation/preference-link';
 import { trackFunnelEvent } from '@/shared/lib/analytics';
 
+type SearchMode = 'destination' | 'vibe';
+
 export function HeroSearch() {
   const today = new Date();
   const defaultCheckIn = new Date(today);
@@ -22,6 +24,7 @@ export function HeroSearch() {
 
   const [query, setQuery] = useState('');
   const [activeQuery, setActiveQuery] = useState('');
+  const [searchMode, setSearchMode] = useState<SearchMode>('destination');
   const [checkIn, setCheckIn] = useState(defaultCheckIn.toISOString().slice(0, 10));
   const [checkOut, setCheckOut] = useState(defaultCheckOut.toISOString().slice(0, 10));
 
@@ -44,11 +47,11 @@ export function HeroSearch() {
   const suggestionsListId = useId();
   const { data, isFetching } = useAutocomplete(query, language);
   const suggestions = data ?? [];
-  const isSuggestionsOpen = query.length > 2 && showSuggestions;
+  const isSuggestionsOpen = searchMode === 'destination' && query.length > 2 && showSuggestions;
   const {
     data: propertyPreview,
     isFetching: isPreviewLoading
-  } = usePropertyPreview(activeQuery, language, currency, checkIn, checkOut, adults, rooms);
+  } = usePropertyPreview(activeQuery, searchMode, language, currency, checkIn, checkOut, adults, rooms);
   const previewListings = propertyPreview?.data ?? [];
   const selectedNights = (() => {
     const start = new Date(checkIn);
@@ -76,6 +79,7 @@ export function HeroSearch() {
     });
     const params = new URLSearchParams({
       q: nextQuery,
+      mode: searchMode,
       checkin: checkIn,
       checkout: checkOut,
       adults: String(adults),
@@ -87,6 +91,9 @@ export function HeroSearch() {
   };
 
   const onPickSuggestion = (name: string) => {
+    if (searchMode !== 'destination') {
+      return;
+    }
     setQuery(name);
     setActiveQuery(name);
     setShowSuggestions(false);
@@ -164,14 +171,18 @@ export function HeroSearch() {
           <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
           <Input
             role="combobox"
-            aria-label="Search destination"
+            aria-label={searchMode === 'destination' ? 'Search destination' : 'Search by vibe'}
             aria-autocomplete="list"
             aria-expanded={isSuggestionsOpen}
             aria-controls={suggestionsListId}
             aria-activedescendant={
               highlightedIndex >= 0 ? `${suggestionsListId}-option-${highlightedIndex}` : undefined
             }
-            placeholder="Where to? city, hotel, landmark"
+            placeholder={
+              searchMode === 'destination'
+                ? 'Search by destination: city, hotel, landmark'
+                : 'Search by vibe: romantic getaway in paris'
+            }
             className="h-14 pl-10 text-base"
             value={query}
             onChange={(event) => {
@@ -185,9 +196,15 @@ export function HeroSearch() {
               }
               setQuery(nextValue);
               setHighlightedIndex(-1);
-              setShowSuggestions(true);
+              if (searchMode === 'destination') {
+                setShowSuggestions(true);
+              }
             }}
-            onFocus={() => setShowSuggestions(true)}
+            onFocus={() => {
+              if (searchMode === 'destination') {
+                setShowSuggestions(true);
+              }
+            }}
             onBlur={() => setShowSuggestions(false)}
             onKeyDown={onAutocompleteKeyDown}
           />
@@ -235,6 +252,33 @@ export function HeroSearch() {
               )}
             </div>
           )}
+        </div>
+        <div className="md:col-span-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSearchMode('destination');
+              setShowSuggestions(true);
+            }}
+            className={searchMode === 'destination'
+              ? 'rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground'
+              : 'rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground'}
+          >
+            Search by destination
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchMode('vibe');
+              setShowSuggestions(false);
+              setHighlightedIndex(-1);
+            }}
+            className={searchMode === 'vibe'
+              ? 'rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground'
+              : 'rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground'}
+          >
+            Search by vibe
+          </button>
         </div>
         <label className="flex min-h-12 flex-wrap items-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2">
           <Calendar className="h-4 w-4" />

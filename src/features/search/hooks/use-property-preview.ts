@@ -40,6 +40,7 @@ export type PropertyPreviewEnvelope = {
 
 async function fetchPropertyPreview(
   query: string,
+  mode: 'destination' | 'vibe',
   language: string,
   currency: string,
   checkin: string,
@@ -51,6 +52,7 @@ async function fetchPropertyPreview(
   const brief = filters?.brief;
   const params = new URLSearchParams({
     q: query,
+    mode,
     language,
     currency,
     checkin,
@@ -116,6 +118,7 @@ async function fetchPropertyPreview(
 
 export function usePropertyPreview(
   query: string,
+  mode: 'destination' | 'vibe',
   language: string,
   currency: string,
   checkin: string,
@@ -135,6 +138,7 @@ export function usePropertyPreview(
     queryKey: [
       'property-preview',
       query,
+      mode,
       language,
       currency,
       checkin,
@@ -149,7 +153,7 @@ export function usePropertyPreview(
       resolvedPage,
       resolvedLimit
     ],
-    queryFn: () => fetchPropertyPreview(query, language, currency, checkin, checkout, adults, rooms, filters),
+    queryFn: () => fetchPropertyPreview(query, mode, language, currency, checkin, checkout, adults, rooms, filters),
     enabled: query.length > 2,
     staleTime: CACHE_STALE_TIME_MS.propertyPreview
   });

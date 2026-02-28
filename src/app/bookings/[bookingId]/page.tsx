@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getBookingById } from '@/server/booking/repository';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
+import { getHotelDetails } from '@/server/liteapi';
 import { PreferenceLink } from '@/components/navigation/preference-link';
 import { BookingCancelAction } from '@/features/booking/components/booking-cancel-action';
 import { BookingSupportHandoffAction } from '@/features/booking/components/booking-support-handoff-action';
@@ -103,6 +105,9 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
   const holder = pickHolder(booking.metadata);
   const guests = pickGuests(booking.metadata);
   const totalGuests = guests.reduce((count, guest) => count + guest.occupancyNumber, 0);
+  const bookingHotel = itinerary?.hotelId
+    ? await getHotelDetails(itinerary.hotelId, undefined, itinerary.currency).catch(() => null)
+    : null;
 
   return (
     <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
@@ -114,6 +119,28 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
         <article className="rounded-2xl border border-border bg-card/85 p-5">
+          {bookingHotel ? (
+            <div className="mb-5 space-y-3 rounded-xl border border-border bg-background/60 p-4">
+              {bookingHotel.mainPhoto ? (
+                <div className="relative h-44 w-full overflow-hidden rounded-lg">
+                  <Image
+                    src={bookingHotel.mainPhoto}
+                    alt={bookingHotel.name}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 640px"
+                    className="object-cover"
+                  />
+                </div>
+              ) : null}
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Hotel details</p>
+                <p className="mt-1 text-lg font-semibold">{bookingHotel.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {bookingHotel.address ?? `${bookingHotel.city}${bookingHotel.countryCode ? `, ${bookingHotel.countryCode}` : ''}`}
+                </p>
+              </div>
+            </div>
+          ) : null}
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Itinerary</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <div>

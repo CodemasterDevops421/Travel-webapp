@@ -9,6 +9,7 @@ describe('search results URL state contract', () => {
     const params = serializeListingSearchParams({
       query: {
         query: 'Paris',
+        mode: 'destination',
         checkin: '2026-07-10',
         checkout: '2026-07-13',
         adults: 2,
@@ -34,7 +35,7 @@ describe('search results URL state contract', () => {
     });
 
     expect(params.toString()).toBe(
-      'q=Paris&checkin=2026-07-10&checkout=2026-07-13&guests=2&rooms=1&language=en&currency=EUR&view=map&sort=rating&page=3&propertyName=Hilton&minPrice=120&maxPrice=420&minGuestRating=8.5&minStars=4&maxDistanceKm=5&amenities=parking%2Cwifi&propertyType=hotel%2Cresort'
+      'q=Paris&mode=destination&checkin=2026-07-10&checkout=2026-07-13&guests=2&rooms=1&language=en&currency=EUR&view=map&sort=rating&page=3&propertyName=Hilton&minPrice=120&maxPrice=420&minGuestRating=8.5&minStars=4&maxDistanceKm=5&amenities=parking%2Cwifi&propertyType=hotel%2Cresort'
     );
   });
 

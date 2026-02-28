@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { cn } from '@/shared/lib/utils';
 import type { HotelDetails } from '@/server/liteapi';
 import type { HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
@@ -135,6 +136,34 @@ export function HotelDetailSections({
     return items;
   }, [reviewSort, reviews]);
   const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 3);
+  const groupedRates = useMemo(() => {
+    const groups = new Map<string, {
+      roomId: string;
+      roomName: string;
+      imageUrl: string | null;
+      offers: HotelRateWithCancellationContext[];
+    }>();
+
+    for (const rate of rates) {
+      const existing = groups.get(rate.roomId);
+      if (existing) {
+        existing.offers.push(rate);
+        if (!existing.imageUrl && rate.imageUrl) {
+          existing.imageUrl = rate.imageUrl;
+        }
+        continue;
+      }
+
+      groups.set(rate.roomId, {
+        roomId: rate.roomId,
+        roomName: rate.roomName,
+        imageUrl: rate.imageUrl ?? null,
+        offers: [rate]
+      });
+    }
+
+    return Array.from(groups.values());
+  }, [rates]);
   const popularFacilityHighlights = amenities.slice(0, 12);
   const surroundings = locationContext?.nearbyLandmarks?.length
     ? locationContext.nearbyLandmarks
@@ -328,52 +357,77 @@ export function HotelDetailSections({
           <p className="mt-2 text-sm text-foreground">{rates.length} room options found for your selected dates.</p>
           <p className="mt-1 text-sm text-muted-foreground">Final cancellation and payment terms depend on the selected room and fare conditions.</p>
         </article>
-        {rates.length === 0 ? (
+        {groupedRates.length === 0 ? (
           <p className="rounded-xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
         ) : (
-          rates.map((rate) => {
-            const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
-            const cancellationCopy = getCancellationCopy(rate);
+          groupedRates.map((group) => {
             return (
-              <article
-                key={`${rate.offerId}-${rate.roomId}`}
-                className={cn(
-                  'border p-6 transition-colors',
-                  isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/20'
-                )}
-              >
-                <div className="flex flex-col justify-between gap-6 md:flex-row md:items-start">
-                  <div className="flex-1 space-y-4">
-                    <h3 className="text-xl font-bold text-foreground">{rate.roomName}</h3>
-                    <div className="flex flex-col gap-2">
-                      <span className="inline-flex w-fit items-center gap-1 border border-green-200 bg-green-50 px-2 py-1 text-xs font-bold text-green-700">
-                        ✓ {rate.refundableTag}
-                      </span>
-                      <span className="inline-flex w-fit items-center gap-1 border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
-                        ☕ {rate.boardName}
-                      </span>
-                      <span className="text-xs font-medium text-foreground">{cancellationCopy.status}</span>
-                      <span className="text-xs text-muted-foreground">{cancellationCopy.detail}</span>
+              <article key={group.roomId} className="space-y-4 rounded-xl border border-border bg-card/70 p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start">
+                  {group.imageUrl ? (
+                    <div className="relative h-32 w-full overflow-hidden rounded-lg md:w-48">
+                      <Image
+                        src={group.imageUrl}
+                        alt={group.roomName}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 192px"
+                        className="object-cover"
+                      />
                     </div>
+                  ) : null}
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-foreground">{group.roomName}</h3>
+                    <p className="text-xs text-muted-foreground">{group.offers.length} offer{group.offers.length > 1 ? 's' : ''} for this room type</p>
                   </div>
-                  <div className="min-w-[200px] items-start gap-4 md:items-end flex flex-col">
-                    <div className="w-full text-left md:text-right">
-                      <p className="text-3xl font-bold text-foreground">{formatMoney(rate.currency, rate.amount)}</p>
-                      <p className="mt-1 text-left text-xs text-muted-foreground md:text-right">Includes taxes and charges</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRateKey(buildRateKey(rate))}
-                      className={cn(
-                        'w-full rounded-none px-8 py-3 text-sm font-bold transition-all',
-                        isSelected
-                          ? 'bg-primary text-primary-foreground'
-                          : 'border border-border bg-background text-foreground hover:bg-muted'
-                      )}
-                    >
-                      {isSelected ? 'Selected room' : 'Select room'}
-                    </button>
-                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {group.offers.map((rate) => {
+                    const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
+                    const cancellationCopy = getCancellationCopy(rate);
+
+                    return (
+                      <div
+                        key={`${rate.offerId}-${rate.roomId}`}
+                        className={cn(
+                          'flex flex-col justify-between gap-4 border p-4 transition-colors md:flex-row md:items-center',
+                          isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/20'
+                        )}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex w-fit items-center gap-1 border border-green-200 bg-green-50 px-2 py-1 text-xs font-bold text-green-700">
+                              ✓ {rate.refundableTag}
+                            </span>
+                            <span className="inline-flex w-fit items-center gap-1 border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
+                              ☕ {rate.boardName}
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-foreground">{cancellationCopy.status}</p>
+                          <p className="text-xs text-muted-foreground">{cancellationCopy.detail}</p>
+                        </div>
+
+                        <div className="flex min-w-[220px] flex-col gap-3 md:items-end">
+                          <div className="w-full text-left md:text-right">
+                            <p className="text-2xl font-bold text-foreground">{formatMoney(rate.currency, rate.amount)}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Includes taxes and charges</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRateKey(buildRateKey(rate))}
+                            className={cn(
+                              'w-full rounded-none px-6 py-2 text-sm font-bold transition-all md:w-auto',
+                              isSelected
+                                ? 'bg-primary text-primary-foreground'
+                                : 'border border-border bg-background text-foreground hover:bg-muted'
+                            )}
+                          >
+                            {isSelected ? 'Selected offer' : 'Select offer'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </article>
             );
