@@ -56,6 +56,17 @@ function makeHotel(overrides: Partial<HotelDetails> = {}): HotelDetails {
       lowSignal: true,
       message: 'Not enough verified review volume to generate stable topic highlights yet.'
     },
+    descriptionNarrative: {
+      mode: 'supplier',
+      sections: [
+        {
+          title: 'About this property',
+          body: 'A waterfront stay near city-center attractions.',
+          source: 'supplier'
+        }
+      ],
+      message: 'Description sourced directly from supplier content.'
+    },
     completeness: {
       isPartial: false,
       missingSections: [],

@@ -186,6 +186,18 @@ export type HotelReviewHighlights = {
   message: string;
 };
 
+export type HotelDescriptionSection = {
+  title: string;
+  body: string;
+  source: 'supplier' | 'synthesized';
+};
+
+export type HotelDescriptionNarrative = {
+  mode: 'supplier' | 'synthesized' | 'unavailable';
+  sections: HotelDescriptionSection[];
+  message: string;
+};
+
 export type HotelDetailCompleteness = {
   isPartial: boolean;
   missingSections: string[];
@@ -218,6 +230,7 @@ export type HotelDetails = {
   houseRulesDetailed?: HotelHouseRuleItem[];
   smartHighlights: HotelSmartHighlight[];
   reviewHighlights: HotelReviewHighlights;
+  descriptionNarrative: HotelDescriptionNarrative;
   completeness: HotelDetailCompleteness;
 };
 
@@ -963,6 +976,82 @@ function buildReviewHighlights(reviews: HotelGuestReview[]): HotelReviewHighligh
     tradeoffTopics,
     lowSignal: false,
     message: 'Topic highlights summarize recurring review themes from supplier comments.'
+  };
+}
+
+function composeDescriptionNarrative(input: {
+  description: string | null;
+  city: string;
+  locationContext: HotelLocationContext;
+  facilities: string[];
+  policies: HotelPolicyDetails;
+  reviewScore: number | null;
+}): HotelDescriptionNarrative {
+  const supplierDescription = input.description?.trim() ?? null;
+  if (supplierDescription && supplierDescription.length > 0) {
+    return {
+      mode: 'supplier',
+      message: 'Description sourced directly from supplier content.',
+      sections: [
+        {
+          title: 'About this property',
+          body: supplierDescription,
+          source: 'supplier'
+        }
+      ]
+    };
+  }
+
+  const sections: HotelDescriptionSection[] = [];
+
+  if (input.locationContext.nearbyLandmarks.length > 0 || input.locationContext.neighborhood) {
+    const nearby = input.locationContext.nearbyLandmarks.slice(0, 3).join(', ');
+    const locationLine = nearby
+      ? `Guests often use this stay as a base for ${nearby}.`
+      : `The property is located around ${input.locationContext.neighborhood ?? `central ${input.city}`}.`;
+    sections.push({
+      title: 'Location fit',
+      body: locationLine,
+      source: 'synthesized'
+    });
+  }
+
+  if (input.facilities.length > 0) {
+    sections.push({
+      title: 'Stay essentials',
+      body: `Supplier-listed amenities include ${input.facilities.slice(0, 5).join(', ')}.`,
+      source: 'synthesized'
+    });
+  }
+
+  if (typeof input.reviewScore === 'number') {
+    sections.push({
+      title: 'Guest sentiment',
+      body: `Current supplier rating is ${input.reviewScore.toFixed(1)} / 10 based on available review data.`,
+      source: 'synthesized'
+    });
+  }
+
+  if (input.policies.checkInFrom || input.policies.checkOutUntil || input.policies.cancellation.length > 0) {
+    sections.push({
+      title: 'Booking notes',
+      body: `Check-in from ${input.policies.checkInFrom ?? 'not provided'}, check-out until ${input.policies.checkOutUntil ?? 'not provided'}. ${input.policies.cancellation[0] ?? 'Cancellation terms depend on selected room and fare.'}`,
+      source: 'synthesized'
+    });
+  }
+
+  if (sections.length > 0) {
+    return {
+      mode: 'synthesized',
+      sections,
+      message: 'Description is synthesized from available supplier fields because narrative text is unavailable.'
+    };
+  }
+
+  return {
+    mode: 'unavailable',
+    sections: [],
+    message: 'Property description is currently unavailable.'
   };
 }
 
@@ -2074,6 +2163,17 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       policies
     });
     const reviewHighlights = buildReviewHighlights(resolvedReviews);
+    const description =
+      cleanString(data.description) ??
+      cleanString(data.overview);
+    const descriptionNarrative = composeDescriptionNarrative({
+      description,
+      city,
+      locationContext,
+      facilities,
+      policies,
+      reviewScore: reviewScore ?? enrichment?.reviewScore ?? null
+    });
     const completeness = buildCompleteness({
       photos,
       facilities,
@@ -2092,9 +2192,7 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       mainPhoto,
       photos,
       facilities,
-      description:
-        cleanString(data.description) ??
-        cleanString(data.overview),
+      description,
       latitude,
       longitude,
       starRating: parseNumber(data.starRating),
@@ -2111,6 +2209,7 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       houseRulesDetailed,
       smartHighlights,
       reviewHighlights,
+      descriptionNarrative,
       completeness
     };
   } catch (error) {
