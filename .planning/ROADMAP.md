@@ -114,7 +114,11 @@ Plans:
   2. Booking prebook/payment secret exposure policy is enforced so frontend receives only minimal required ephemeral payment data.
   3. Security regression tests run green without mock drift and verify redaction/forgery protections as intended.
   4. End-to-end booking security and OAuth-linking flows pass without manual workarounds.
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md - Codify OAuth callback same-email linking semantics with fail-closed regression coverage
+- [ ] 06-02-PLAN.md - Enforce prebook secret-safe allowlist policy and stabilize booking security regressions
 
 ### Phase 7: Canonical Data Wiring and Observability Closure
 **Goal**: Canonical data consumers and structured logging are fully wired for production operations.
@@ -139,5 +143,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 3. Hotel Detail and User Workspace | 4/4 | Complete | 2026-02-25 |
 | 4. Checkout and Booking Lifecycle Integrity | 0/4 | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |
-| 6. Auth and Booking Security Gap Closure | 0/TBD | Not started | - |
+| 6. Auth and Booking Security Gap Closure | 0/2 | Not started | - |
 | 7. Canonical Data Wiring and Observability Closure | 0/TBD | Not started | - |

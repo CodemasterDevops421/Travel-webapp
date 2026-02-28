@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 06-auth-and-booking-security-gap-closure
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-28 - Completed 06-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-02-28 - Completed 06-02-PLAN.md
 
-Progress: [#####-----] 50%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [#####-----] 50%
 | Phase 04 P03 | 9 min | 3 tasks | 7 files |
 | Phase 04 P04 | 6 min | 3 tasks | 10 files |
 | Phase 06-auth-and-booking-security-gap-closure P01 | 1 min | 2 tasks | 2 files |
+| Phase 06 P02 | 6 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -102,10 +103,12 @@ Recent decisions affecting current work:
 - [Phase 04]: Cancellation endpoint derives refunded vs failed from captured-payment truth and executes Stripe refunds only when required.
 - [Phase 06-auth-and-booking-security-gap-closure]: Treat OAuth-shaped callbacks as state-required while preserving non-OAuth confirmation callbacks without state.
 - [Phase 06-auth-and-booking-security-gap-closure]: Fail callback completion when profile upsert fails by signing out and redirecting with callback_failed.
+- [Phase 06]: Expose payment bootstrap credential as paymentToken in prebook client contract to avoid secret-like key names while preserving checkout bootstrap behavior.
+- [Phase 06]: Centralize security-route test mocks to keep regression setup deterministic and prevent route dependency drift from masking redaction failures.
 
 ### Pending Todos
 
-- Execute 06-02-PLAN.md.
+- None - Phase 06 execution plans are complete.
 
 ### Blockers/Concerns
 
@@ -113,6 +116,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-28 07:55
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-02-28 07:56
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
