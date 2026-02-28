@@ -122,6 +122,7 @@ export function HotelDetailSections({
   const facilityCategories = hotel?.facilityCategories ?? [];
   const houseRulesDetailed = hotel?.houseRulesDetailed ?? [];
   const smartHighlights = hotel?.smartHighlights ?? [];
+  const reviewHighlights = hotel?.reviewHighlights;
   const sortedReviews = useMemo(() => {
     const items = [...reviews];
     if (reviewSort === 'newest') {
@@ -456,6 +457,48 @@ export function HotelDetailSections({
             ? ` (supplier returned ${reviews.length} of ${Math.round(hotel.reviewCount)} total).`
             : '.'}
         </p>
+
+        {reviewHighlights && !reviewHighlights.lowSignal && (reviewHighlights.positiveTopics.length > 0 || reviewHighlights.tradeoffTopics.length > 0) ? (
+          <div className="mt-5 space-y-4 rounded-xl border border-border bg-background/70 p-4">
+            <div className="flex flex-wrap gap-2">
+              {[...reviewHighlights.positiveTopics, ...reviewHighlights.tradeoffTopics].slice(0, 8).map((topic) => (
+                <span key={`topic-${topic.label}`} className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground">
+                  {topic.label} ({topic.mentions})
+                </span>
+              ))}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <article className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-emerald-800">Loved by guests</p>
+                {reviewHighlights.positiveTopics.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-emerald-900">
+                    {reviewHighlights.positiveTopics.slice(0, 4).map((topic) => (
+                      <li key={`positive-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-emerald-900">No recurring positive themes met the stability threshold yet.</p>
+                )}
+              </article>
+              <article className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-amber-900">Consider before booking</p>
+                {reviewHighlights.tradeoffTopics.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                    {reviewHighlights.tradeoffTopics.slice(0, 4).map((topic) => (
+                      <li key={`tradeoff-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-amber-900">No recurring trade-offs met the stability threshold yet.</p>
+                )}
+              </article>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            {reviewHighlights?.message ?? 'Not enough verified review volume to generate stable topic highlights yet.'}
+          </p>
+        )}
 
         {reviewBreakdown.length > 0 && (
           <>
