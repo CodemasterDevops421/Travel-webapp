@@ -19,6 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Admin Monetization and Launch Operations** - Operationalize revenue visibility, controls, analytics, and deployment readiness.
 - [ ] **Phase 6: Auth and Booking Security Gap Closure** - Close milestone-blocking auth-linking and booking security regression gaps from audit.
 - [ ] **Phase 7: Canonical Data Wiring and Observability Closure** - Close canonical runtime wiring and structured observability integration gaps from audit.
+- [ ] **Phase 8: Hotel Detail Content Intelligence and Review UX** - Upgrade smart highlights, review synthesis, and description quality for hotel detail conversion.
 
 ## Phase Details
 
@@ -129,12 +130,35 @@ Plans:
   1. Runtime consumers persist and query `payment_logs`, `commission_tracking`, and `reviews_cache` for live platform operations.
   2. Booking/supplier-critical server paths emit structured events through the shared helper with actionable metadata.
   3. Data and observability wiring is validated by tests and aligns with requirements traceability.
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md - Wire canonical runtime consumers for payment logs, commission tracking, and reviews cache
+- [ ] 07-02-PLAN.md - Activate structured event logging taxonomy and lifecycle wiring on booking/webhook routes
+- [ ] 07-03-PLAN.md - Integrate centralized error capture and safe telemetry for critical booking/webhook failures
+
+### Phase 8: Hotel Detail Content Intelligence and Review UX
+**Goal**: Travelers can evaluate properties faster through high-signal highlights, clearer review synthesis, and structured descriptions grounded in supplier data.
+**Depends on**: Phase 3, Phase 7
+**Requirements**: HOTL-01, HOTL-02
+**Gap Closure**: Closes product parity and content-quality gaps from post-audit UX review (`.planning/research/hotel-detail-ux-gap-research-2026-02-28.md`)
+**Success Criteria** (what must be TRUE):
+  1. Hotel detail pages show a deterministic smart-highlights module that summarizes location, amenities, and rating context without fabricated claims.
+  2. Review surfaces include concise topic-level highlights and balanced positive/trade-off summaries derived from supplier comments.
+  3. Description content is rendered in structured sections with truthful fallback hierarchy when supplier narrative is partial or missing.
+  4. Regression tests verify no-hallucination fallback behavior and protect highlight/topic extraction quality over time.
+**Plans**: 4 plans
+
+Plans:
+- [ ] 08-01-PLAN.md - Build deterministic smart highlights contract and surface in active hotel detail experience
+- [ ] 08-02-PLAN.md - Add review-topic extraction and balanced review highlights rendering
+- [ ] 08-03-PLAN.md - Introduce structured description narratives with truthful fallback hierarchy
+- [ ] 08-04-PLAN.md - Add regression guardrails for highlight quality and no-hallucination copy constraints
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -144,4 +168,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 4. Checkout and Booking Lifecycle Integrity | 0/4 | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |
 | 6. Auth and Booking Security Gap Closure | 0/2 | Not started | - |
-| 7. Canonical Data Wiring and Observability Closure | 0/TBD | Not started | - |
+| 7. Canonical Data Wiring and Observability Closure | 0/3 | Not started | - |
+| 8. Hotel Detail Content Intelligence and Review UX | 0/4 | Not started | - |
