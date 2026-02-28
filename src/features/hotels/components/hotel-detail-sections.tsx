@@ -121,6 +121,7 @@ export function HotelDetailSections({
   const nearbyRestaurants = hotel?.nearbyRestaurants ?? [];
   const facilityCategories = hotel?.facilityCategories ?? [];
   const houseRulesDetailed = hotel?.houseRulesDetailed ?? [];
+  const smartHighlights = hotel?.smartHighlights ?? [];
   const sortedReviews = useMemo(() => {
     const items = [...reviews];
     if (reviewSort === 'newest') {
@@ -195,20 +196,21 @@ export function HotelDetailSections({
             {hotel?.completeness?.message ?? 'Some supplier details are currently unavailable for this property.'}
           </p>
         ) : null}
-        <ul className="grid gap-4 sm:grid-cols-3">
-          <li className="border border-border bg-card p-6 transition-colors hover:bg-muted/50">
-            <p className="font-semibold text-foreground">Prime location access</p>
-            <p className="mt-2 text-sm text-muted-foreground">Close to major landmarks and city experiences.</p>
-          </li>
-          <li className="border border-border bg-card p-6 transition-colors hover:bg-muted/50">
-            <p className="font-semibold text-foreground">Comfort-focused stay</p>
-            <p className="mt-2 text-sm text-muted-foreground">Dependable rooms and practical amenities for short or long stays.</p>
-          </li>
-          <li className="border border-border bg-card p-6 transition-colors hover:bg-muted/50">
-            <p className="font-semibold text-foreground">Transparent booking flow</p>
-            <p className="mt-2 text-sm text-muted-foreground">Total price and cancellation terms are shown before confirmation.</p>
-          </li>
-        </ul>
+        {smartHighlights.length > 0 ? (
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {smartHighlights.map((highlight) => (
+              <li key={`${highlight.source}-${highlight.title}`} className="border border-border bg-card p-6 transition-colors hover:bg-muted/50">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{highlight.source}</p>
+                <p className="mt-2 font-semibold text-foreground">{highlight.title}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{highlight.detail}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            Smart highlights are currently unavailable because supplier detail signals are limited for this property.
+          </p>
+        )}
         {mapUrl ? (
           <div className="mt-8 border border-border bg-muted">
             <iframe title="Hotel map" src={mapUrl} className="h-[400px] w-full" loading="lazy" />
