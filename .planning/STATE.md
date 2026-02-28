@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Phase 4 - Checkout and Booking Lifecycle Integrity
+**Current focus:** Phase 06 - Auth and Booking Security Gap Closure
 
 ## Current Position
 
-Phase: 4 of 5 (Checkout and Booking Lifecycle Integrity)
-Plan: 4 of 4 in current phase
-Status: Complete
-Last activity: 2026-02-25 - Completed 04-04-PLAN.md
+Phase: 06-auth-and-booking-security-gap-closure
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-02-28 - Completed 06-01-PLAN.md
 
-Progress: [##########] 100%
+Progress: [#####-----] 50%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [##########] 100%
 | Phase 04 P02 | 5 min | 3 tasks | 11 files |
 | Phase 04 P03 | 9 min | 3 tasks | 7 files |
 | Phase 04 P04 | 6 min | 3 tasks | 10 files |
+| Phase 06-auth-and-booking-security-gap-closure P01 | 1 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -99,10 +100,12 @@ Recent decisions affecting current work:
 - [Phase 04]: Outbox dedupe key is bookingId+transition to prevent duplicate lifecycle emails under webhook replay and retries.
 - [Phase 04]: Invoice state is synchronized via transition metadata (invoiceStatus) during every booking status write.
 - [Phase 04]: Cancellation endpoint derives refunded vs failed from captured-payment truth and executes Stripe refunds only when required.
+- [Phase 06-auth-and-booking-security-gap-closure]: Treat OAuth-shaped callbacks as state-required while preserving non-OAuth confirmation callbacks without state.
+- [Phase 06-auth-and-booking-security-gap-closure]: Fail callback completion when profile upsert fails by signing out and redirecting with callback_failed.
 
 ### Pending Todos
 
-- None - Phase 04 execution plans are complete.
+- Execute 06-02-PLAN.md.
 
 ### Blockers/Concerns
 
@@ -110,6 +113,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-25 19:19
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-02-28 07:55
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
