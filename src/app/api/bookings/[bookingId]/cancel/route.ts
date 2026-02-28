@@ -5,7 +5,7 @@ import { cancelBooking } from '@/server/liteapi';
 import { HttpError, toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
 import { assertBookingApiAuthorized } from '@/server/authz';
-import { assertProductionReadiness, usesStripePayments } from '@/server/env';
+import { assertProductionReadiness, usesLiteApiPayments, usesStripePayments } from '@/server/env';
 import { createStripeRefund } from '@/server/payments/stripe';
 import { getBookingById, updateBookingStatusById } from '@/server/booking/repository';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
@@ -58,6 +58,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
     if (booking.status !== 'payment_authorized' && booking.status !== 'confirmed') {
       return NextResponse.json(
         { error: `Booking cannot be canceled from status ${booking.status}` },
+        { status: 409 }
+      );
+    }
+
+    if (usesLiteApiPayments() && !booking.liteapi_booking_id) {
+      return NextResponse.json(
+        { error: 'Supplier booking id is missing; LiteAPI cancellation cannot be executed.' },
         { status: 409 }
       );
     }

@@ -98,6 +98,9 @@ Copy `.env.example` to `.env.local` and fill in your keys:
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Conditional | Required when `PAYMENT_PROVIDER` is `stripe` or `hybrid` |
 | `QUOTE_SIGNING_SECRET` | Yes | Price quote tamper protection |
 | `LITEAPI_WEBHOOK_SECRET` | Yes (prod) | LiteAPI webhook signature verification |
+| `LITEAPI_SUPPORT_AUTO_FORWARD` | Optional | Auto-forward support packets to LiteAPI support bridge |
+| `LITEAPI_SUPPORT_FORWARD_URL` | Conditional | Required when auto-forward is enabled |
+| `LITEAPI_SUPPORT_FORWARD_TOKEN` | Optional | Bearer token for support bridge endpoint |
 | `UPSTASH_REDIS_REST_URL` | Recommended | Caching & rate limiting |
 | `OPENAI_API_KEY` | Optional | AI concierge feature |
 | `SENTRY_DSN` | Optional | Error monitoring |

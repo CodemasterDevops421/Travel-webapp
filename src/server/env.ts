@@ -26,6 +26,9 @@ const envSchema = z.object({
   LITEAPI_DASHBOARD_BASE_URL: emptyStringToUndefined(z.string().url().default('https://da.liteapi.travel')),
   LITEAPI_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
   LITEAPI_WEBHOOK_SECRET: emptyStringToUndefined(z.string().optional()),
+  LITEAPI_SUPPORT_FORWARD_URL: emptyStringToUndefined(z.string().url().optional()),
+  LITEAPI_SUPPORT_FORWARD_TOKEN: emptyStringToUndefined(z.string().optional()),
+  LITEAPI_SUPPORT_AUTO_FORWARD: z.coerce.boolean().default(false),
   QUOTE_SIGNING_SECRET: emptyStringToUndefined(z.string().min(16).optional()),
   BOOKING_VIEW_TOKEN_SECRET: emptyStringToUndefined(z.string().min(16).optional()),
   BOOKING_API_AUTH_SECRET: emptyStringToUndefined(z.string().min(24).optional()),
@@ -173,6 +176,9 @@ export function assertProductionReadiness(): void {
   }
   if (!parsedEnv.BOOKING_API_AUTH_SECRET) {
     problems.push('BOOKING_API_AUTH_SECRET is required in production to protect booking APIs.');
+  }
+  if (parsedEnv.LITEAPI_SUPPORT_AUTO_FORWARD && !parsedEnv.LITEAPI_SUPPORT_FORWARD_URL) {
+    problems.push('LITEAPI_SUPPORT_FORWARD_URL is required in production when LITEAPI_SUPPORT_AUTO_FORWARD=true.');
   }
   if (usesStripePayments()) {
     if (!parsedEnv.STRIPE_SECRET_KEY) {

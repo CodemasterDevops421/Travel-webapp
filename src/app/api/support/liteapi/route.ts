@@ -5,7 +5,7 @@ import { assertRateLimit } from '@/server/ratelimit';
 import { HttpError, toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
 import { assertBookingApiAuthorized } from '@/server/authz';
-import { assertProductionReadiness } from '@/server/env';
+import { assertProductionReadiness, env } from '@/server/env';
 import { getBookingById, updateBookingStatusById } from '@/server/booking/repository';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
 
@@ -18,6 +18,40 @@ const requestSchema = z.object({
 function readMetadataString(metadata: Record<string, unknown> | null | undefined, key: string): string | null {
   const value = metadata?.[key];
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+async function forwardToSupportBridge(packet: Record<string, unknown>): Promise<{ forwarded: boolean; error?: string }> {
+  if (!env.LITEAPI_SUPPORT_FORWARD_URL) {
+    if (env.LITEAPI_SUPPORT_AUTO_FORWARD) {
+      return { forwarded: false, error: 'LITEAPI_SUPPORT_FORWARD_URL is not configured' };
+    }
+    return { forwarded: false };
+  }
+
+  try {
+    const response = await fetch(env.LITEAPI_SUPPORT_FORWARD_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(env.LITEAPI_SUPPORT_FORWARD_TOKEN
+          ? { authorization: `Bearer ${env.LITEAPI_SUPPORT_FORWARD_TOKEN}` }
+          : {})
+      },
+      body: JSON.stringify(packet),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      return { forwarded: false, error: `Support bridge rejected request (${response.status})` };
+    }
+
+    return { forwarded: true };
+  } catch (error) {
+    return {
+      forwarded: false,
+      error: error instanceof Error ? error.message : 'Support bridge request failed'
+    };
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -65,10 +99,20 @@ export async function POST(request: NextRequest) {
       notes: body.notes ?? null
     };
 
+    const forwardResult = await forwardToSupportBridge(supportPacket);
+    if (env.LITEAPI_SUPPORT_AUTO_FORWARD && !forwardResult.forwarded) {
+      return NextResponse.json(
+        { error: forwardResult.error ?? 'Support handoff bridge unavailable' },
+        { status: 502 }
+      );
+    }
+
     const persisted = await updateBookingStatusById(booking.id, booking.status, {
       supportHandoff: supportPacket,
       lastSupportRequestId: supportRequestId,
-      supportRequestedAt: supportPacket.preparedAt
+      supportRequestedAt: supportPacket.preparedAt,
+      supportForwarded: forwardResult.forwarded,
+      ...(forwardResult.error ? { supportForwardError: forwardResult.error } : {})
     });
 
     if (!persisted) {
@@ -80,6 +124,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         supportRequestId,
         supportPacket,
+        supportForwarded: forwardResult.forwarded,
         instructions: 'Share this support packet with LiteAPI/Nuitee 24/7 support channels.'
       },
       { status: 200 }

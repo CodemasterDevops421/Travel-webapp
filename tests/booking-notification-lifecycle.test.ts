@@ -294,6 +294,48 @@ describe('booking notification lifecycle', () => {
     expect(cancelBooking).toHaveBeenCalledWith({ bookingId: 'lite_1' });
   });
 
+  it('fails cancellation in liteapi mode when supplier booking id is missing', async () => {
+    vi.stubEnv('PAYMENT_PROVIDER', 'liteapi');
+
+    const getBookingById = vi.fn().mockResolvedValue({
+      id: 'booking_1',
+      liteapi_booking_id: null,
+      status: 'confirmed',
+      payment_status: 'captured',
+      stripe_payment_intent_id: null
+    });
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/authz', () => ({
+      assertBookingApiAuthorized: vi.fn()
+    }));
+    vi.doMock('@/server/request', () => ({
+      getClientIp: vi.fn().mockReturnValue('127.0.0.1')
+    }));
+    vi.doMock('@/server/liteapi', () => ({ cancelBooking: vi.fn() }));
+    vi.doMock('@/server/payments/stripe', () => ({ createStripeRefund: vi.fn() }));
+    vi.doMock('@/server/booking/repository', () => ({
+      getBookingById,
+      updateBookingStatusById: vi.fn()
+    }));
+
+    const { POST } = await import('@/app/api/bookings/[bookingId]/cancel/route');
+    const request = {
+      headers: new Headers(),
+      json: async () => ({ reason: 'Guest requested cancellation' })
+    } as unknown as Request;
+
+    const response = await POST(request as never, {
+      params: Promise.resolve({ bookingId: 'booking_1' })
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toMatch(/supplier booking id is missing/i);
+  });
+
   it('rejects cancellation when API key and booking view token are both missing', async () => {
     vi.doMock('@/server/ratelimit', () => ({
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
