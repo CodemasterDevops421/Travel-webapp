@@ -53,3 +53,59 @@ export function getAllowedBookingTransitions(from: string): readonly BookingLife
 
   return BOOKING_TRANSITION_MAP[from];
 }
+
+function normalizeToken(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s.-]+/g, '_');
+}
+
+export function normalizeSupplierBookingState(input: string): BookingLifecycleState | null {
+  const token = normalizeToken(input);
+  if (!token) {
+    return null;
+  }
+
+  if (
+    token.includes('refund')
+    || token.includes('cancel')
+    || token.includes('void')
+  ) {
+    return 'refunded';
+  }
+
+  if (
+    token.includes('authorized')
+    || token.includes('authorised')
+    || token.includes('payment_authorized')
+    || token.includes('payment_authorised')
+  ) {
+    return 'payment_authorized';
+  }
+
+  if (
+    token.includes('confirm')
+    || token.includes('booked')
+    || token.includes('booking_book')
+    || token.includes('success')
+  ) {
+    return 'confirmed';
+  }
+
+  if (
+    token.includes('failed')
+    || token.includes('declined')
+    || token.includes('rejected')
+    || token.includes('error')
+  ) {
+    return 'failed';
+  }
+
+  if (
+    token.includes('pending')
+    || token.includes('processing')
+    || token === 'received'
+  ) {
+    return 'pending';
+  }
+
+  return null;
+}

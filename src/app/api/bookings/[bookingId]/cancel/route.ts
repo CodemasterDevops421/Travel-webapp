@@ -5,7 +5,7 @@ import { cancelBooking } from '@/server/liteapi';
 import { HttpError, toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
 import { assertBookingApiAuthorized } from '@/server/authz';
-import { assertProductionReadiness } from '@/server/env';
+import { assertProductionReadiness, usesStripePayments } from '@/server/env';
 import { createStripeRefund } from '@/server/payments/stripe';
 import { getBookingById, updateBookingStatusById } from '@/server/booking/repository';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
@@ -63,7 +63,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
     }
 
     const requiresRefund = booking.payment_status === 'captured';
-    if (requiresRefund && !booking.stripe_payment_intent_id) {
+    const stripeRefundEnabled = requiresRefund && usesStripePayments();
+    if (stripeRefundEnabled && !booking.stripe_payment_intent_id) {
       return NextResponse.json(
         { error: 'Refund is required but payment intent is unavailable' },
         { status: 409 }
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
     }
 
     let refundId: string | null = null;
-    if (requiresRefund && booking.stripe_payment_intent_id) {
+    if (stripeRefundEnabled && booking.stripe_payment_intent_id) {
       const refund = await createStripeRefund({
         paymentIntentId: booking.stripe_payment_intent_id,
         metadata: {
@@ -87,14 +88,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
     }
 
     const nextStatus = requiresRefund ? booking.status : 'failed';
-    const invoiceStatus = requiresRefund ? 'paid' : 'void';
-    const cancellationOutcome = requiresRefund ? 'refund_pending_webhook' : 'failed';
+    const invoiceStatus = requiresRefund
+      ? (stripeRefundEnabled ? 'paid' : 'pending_refund')
+      : 'void';
+    const cancellationOutcome = requiresRefund
+      ? (stripeRefundEnabled ? 'refund_pending_webhook' : 'liteapi_refund_managed')
+      : 'failed';
 
     const updated = await updateBookingStatusById(booking.id, nextStatus, {
       cancellationReason: reason,
       cancellationRequestedAt: new Date().toISOString(),
       cancellationOutcome,
       ...(requiresRefund ? { refundPending: true } : {}),
+      ...(requiresRefund && !stripeRefundEnabled ? { refundManagedBy: 'liteapi' } : {}),
       ...(refundId ? { stripeRefundId: refundId } : {})
     });
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertSameOrigin } from '@/server/csrf';
 import { toHttpError } from '@/server/errors';
-import { assertProductionReadiness, env } from '@/server/env';
+import { assertProductionReadiness, env, usesStripePayments } from '@/server/env';
 import { logger } from '@/server/logger';
 import { createStripeCheckoutIntent } from '@/server/payments/stripe';
 import { getPrebookSession } from '@/server/booking-store';
@@ -35,6 +35,13 @@ export async function POST(request: NextRequest) {
   try {
     assertProductionReadiness();
     assertSameOrigin(request);
+
+    if (!usesStripePayments()) {
+      return NextResponse.json(
+        { error: 'Stripe checkout session is disabled in liteapi mode. Use LiteAPI payment SDK flow.' },
+        { status: 410 }
+      );
+    }
 
     const { clientIp, correlationId } = getRequestContext(request);
     await assertRateLimit(createRateLimitKey('booking', clientIp, 'checkout-session'), 'booking');
