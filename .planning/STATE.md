@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 08-hotel-detail-content-intelligence-and-review-ux
 Plan: 4 of 4 in current phase
 Status: In Progress
-Last activity: 2026-02-28 - Completed 08-03-PLAN.md
+Last activity: 2026-02-28 - Completed 08-04-PLAN.md
 
 Progress: [##########] 100%
 
@@ -59,6 +59,7 @@ Progress: [##########] 100%
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P01 | 4 min | 3 tasks | 4 files |
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P02 | 6 min | 3 tasks | 4 files |
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P03 | 4 min | 3 tasks | 4 files |
+| Phase 08-hotel-detail-content-intelligence-and-review-ux P04 | 4 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -121,10 +122,13 @@ Recent decisions affecting current work:
 - [Phase 08]: Description hierarchy is strict: supplier narrative first, deterministic synthesis second, explicit unavailable messaging last.
 - [Phase 08]: Sectioned description UI includes source labeling to avoid implied provenance for synthesized copy.
 - [Phase 08]: Description synthesis remains bounded to known supplier fields (location, amenities, policy, review score).
+- [Phase 08]: Hotel detail confidence validation is standardized around one command spanning content, AI grounding, and booking continuity tests.
+- [Phase 08]: Booking-card continuity tests were moved from .test.tsx to .test.ts to match Vitest include rules and avoid silent non-execution.
+- [Phase 08]: AI grounding assertions now cover synthesized/unavailable description contexts to guard against narrative drift.
 
 ### Pending Todos
 
-- Continue with 08-04-PLAN.md to finalize regression guardrails across highlights, reviews, and descriptions.
+- Run phase verification and completion updates for Phase 08.
 
 ### Blockers/Concerns
 
@@ -132,6 +136,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-28 12:01
-Stopped at: Completed 08-03-PLAN.md
+Last session: 2026-02-28 12:05
+Stopped at: Completed 08-04-PLAN.md
 Resume file: None
