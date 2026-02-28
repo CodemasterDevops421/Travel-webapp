@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 08-hotel-detail-content-intelligence-and-review-ux
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In Progress
-Last activity: 2026-02-28 - Completed 08-01-PLAN.md
+Last activity: 2026-02-28 - Completed 08-02-PLAN.md
 
 Progress: [##########] 100%
 
@@ -57,6 +57,7 @@ Progress: [##########] 100%
 | Phase 06 P02 | 6 min | 2 tasks | 6 files |
 | Phase 07-canonical-data-wiring-and-observability-closure P01 | 11 min | 3 tasks | 10 files |
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P01 | 4 min | 3 tasks | 4 files |
+| Phase 08-hotel-detail-content-intelligence-and-review-ux P02 | 6 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -113,10 +114,13 @@ Recent decisions affecting current work:
 - [Phase 08]: Smart highlights are generated server-side from normalized review/location/amenity/policy signals instead of static UI copy.
 - [Phase 08]: Highlights remain optional and render explicit supplier-limited fallback copy when source signals are insufficient.
 - [Phase 08]: Truthfulness guardrails are enforced with regression tests that assert payload-driven rendering and unavailable-state messaging.
+- [Phase 08]: Review-topic extraction uses deterministic regex buckets with mention thresholds rather than probabilistic summarization.
+- [Phase 08]: Review highlights surface both positive and trade-off themes to avoid one-sided sentiment framing.
+- [Phase 08]: Low-signal review data shows explicit insufficient-volume messaging instead of synthetic topic claims.
 
 ### Pending Todos
 
-- Continue with 08-02-PLAN.md to implement deterministic review-topic extraction and review highlight summaries.
+- Continue with 08-03-PLAN.md to implement structured description narratives and fallback hierarchy.
 
 ### Blockers/Concerns
 
@@ -124,6 +128,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-28 11:51
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-02-28 11:58
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
