@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Admin Monetization and Launch Operations** - Operationalize revenue visibility, controls, analytics, and deployment readiness.
 - [ ] **Phase 6: Auth and Booking Security Gap Closure** - Close milestone-blocking auth-linking and booking security regression gaps from audit.
 - [ ] **Phase 7: Canonical Data Wiring and Observability Closure** - Close canonical runtime wiring and structured observability integration gaps from audit.
-- [ ] **Phase 8: Hotel Detail Content Intelligence and Review UX** - Upgrade smart highlights, review synthesis, and description quality for hotel detail conversion.
+- [x] **Phase 8: Hotel Detail Content Intelligence and Review UX** - Upgrade smart highlights, review synthesis, and description quality for hotel detail conversion. (completed 2026-02-28)
 
 ## Phase Details
 
@@ -169,4 +169,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |
 | 6. Auth and Booking Security Gap Closure | 0/2 | Not started | - |
 | 7. Canonical Data Wiring and Observability Closure | 0/3 | Not started | - |
-| 8. Hotel Detail Content Intelligence and Review UX | 0/4 | Not started | - |
+| 8. Hotel Detail Content Intelligence and Review UX | 4/4 | Complete | 2026-02-28 |
