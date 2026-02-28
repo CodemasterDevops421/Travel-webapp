@@ -10,6 +10,7 @@ import {
   updateBookingStatusByLiteApiId,
   updateBookingStatusByTransactionId
 } from '@/server/booking/repository';
+import { insertPaymentLog } from '@/server/payment-logs-repository';
 import { getClientIp, getCorrelationId } from '@/server/request';
 import { normalizeSupplierBookingState } from '@/server/booking/lifecycle';
 
@@ -91,6 +92,13 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+  return value;
 }
 
 function derivePaymentStatus(canonicalState: ReconciliationUpdate['status']): string {
@@ -185,17 +193,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
     }
 
+    const paymentLogId = await insertPaymentLog({
+      bookingId: update.bookingId,
+      provider: 'liteapi',
+      externalPaymentId: eventId,
+      eventType: readString(event.type) ?? `liteapi_${update.status}`,
+      status: update.status,
+      amount: readNumber(update.metadata.amount) ?? readNumber(update.metadata.totalAmount),
+      currency: readString(update.metadata.currency)?.toUpperCase() ?? null,
+      correlationId,
+      metadata: {
+        bookingId: update.bookingId,
+        transactionId: update.transactionId,
+        ...update.metadata
+      }
+    });
+
+    if (!paymentLogId) {
+      logger.warn({ correlationId, eventId, eventType: event.type ?? 'unknown' }, 'LiteAPI webhook payment log persistence failed; allow retry');
+      return NextResponse.json({ error: 'Reconciliation failed' }, { status: 500 });
+    }
+
     let persisted = false;
     if (update.bookingId) {
-      persisted = await updateBookingStatusByLiteApiId(update.bookingId, update.status, update.metadata);
+      persisted = await updateBookingStatusByLiteApiId(update.bookingId, update.status, {
+        ...update.metadata,
+        latestPaymentLogId: paymentLogId,
+        paymentLogId
+      });
     } else if (update.transactionId) {
-      persisted = await updateBookingStatusByTransactionId(update.transactionId, update.status, update.metadata);
+      persisted = await updateBookingStatusByTransactionId(update.transactionId, update.status, {
+        ...update.metadata,
+        latestPaymentLogId: paymentLogId,
+        paymentLogId
+      });
     } else {
       const localId = await persistBooking({
         quoteId: null,
         liteApiBookingId: null,
         status: update.status,
-        metadata: update.metadata
+        metadata: {
+          ...update.metadata,
+          latestPaymentLogId: paymentLogId,
+          paymentLogId
+        }
       });
       persisted = Boolean(localId);
     }

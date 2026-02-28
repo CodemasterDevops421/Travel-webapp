@@ -52,6 +52,7 @@ describe('stripe webhook route', () => {
   it('ignores duplicate events by Stripe event id', async () => {
     const updateBookingStatusByTransactionId = vi.fn();
     const persistBooking = vi.fn();
+    const insertPaymentLog = vi.fn();
 
     vi.doMock('@/server/ratelimit', () => ({
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
@@ -77,6 +78,9 @@ describe('stripe webhook route', () => {
       updateBookingStatusByTransactionId,
       persistBooking
     }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog
+    }));
 
     const { POST } = await import('@/app/api/webhooks/stripe/route');
     const req = {
@@ -91,10 +95,12 @@ describe('stripe webhook route', () => {
     expect(body.duplicate).toBe(true);
     expect(updateBookingStatusByTransactionId).not.toHaveBeenCalled();
     expect(persistBooking).not.toHaveBeenCalled();
+    expect(insertPaymentLog).not.toHaveBeenCalled();
   });
 
   it('reconciles verified payment events through transaction updates', async () => {
     const updateBookingStatusByTransactionId = vi.fn().mockResolvedValue(true);
+    const insertPaymentLog = vi.fn().mockResolvedValue('payment-log-1');
 
     vi.doMock('@/server/ratelimit', () => ({
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
@@ -120,6 +126,9 @@ describe('stripe webhook route', () => {
       updateBookingStatusByTransactionId,
       persistBooking: vi.fn().mockResolvedValue(null)
     }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog
+    }));
 
     const { POST } = await import('@/app/api/webhooks/stripe/route');
     const req = {
@@ -132,6 +141,11 @@ describe('stripe webhook route', () => {
 
     expect(res.status).toBe(200);
     expect(body.received).toBe(true);
+    expect(insertPaymentLog).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'stripe',
+      externalPaymentId: 'evt_success',
+      status: 'confirmed'
+    }));
     expect(updateBookingStatusByTransactionId).toHaveBeenCalledWith(
       'txn_123',
       'confirmed',
@@ -139,7 +153,9 @@ describe('stripe webhook route', () => {
         stripeEventId: 'evt_success',
         stripeEventType: 'payment_intent.succeeded',
         stripePaymentIntentId: 'pi_123',
-        paymentStatus: 'captured'
+        paymentStatus: 'captured',
+        latestPaymentLogId: 'payment-log-1',
+        paymentLogId: 'payment-log-1'
       })
     );
   });
@@ -147,6 +163,7 @@ describe('stripe webhook route', () => {
   it('creates reconciliation booking record when transaction update misses', async () => {
     const updateBookingStatusByTransactionId = vi.fn().mockResolvedValue(false);
     const persistBooking = vi.fn().mockResolvedValue('booking_1');
+    const insertPaymentLog = vi.fn().mockResolvedValue('payment-log-2');
 
     vi.doMock('@/server/ratelimit', () => ({
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
@@ -174,6 +191,9 @@ describe('stripe webhook route', () => {
       updateBookingStatusByTransactionId,
       persistBooking
     }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog
+    }));
 
     const { POST } = await import('@/app/api/webhooks/stripe/route');
     const req = {
@@ -190,7 +210,9 @@ describe('stripe webhook route', () => {
       metadata: expect.objectContaining({
         transactionId: 'txn_456',
         stripeCheckoutSessionId: 'cs_123',
-        stripePaymentIntentId: 'pi_123'
+        stripePaymentIntentId: 'pi_123',
+        latestPaymentLogId: 'payment-log-2',
+        paymentLogId: 'payment-log-2'
       })
     }));
   });

@@ -9,6 +9,7 @@ import {
   persistBooking,
   updateBookingStatusByTransactionId
 } from '@/server/booking/repository';
+import { insertPaymentLog } from '@/server/payment-logs-repository';
 import { getClientIp, getCorrelationId } from '@/server/request';
 import { claimWebhookEvent, finalizeWebhookEvent } from '@/server/webhook-idempotency';
 
@@ -96,6 +97,31 @@ function buildReconciliationUpdate(event: Stripe.Event): ReconciliationUpdate | 
   return null;
 }
 
+function readStripeAmountAndCurrency(event: Stripe.Event): { amount: number | null; currency: string | null } {
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const amount = typeof session.amount_total === 'number' ? session.amount_total / 100 : null;
+    const currency = readString(session.currency)?.toUpperCase() ?? null;
+    return { amount, currency };
+  }
+
+  if (event.type === 'payment_intent.succeeded' || event.type === 'payment_intent.payment_failed') {
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const amount = typeof paymentIntent.amount === 'number' ? paymentIntent.amount / 100 : null;
+    const currency = readString(paymentIntent.currency)?.toUpperCase() ?? null;
+    return { amount, currency };
+  }
+
+  if (event.type === 'charge.refunded') {
+    const charge = event.data.object as Stripe.Charge;
+    const amount = typeof charge.amount_refunded === 'number' ? charge.amount_refunded / 100 : null;
+    const currency = readString(charge.currency)?.toUpperCase() ?? null;
+    return { amount, currency };
+  }
+
+  return { amount: null, currency: null };
+}
+
 export async function POST(request: NextRequest) {
   try {
     assertProductionReadiness();
@@ -130,9 +156,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, ignored: true }, { status: 200 });
     }
 
+    const correlationId = getCorrelationId(request);
+    const amountAndCurrency = readStripeAmountAndCurrency(event);
+    const paymentLogId = await insertPaymentLog({
+      provider: 'stripe',
+      externalPaymentId: event.id,
+      eventType: event.type,
+      status: update.status,
+      amount: amountAndCurrency.amount,
+      currency: amountAndCurrency.currency,
+      correlationId,
+      metadata: {
+        transactionId: update.transactionId,
+        ...update.metadata
+      }
+    });
+
+    if (!paymentLogId) {
+      logger.warn(
+        { eventId: event.id, eventType: event.type, transactionId: update.transactionId },
+        'Stripe webhook payment log persistence failed'
+      );
+      return NextResponse.json({ error: 'Reconciliation failed' }, { status: 500 });
+    }
+
     let persisted = false;
     if (update.transactionId) {
-      persisted = await updateBookingStatusByTransactionId(update.transactionId, update.status, update.metadata);
+      persisted = await updateBookingStatusByTransactionId(update.transactionId, update.status, {
+        ...update.metadata,
+        latestPaymentLogId: paymentLogId,
+        paymentLogId
+      });
     }
 
     if (!persisted) {
@@ -142,7 +196,9 @@ export async function POST(request: NextRequest) {
         status: update.status,
         metadata: {
           ...(update.transactionId ? { transactionId: update.transactionId } : {}),
-          ...update.metadata
+          ...update.metadata,
+          latestPaymentLogId: paymentLogId,
+          paymentLogId
         }
       });
       persisted = Boolean(localId);
@@ -162,11 +218,11 @@ export async function POST(request: NextRequest) {
     await finalizeWebhookEvent(event.id, 'stripe');
 
     logger.info(
-      {
-        correlationId: getCorrelationId(request),
-        eventId: event.id,
-        eventType: event.type,
-        transactionId: update.transactionId,
+        {
+          correlationId,
+          eventId: event.id,
+          eventType: event.type,
+          transactionId: update.transactionId,
         persisted,
         status: update.status
       },
