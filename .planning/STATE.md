@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 08-hotel-detail-content-intelligence-and-review-ux
-Plan: 3 of 4 in current phase
+Plan: 4 of 4 in current phase
 Status: In Progress
-Last activity: 2026-02-28 - Completed 08-02-PLAN.md
+Last activity: 2026-02-28 - Completed 08-03-PLAN.md
 
 Progress: [##########] 100%
 
@@ -58,6 +58,7 @@ Progress: [##########] 100%
 | Phase 07-canonical-data-wiring-and-observability-closure P01 | 11 min | 3 tasks | 10 files |
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P01 | 4 min | 3 tasks | 4 files |
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P02 | 6 min | 3 tasks | 4 files |
+| Phase 08-hotel-detail-content-intelligence-and-review-ux P03 | 4 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -117,10 +118,13 @@ Recent decisions affecting current work:
 - [Phase 08]: Review-topic extraction uses deterministic regex buckets with mention thresholds rather than probabilistic summarization.
 - [Phase 08]: Review highlights surface both positive and trade-off themes to avoid one-sided sentiment framing.
 - [Phase 08]: Low-signal review data shows explicit insufficient-volume messaging instead of synthetic topic claims.
+- [Phase 08]: Description hierarchy is strict: supplier narrative first, deterministic synthesis second, explicit unavailable messaging last.
+- [Phase 08]: Sectioned description UI includes source labeling to avoid implied provenance for synthesized copy.
+- [Phase 08]: Description synthesis remains bounded to known supplier fields (location, amenities, policy, review score).
 
 ### Pending Todos
 
-- Continue with 08-03-PLAN.md to implement structured description narratives and fallback hierarchy.
+- Continue with 08-04-PLAN.md to finalize regression guardrails across highlights, reviews, and descriptions.
 
 ### Blockers/Concerns
 
@@ -128,6 +132,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-28 11:58
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-02-28 12:01
+Stopped at: Completed 08-03-PLAN.md
 Resume file: None
