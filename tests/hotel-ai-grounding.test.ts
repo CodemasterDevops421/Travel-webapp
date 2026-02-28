@@ -50,6 +50,12 @@ function makeHotel(overrides: Partial<HotelDetails> = {}): HotelDetails {
       cons: []
     },
     smartHighlights: [],
+    reviewHighlights: {
+      positiveTopics: [],
+      tradeoffTopics: [],
+      lowSignal: true,
+      message: 'Not enough verified review volume to generate stable topic highlights yet.'
+    },
     completeness: {
       isPartial: false,
       missingSections: [],

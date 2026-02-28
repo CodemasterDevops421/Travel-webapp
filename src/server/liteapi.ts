@@ -174,6 +174,18 @@ export type HotelSmartHighlight = {
   source: 'reviews' | 'location' | 'amenities' | 'policies';
 };
 
+export type HotelReviewTopic = {
+  label: string;
+  mentions: number;
+};
+
+export type HotelReviewHighlights = {
+  positiveTopics: HotelReviewTopic[];
+  tradeoffTopics: HotelReviewTopic[];
+  lowSignal: boolean;
+  message: string;
+};
+
 export type HotelDetailCompleteness = {
   isPartial: boolean;
   missingSections: string[];
@@ -205,6 +217,7 @@ export type HotelDetails = {
   nearbyRestaurants?: HotelRestaurantInfo[];
   houseRulesDetailed?: HotelHouseRuleItem[];
   smartHighlights: HotelSmartHighlight[];
+  reviewHighlights: HotelReviewHighlights;
   completeness: HotelDetailCompleteness;
 };
 
@@ -876,6 +889,81 @@ function composeSmartHighlights(input: {
   }
 
   return highlights.slice(0, 5);
+}
+
+const REVIEW_TOPIC_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
+  { label: 'Location', pattern: /\blocation|area|neighbou?rhood|nearby|walkable|transport\b/i },
+  { label: 'Cleanliness', pattern: /\bclean|tidy|hygiene|spotless\b/i },
+  { label: 'Service', pattern: /\bstaff|service|friendly|helpful|host\b/i },
+  { label: 'Room comfort', pattern: /\broom|bed|comfort|spacious|quiet\b/i },
+  { label: 'Breakfast and food', pattern: /\bbreakfast|food|restaurant|meal|buffet\b/i },
+  { label: 'Value for money', pattern: /\bvalue|price|expensive|affordable|worth\b/i },
+  { label: 'Wi-Fi', pattern: /\bwi[ -]?fi|internet\b/i },
+  { label: 'Bathroom', pattern: /\bbathroom|shower|toilet|water pressure\b/i }
+];
+
+function rankReviewTopics(counter: Map<string, number>, minMentions: number): HotelReviewTopic[] {
+  return Array.from(counter.entries())
+    .filter(([, mentions]) => mentions >= minMentions)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 6)
+    .map(([label, mentions]) => ({ label, mentions }));
+}
+
+function buildReviewHighlights(reviews: HotelGuestReview[]): HotelReviewHighlights {
+  if (reviews.length < 3) {
+    return {
+      positiveTopics: [],
+      tradeoffTopics: [],
+      lowSignal: true,
+      message: 'Not enough verified review volume to generate stable topic highlights yet.'
+    };
+  }
+
+  const positiveCounts = new Map<string, number>();
+  const tradeoffCounts = new Map<string, number>();
+
+  const increment = (counter: Map<string, number>, label: string) => {
+    counter.set(label, (counter.get(label) ?? 0) + 1);
+  };
+
+  for (const review of reviews) {
+    const positiveText = [review.pros, review.comment]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .join(' ');
+    const tradeoffText = [review.cons, review.comment]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .join(' ');
+
+    for (const topic of REVIEW_TOPIC_PATTERNS) {
+      if (positiveText && topic.pattern.test(positiveText)) {
+        increment(positiveCounts, topic.label);
+      }
+      if (tradeoffText && topic.pattern.test(tradeoffText)) {
+        increment(tradeoffCounts, topic.label);
+      }
+    }
+  }
+
+  const minimumMentions = reviews.length >= 10 ? 3 : 2;
+  const positiveTopics = rankReviewTopics(positiveCounts, minimumMentions);
+  const tradeoffTopics = rankReviewTopics(tradeoffCounts, minimumMentions);
+
+  if (positiveTopics.length === 0 && tradeoffTopics.length === 0) {
+    return {
+      positiveTopics: [],
+      tradeoffTopics: [],
+      lowSignal: true,
+      message: 'Review comments are available, but recurring topics are too sparse for a reliable summary.'
+    };
+  }
+
+  return {
+    positiveTopics,
+    tradeoffTopics,
+    lowSignal: false,
+    message: 'Topic highlights summarize recurring review themes from supplier comments.'
+  };
 }
 
 function buildCompleteness(details: {
@@ -1985,6 +2073,7 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       facilities,
       policies
     });
+    const reviewHighlights = buildReviewHighlights(resolvedReviews);
     const completeness = buildCompleteness({
       photos,
       facilities,
@@ -2021,6 +2110,7 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       nearbyRestaurants,
       houseRulesDetailed,
       smartHighlights,
+      reviewHighlights,
       completeness
     };
   } catch (error) {
