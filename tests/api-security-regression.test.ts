@@ -1,34 +1,35 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { mockSecurityRouteDependencies, resetSecurityRouteMocks } from './helpers/security-route-mocks';
+
+function collectSecretLikeKeys(input: unknown): string[] {
+  if (Array.isArray(input)) {
+    return input.flatMap((value) => collectSecretLikeKeys(value));
+  }
+
+  if (!input || typeof input !== 'object') {
+    return [];
+  }
+
+  const entries = Object.entries(input as Record<string, unknown>);
+  const directMatches = entries
+    .filter(([key]) => /(api[_-]?key|secret)/i.test(key))
+    .map(([key]) => key);
+
+  return directMatches.concat(entries.flatMap(([, value]) => collectSecretLikeKeys(value)));
+}
 
 describe('API security regression checks', () => {
   beforeEach(() => {
-    vi.resetModules();
-    vi.clearAllMocks();
-    vi.unstubAllEnvs();
-
-    vi.doMock('@/server/supabase/server', () => ({
-      createServerSupabaseClient: vi.fn().mockResolvedValue({
-        auth: {
-          getUser: vi.fn().mockResolvedValue({
-            data: { user: { id: 'user_1' } }
-          })
-        }
-      })
-    }));
+    resetSecurityRouteMocks();
+    mockSecurityRouteDependencies();
   });
 
   it('redacts supplier secret fields from hotel rates responses', async () => {
-    vi.doMock('@/server/logger', () => ({
-      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-    }));
     vi.doMock('@/server/env', () => ({
       env: {
         LITEAPI_API_KEY: 'sandbox-live-key'
       }
-    }));
-    vi.doMock('@/server/ratelimit', () => ({
-      assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/cache', () => ({
       getOrSetRedisCache: vi.fn().mockImplementation(async (_key: string, _ttl: number, producer: () => Promise<unknown>) => producer())
@@ -44,7 +45,11 @@ describe('API security regression checks', () => {
           amount: 120,
           currency: 'USD',
           supplierApiKey: 'do-not-leak',
-          supplierSecret: 'do-not-leak'
+          supplierSecret: 'do-not-leak',
+          nested: {
+            api_key: 'still-nope',
+            publicLabel: 'safe'
+          }
         }
       ])
     }));
@@ -55,21 +60,15 @@ describe('API security regression checks', () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body[0].supplierApiKey).toBeUndefined();
-    expect(body[0].supplierSecret).toBeUndefined();
+    expect(collectSecretLikeKeys(body)).toEqual([]);
+    expect(body[0].nested.publicLabel).toBe('safe');
   });
 
   it('returns degraded responses when LiteAPI credentials are missing', async () => {
-    vi.doMock('@/server/logger', () => ({
-      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-    }));
     vi.doMock('@/server/env', () => ({
       env: {
         LITEAPI_API_KEY: 'liteapi-placeholder-key'
       }
-    }));
-    vi.doMock('@/server/ratelimit', () => ({
-      assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
 
     const { GET } = await import('@/app/api/hotels/rates/route');
@@ -82,9 +81,6 @@ describe('API security regression checks', () => {
   });
 
   it('redacts supplier secret fields from booking confirmation payloads', async () => {
-    vi.doMock('@/server/logger', () => ({
-      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-    }));
     vi.doMock('@/server/env', () => ({
       env: {
         NODE_ENV: 'test',
@@ -92,12 +88,6 @@ describe('API security regression checks', () => {
         LITEAPI_API_KEY: 'sandbox-live-key'
       },
       assertProductionReadiness: vi.fn()
-    }));
-    vi.doMock('@/server/csrf', () => ({
-      assertSameOrigin: vi.fn()
-    }));
-    vi.doMock('@/server/ratelimit', () => ({
-      assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking-idempotency', () => ({
       getFinalizedBookingResult: vi.fn().mockResolvedValue(null),
@@ -157,7 +147,6 @@ describe('API security regression checks', () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.booking.data.supplierSecret).toBeUndefined();
-    expect(body.booking.data.supplierApiKey).toBeUndefined();
+    expect(collectSecretLikeKeys(body.booking)).toEqual([]);
   });
 });
