@@ -42,6 +42,14 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
     expect(sectionsSource).toContain('{highlight.detail}');
   });
 
+  it('renders deterministic review highlights and low-signal fallback states', () => {
+    expect(sectionsSource).toContain('const reviewHighlights = hotel?.reviewHighlights;');
+    expect(sectionsSource).toContain('Loved by guests');
+    expect(sectionsSource).toContain('Consider before booking');
+    expect(sectionsSource).toContain('mentioned in {topic.mentions} reviews');
+    expect(sectionsSource).toContain("Not enough verified review volume to generate stable topic highlights yet.");
+  });
+
   it('avoids implied completeness by removing synthetic amenity defaults', () => {
     expect(source).not.toContain("'Free WiFi', '24-hour front desk', 'Luggage storage'");
   });
