@@ -60,6 +60,7 @@ Progress: [##########] 100%
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P02 | 6 min | 3 tasks | 4 files |
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P03 | 4 min | 3 tasks | 4 files |
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P04 | 4 min | 3 tasks | 3 files |
+| Phase 07-canonical-data-wiring-and-observability-closure P01 | 1 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,9 @@ Recent decisions affecting current work:
 - [Phase 08]: Hotel detail confidence validation is standardized around one command spanning content, AI grounding, and booking continuity tests.
 - [Phase 08]: Booking-card continuity tests were moved from .test.tsx to .test.ts to match Vitest include rules and avoid silent non-execution.
 - [Phase 08]: AI grounding assertions now cover synthesized/unavailable description contexts to guard against narrative drift.
+- [Phase 07-canonical-data-wiring-and-observability-closure]: Webhook reconciliation now writes payment_logs before booking status updates and propagates latest payment log linkage through booking metadata.
+- [Phase 07-canonical-data-wiring-and-observability-closure]: Commission tracking is lifecycle-authoritative in booking repository transitions for payment_authorized, confirmed, refunded, and failed states.
+- [Phase 07-canonical-data-wiring-and-observability-closure]: Review snippets now use canonical reviews_cache stale-aware read-through while retaining Redis as additive fast-path cache.
 
 ### Pending Todos
 
