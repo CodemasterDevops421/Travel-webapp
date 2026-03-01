@@ -116,6 +116,11 @@ export async function POST(request: NextRequest) {
     });
     if (!quoteId) {
       logger.warn({ correlationId }, 'Booking quote persistence unavailable; continuing with signed session only.');
+      emitStructuredEvent('warn', 'persistence.quote.degraded', {
+        correlation_id: correlationId,
+        route: 'booking-prebook',
+        module: 'booking.prebook'
+      });
     }
 
     await savePrebookSession({
@@ -165,8 +170,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(responsePayload);
   } catch (error) {
+    const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('error', 'booking.prebook.failed', {
+      correlation_id: correlationId,
+      route: 'booking-prebook',
+      module: 'booking.prebook'
+    });
     logger.warn({ error, route: 'booking-prebook' }, 'Prebook request failed');
-    const httpError = toHttpError(error);
+    const httpError = toHttpError(error, {
+      route: 'booking-prebook',
+      module: 'booking.prebook',
+      event: 'booking.prebook.failed',
+      correlationId
+    });
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   }
 }

@@ -249,4 +249,96 @@ describe('stripe webhook route', () => {
     });
     expect((scope.extra?.metadata as Record<string, unknown>).transactionId ?? null).toBeNull();
   });
+
+  it('emits webhook.stripe.reconciled structured event on successful reconciliation', async () => {
+    const logStructuredEvent = vi.fn();
+
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn() },
+      logStructuredEvent
+    }));
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/payments/stripe', () => ({
+      constructStripeEvent: vi.fn().mockReturnValue({
+        id: 'evt_structured',
+        type: 'payment_intent.succeeded',
+        data: {
+          object: {
+            id: 'pi_s',
+            metadata: { transactionId: 'txn_s' },
+            customer: null,
+            amount: 5000,
+            currency: 'usd'
+          }
+        }
+      })
+    }));
+    vi.doMock('@/server/webhook-idempotency', () => ({
+      claimWebhookEvent: vi.fn().mockResolvedValue(true),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(true),
+      persistBooking: vi.fn()
+    }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog: vi.fn().mockResolvedValue('plog-1')
+    }));
+
+    const { POST } = await import('@/app/api/webhooks/stripe/route');
+    const req = {
+      headers: new Headers({ 'stripe-signature': 'sig', 'x-request-id': 'cid-sr-1' }),
+      text: async () => '{"id":"evt_structured"}'
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    expect(res.status).toBe(200);
+
+    const reconciledCalls = logStructuredEvent.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'webhook.stripe.reconciled'
+    );
+    expect(reconciledCalls.length).toBe(1);
+    expect(reconciledCalls[0][2]).toMatchObject({
+      route: 'webhook-stripe',
+      module: 'webhook.stripe',
+      event_id: 'evt_structured',
+      booking_status: 'confirmed'
+    });
+  });
+
+  it('emits webhook.stripe.failed structured event when processing throws', async () => {
+    const logStructuredEvent = vi.fn();
+
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn() },
+      logStructuredEvent
+    }));
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException: vi.fn()
+    }));
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockRejectedValue(new Error('rate limit down'))
+    }));
+
+    const { POST } = await import('@/app/api/webhooks/stripe/route');
+    const req = {
+      headers: new Headers({ 'stripe-signature': 'sig', 'x-request-id': 'cid-sf-1' }),
+      text: async () => '{"id":"evt_fail_structured"}'
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    expect(res.status).toBe(500);
+
+    const failedCalls = logStructuredEvent.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'webhook.stripe.failed'
+    );
+    expect(failedCalls.length).toBe(1);
+    expect(failedCalls[0][0]).toBe('error');
+    expect(failedCalls[0][2]).toMatchObject({
+      route: 'webhook-stripe',
+      module: 'webhook.stripe'
+    });
+  });
 });

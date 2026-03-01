@@ -34,11 +34,11 @@ export function HotelBookingSidebar({
   return (
     <aside className="lg:sticky lg:top-24 lg:self-start">
       <div className="border border-border bg-card p-6 shadow-editorial-md">
-        <div className="mb-6 flex items-start gap-3 rounded border border-red-100 bg-red-50 p-3">
+        <div className="mb-6 flex items-start gap-3 rounded border border-red-100 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
           <span className="mt-0.5 flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-500"></span>
           <div>
-            <p className="text-sm font-bold text-red-700">In high demand</p>
-            <p className="text-xs text-red-600/80">Prices may increase soon.</p>
+            <p className="text-sm font-bold text-red-700 dark:text-red-400">In high demand</p>
+            <p className="text-xs text-red-600/80 dark:text-red-400/70">Prices may increase soon.</p>
           </div>
         </div>
 

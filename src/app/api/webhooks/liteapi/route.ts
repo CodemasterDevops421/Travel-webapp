@@ -231,6 +231,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!paymentLogId) {
+      emitStructuredEvent('warn', 'persistence.payment_log.failed', {
+        correlation_id: correlationId,
+        route: 'webhook-liteapi',
+        module: 'webhook.liteapi',
+        event_id: eventId
+      });
       logger.warn({ correlationId, eventId, eventType: event.type ?? 'unknown' }, 'LiteAPI webhook payment log persistence failed; allow retry');
       return NextResponse.json({ error: 'Reconciliation failed' }, { status: 500 });
     }
@@ -295,6 +301,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
     const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('error', 'webhook.liteapi.failed', {
+      correlation_id: correlationId,
+      route: 'webhook-liteapi',
+      module: 'webhook.liteapi'
+    });
     const httpError = toHttpError(error, {
       route: 'webhook-liteapi',
       module: 'webhook.liteapi',

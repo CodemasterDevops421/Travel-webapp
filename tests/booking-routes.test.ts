@@ -877,4 +877,87 @@ describe('booking route handlers', () => {
     expect(finalizeWebhookEvent).not.toHaveBeenCalled();
     expect(loggerWarn).toHaveBeenCalled();
   });
+
+  it('emits booking.prebook.failed structured event when prebook route throws', async () => {
+    const logStructuredEvent = vi.fn();
+
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn() },
+      logStructuredEvent
+    }));
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException: vi.fn()
+    }));
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockRejectedValue(new Error('rate limit failed'))
+    }));
+
+    const { POST } = await import('@/app/api/booking/prebook/route');
+    const req = {
+      url: 'https://example.com/api/booking/prebook',
+      headers: new Headers({ origin: 'https://example.com', 'x-request-id': 'cid-prebook-err' }),
+      json: async () => ({
+        hotelId: 'h1',
+        roomId: 'r1',
+        offerId: 'offer-1',
+        checkIn: '2026-04-10',
+        checkOut: '2026-04-12',
+        guests: [{ adults: 2 }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    expect(res.status).toBe(500);
+
+    const failedCalls = logStructuredEvent.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'booking.prebook.failed'
+    );
+    expect(failedCalls.length).toBe(1);
+    expect(failedCalls[0][0]).toBe('error');
+    expect(failedCalls[0][2]).toMatchObject({
+      route: 'booking-prebook',
+      module: 'booking.prebook'
+    });
+  });
+
+  it('emits booking.finalize.failed structured event when book route throws', async () => {
+    const logStructuredEvent = vi.fn();
+
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn() },
+      logStructuredEvent
+    }));
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException: vi.fn()
+    }));
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockRejectedValue(new Error('rate limit failed'))
+    }));
+
+    const { POST } = await import('@/app/api/booking/book/route');
+    const req = {
+      url: 'https://example.com/api/booking/book',
+      headers: new Headers({ origin: 'https://example.com', 'x-request-id': 'cid-book-err' }),
+      json: async () => ({
+        prebookId: 'pb-err',
+        transactionId: 'tx-err',
+        quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        holder: { firstName: 'A', lastName: 'B', email: 'a@b.com' },
+        guests: [{ occupancyNumber: 1, firstName: 'A', lastName: 'B' }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    expect(res.status).toBe(500);
+
+    const failedCalls = logStructuredEvent.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'booking.finalize.failed'
+    );
+    expect(failedCalls.length).toBe(1);
+    expect(failedCalls[0][0]).toBe('error');
+    expect(failedCalls[0][2]).toMatchObject({
+      route: 'booking-book',
+      module: 'booking.finalize'
+    });
+  });
 });

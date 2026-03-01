@@ -18,7 +18,7 @@ export const logger = pino({
   redact: ['req.headers.authorization', 'apiKey', '*.token', '*.email', '*.cardNumber']
 });
 
-const STRUCTURED_EVENT_PREFIXES = ['booking.', 'webhook.', 'supplier.', 'persistence.'] as const;
+export const STRUCTURED_EVENT_PREFIXES = ['booking.', 'webhook.', 'supplier.', 'persistence.'] as const;
 
 function toStructuredContext(context: StructuredLogContext): StructuredLogContext {
   const normalized: StructuredLogContext = { ...context };

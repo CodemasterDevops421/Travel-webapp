@@ -294,27 +294,31 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
         }}
       />
 
-      <nav className="sticky top-0 z-20 -mx-4 flex overflow-x-auto border-b border-border bg-background/95 px-4 backdrop-blur md:mx-0 md:px-0">
-        <div className="flex w-full gap-8">
-          {SECTION_TABS.map((tab) => (
-            <a
-              key={tab.id}
-              href={`#${tab.id}`}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'whitespace-nowrap border-b-2 py-4 text-sm font-semibold transition-colors',
-                activeTab === tab.id
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
-              )}
-            >
-              {tab.label}
-            </a>
-          ))}
+      <nav className="sticky top-0 z-20 -mx-4 border-b border-border bg-background/95 backdrop-blur md:mx-0 md:px-0">
+        <div className="relative">
+          <div className="flex w-full gap-8 overflow-x-auto px-4 md:px-0 scrollbar-none">
+            {SECTION_TABS.map((tab) => (
+              <a
+                key={tab.id}
+                href={`#${tab.id}`}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'whitespace-nowrap border-b-2 py-4 text-sm font-semibold transition-colors',
+                  activeTab === tab.id
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
+                )}
+              >
+                {tab.label}
+              </a>
+            ))}
+          </div>
+          {/* Scroll fade indicator — signals more tabs offscreen */}
+          <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-background to-transparent md:hidden" />
         </div>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr,400px]">
+      <div className="grid gap-8 lg:grid-cols-[1fr,minmax(320px,400px)]">
         <HotelDetailSections
           activeTab={activeTab}
           setActiveTab={setActiveTab}

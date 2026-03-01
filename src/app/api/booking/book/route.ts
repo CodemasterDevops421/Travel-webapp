@@ -120,13 +120,13 @@ export async function POST(request: NextRequest) {
     const recoveredSession = (
       payload.clientReference && payload.sessionSignature && payload.quoteSignature
         ? {
-            prebookId: payload.prebookId,
-            transactionId: payload.transactionId,
-            clientReference: payload.clientReference,
-            quoteId: payload.quoteId ?? null,
-            quoteSignature: payload.quoteSignature,
-            createdAt: new Date().toISOString()
-          }
+          prebookId: payload.prebookId,
+          transactionId: payload.transactionId,
+          clientReference: payload.clientReference,
+          quoteId: payload.quoteId ?? null,
+          quoteSignature: payload.quoteSignature,
+          createdAt: new Date().toISOString()
+        }
         : null
     );
     const session = storedSession ?? recoveredSession;
@@ -257,8 +257,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(responsePayload);
   } catch (error) {
-    logger.warn({ error, route: 'booking-book' }, 'Book request failed');
     const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('error', 'booking.finalize.failed', {
+      correlation_id: correlationId,
+      route: 'booking-book',
+      module: 'booking.finalize',
+      transaction_id: transactionIdForLock
+    });
+    logger.warn({ error, route: 'booking-book' }, 'Book request failed');
     const httpError = toHttpError(error, {
       route: 'booking-book',
       module: 'booking.finalize',

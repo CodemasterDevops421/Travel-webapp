@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         await assertRateLimit(`hotel-rates:${clientIp}`);
         const settings = await getAppSettings();
 
-        const cacheKey = `hotel-rates:${hotelId}:${checkin}:${checkout}:${adults}:${rooms}:${currency ?? 'USD'}:${guestNationality ?? 'US'}`;
+        const cacheKey = `hotel-rates:${hotelId}:${checkin}:${checkout}:${adults}:${rooms}:${currency ?? 'USD'}:${guestNationality ?? 'US'}:m${settings.commissionPercent}`;
         const payload = await getOrSetRedisCache(
             cacheKey,
             CACHE_TTL_SECONDS.hotelRates,

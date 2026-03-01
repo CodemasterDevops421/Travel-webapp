@@ -195,6 +195,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!paymentLogId) {
+      emitStructuredEvent('warn', 'persistence.payment_log.failed', {
+        correlation_id: correlationId,
+        route: 'webhook-stripe',
+        module: 'webhook.stripe',
+        event_id: event.id,
+        event_type: event.type,
+        transaction_id: update.transactionId
+      });
       logger.warn(
         { eventId: event.id, eventType: event.type, transactionId: update.transactionId },
         'Stripe webhook payment log persistence failed'
@@ -240,11 +248,11 @@ export async function POST(request: NextRequest) {
     await finalizeWebhookEvent(event.id, 'stripe');
 
     logger.info(
-        {
-          correlationId,
-          eventId: event.id,
-          eventType: event.type,
-          transactionId: update.transactionId,
+      {
+        correlationId,
+        eventId: event.id,
+        eventType: event.type,
+        transactionId: update.transactionId,
         persisted,
         status: update.status
       },
@@ -263,6 +271,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('error', 'webhook.stripe.failed', {
+      correlation_id: correlationId,
+      route: 'webhook-stripe',
+      module: 'webhook.stripe'
+    });
     const httpError = toHttpError(error, {
       route: 'webhook-stripe',
       module: 'webhook.stripe',

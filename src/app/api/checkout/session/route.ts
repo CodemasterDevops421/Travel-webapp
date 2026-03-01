@@ -133,8 +133,19 @@ export async function POST(request: NextRequest) {
       linkagePersisted
     });
   } catch (error) {
+    const errorCorrelationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('error', 'booking.checkout_session.failed', {
+      correlation_id: errorCorrelationId,
+      route: 'checkout-session',
+      module: 'booking.checkout'
+    });
     logger.warn({ error, route: 'checkout-session' }, 'Checkout session request failed');
-    const httpError = toHttpError(error);
+    const httpError = toHttpError(error, {
+      route: 'checkout-session',
+      module: 'booking.checkout',
+      event: 'booking.checkout_session.failed',
+      correlationId: errorCorrelationId
+    });
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   }
 }

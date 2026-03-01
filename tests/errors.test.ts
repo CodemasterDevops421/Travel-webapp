@@ -58,4 +58,57 @@ describe('error mapping', () => {
     expect((metadata.nested as Record<string, unknown>).apiKey).toBe('[REDACTED]');
     expect(metadata.ok).toBe('safe');
   });
+
+  it('passes route and module as Sentry tags for structured tracing', async () => {
+    const captureException = vi.fn();
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException
+    }));
+
+    const { toHttpError } = await import('@/server/errors');
+    toHttpError(new Error('test-error'), {
+      route: 'booking-prebook',
+      module: 'booking.prebook',
+      event: 'booking.prebook.failed',
+      correlationId: 'cid-2'
+    });
+
+    expect(captureException).toHaveBeenCalledOnce();
+    const [, scope] = captureException.mock.calls[0] as [unknown, { tags?: Record<string, unknown>; extra?: Record<string, unknown> }];
+    expect(scope.tags).toMatchObject({
+      event: 'booking.prebook.failed',
+      route: 'booking-prebook',
+      module: 'booking.prebook'
+    });
+    expect(scope.extra).toMatchObject({
+      correlation_id: 'cid-2'
+    });
+  });
+
+  it('does not throw when Sentry captureException is undefined', async () => {
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException: undefined
+    }));
+
+    const { captureServerError } = await import('@/server/errors');
+    expect(() => {
+      captureServerError(new Error('test-graceful'), {
+        route: 'booking-book',
+        module: 'booking.finalize'
+      });
+    }).not.toThrow();
+  });
+
+  it('handles non-Error exceptions safely', async () => {
+    const captureException = vi.fn();
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException
+    }));
+
+    const { toHttpError } = await import('@/server/errors');
+    const err = toHttpError('string-error', { route: 'test-route' });
+    expect(err.status).toBe(500);
+    expect(err.code).toBe('UNHANDLED_EXCEPTION');
+    expect(captureException).toHaveBeenCalledOnce();
+  });
 });

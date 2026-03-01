@@ -140,6 +140,15 @@ export async function POST(request: NextRequest) {
 
     const outcome = toOutcome(booking.status);
     const bookingViewToken = outcome === 'confirmed' ? signBookingViewToken({ bookingId: booking.id }) : null;
+
+    emitStructuredEvent('info', 'booking.status.resolved', {
+      correlation_id: correlationId,
+      route: 'booking-status',
+      module: 'booking.status',
+      booking_id: booking.id,
+      outcome
+    });
+
     const message =
       outcome === 'confirmed'
         ? 'Booking confirmed.'
@@ -159,8 +168,19 @@ export async function POST(request: NextRequest) {
       message
     });
   } catch (error) {
+    const errorCorrelationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('error', 'booking.status.failed', {
+      correlation_id: errorCorrelationId,
+      route: 'booking-status',
+      module: 'booking.status'
+    });
     logger.warn({ error, route: 'booking-status' }, 'Booking status lookup failed');
-    const httpError = toHttpError(error);
+    const httpError = toHttpError(error, {
+      route: 'booking-status',
+      module: 'booking.status',
+      event: 'booking.status.failed',
+      correlationId: errorCorrelationId
+    });
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   }
 }
