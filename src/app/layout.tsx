@@ -57,7 +57,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Header />
             </Suspense>
             {children}
-            <AIChatbot />
+            <Suspense fallback={null}>
+              <AIChatbot />
+            </Suspense>
           </AppQueryProvider>
         </ThemeProvider>
       </body>
