@@ -5,6 +5,7 @@ import { HttpError } from '@/server/errors';
 import { assertProductionReadiness } from '@/server/env';
 import { buildReconciliationReport } from '@/server/admin/reconciliation-report';
 import { buildSupportSlaReport } from '@/server/admin/support-sla-report';
+import { buildSettlementLedgerReport } from '@/server/admin/settlement-ledger-report';
 
 function parseProductionReadinessError(error: unknown): string[] {
   if (!(error instanceof Error)) {
@@ -40,14 +41,16 @@ export async function GET() {
       envProblems = parseProductionReadinessError(error);
     }
 
-    const [reconciliation, support] = await Promise.all([
+    const [reconciliation, support, settlement] = await Promise.all([
       buildReconciliationReport(supabase, { periodDays: 30, includeResolved: false, maxIssues: 200 }),
-      buildSupportSlaReport(supabase, { periodDays: 30, breachHours: 24, limit: 200 })
+      buildSupportSlaReport(supabase, { periodDays: 30, breachHours: 24, limit: 200 }),
+      buildSettlementLedgerReport(supabase, { periodDays: 30, limit: 300 })
     ]);
 
     const reconciliationGatePassed =
       reconciliation.summary.openIssueCount === 0 && reconciliation.summary.varianceAmount === 0;
     const supportGatePassed = support.summary.breachCount === 0;
+    const settlementGatePassed = settlement.summary.exceptionRows === 0;
 
     const gates = [
       {
@@ -72,6 +75,16 @@ export async function GET() {
         details: [
           `Breach count (24h): ${support.summary.breachCount}`,
           `Open support cases: ${support.summary.openCases}`
+        ]
+      },
+      {
+        id: 'settlement-ledger',
+        title: 'Settlement ledger exceptions',
+        passed: settlementGatePassed,
+        details: [
+          `Exception rows: ${settlement.summary.exceptionRows}`,
+          `Awaiting tracking: ${settlement.summary.awaitingTrackingRows}`,
+          `Awaiting payment: ${settlement.summary.awaitingPaymentRows}`
         ]
       }
     ];

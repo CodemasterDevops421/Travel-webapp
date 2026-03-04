@@ -1,3 +1,8 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -29,6 +34,7 @@ const securityHeaders = [
 const nextConfig = {
   typedRoutes: true,
   poweredByHeader: false,
+  outputFileTracingRoot: configDir,
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**' }]
   },

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-describe('admin operations routes', () => {
+describe('admin settlement ledger route', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -12,36 +12,32 @@ describe('admin operations routes', () => {
       {
         id: 'booking-1',
         status: 'confirmed',
-        metadata: {
-          supportRequestedAt: new Date().toISOString(),
-          supportForwarded: false,
-          supportForwardError: 'bridge timeout'
-        },
-        created_at: new Date().toISOString(),
-        total_amount: 100,
-        commission_amount: 12,
-        currency: 'USD'
+        total_amount: 120,
+        commission_amount: 14.4,
+        currency: 'USD',
+        payment_status: 'captured',
+        liteapi_booking_id: 'lite-1',
+        created_at: new Date().toISOString()
       }
     ];
 
-    const commissionTracking = [
+    const commissions = [
       {
         booking_id: 'booking-1',
-        gross_booking_value: 100,
-        commission_percent: 12,
-        commission_amount: 12,
+        gross_booking_value: 120,
+        commission_amount: 14.4,
         currency: 'USD',
         updated_at: new Date().toISOString()
       }
     ];
 
-    const paymentLogs = [
+    const payments = [
       {
         booking_id: 'booking-1',
         provider: 'stripe',
         event_type: 'payment_intent.succeeded',
         status: 'confirmed',
-        amount: 100,
+        amount: 120,
         currency: 'USD',
         created_at: new Date().toISOString()
       }
@@ -69,8 +65,7 @@ describe('admin operations routes', () => {
               gte: vi.fn().mockReturnValue({
                 in: vi.fn().mockReturnValue({
                   order: vi.fn().mockResolvedValue({ data: bookings })
-                }),
-                order: vi.fn().mockResolvedValue({ data: bookings })
+                })
               })
             })
           };
@@ -78,13 +73,8 @@ describe('admin operations routes', () => {
         if (table === 'commission_tracking') {
           return {
             select: vi.fn().mockReturnValue({
-              gte: vi.fn().mockReturnValue({
-                in: vi.fn().mockReturnValue({
-                  order: vi.fn().mockResolvedValue({ data: commissionTracking })
-                })
-              }),
               in: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({ data: commissionTracking })
+                order: vi.fn().mockResolvedValue({ data: commissions })
               })
             })
           };
@@ -93,7 +83,7 @@ describe('admin operations routes', () => {
           return {
             select: vi.fn().mockReturnValue({
               in: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({ data: paymentLogs })
+                order: vi.fn().mockResolvedValue({ data: payments })
               })
             })
           };
@@ -109,31 +99,18 @@ describe('admin operations routes', () => {
     };
   }
 
-  it('returns support sla summary for admin', async () => {
+  it('returns settlement ledger payload for admin', async () => {
     vi.doMock('@/server/supabase/server', () => ({
       createServerSupabaseClient: vi.fn().mockResolvedValue(createSupabaseMock())
     }));
 
-    const { GET } = await import('@/app/api/admin/support/sla/route');
-    const req = new NextRequest('http://localhost/api/admin/support/sla?days=30&breachHours=24');
+    const { GET } = await import('@/app/api/admin/settlement/ledger/route');
+    const req = new NextRequest('http://localhost/api/admin/settlement/ledger?days=30');
     const res = await GET(req);
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.summary.totalCases).toBeGreaterThanOrEqual(1);
-  });
-
-  it('returns readiness gate payload', async () => {
-    vi.doMock('@/server/supabase/server', () => ({
-      createServerSupabaseClient: vi.fn().mockResolvedValue(createSupabaseMock())
-    }));
-
-    const { GET } = await import('@/app/api/admin/readiness/route');
-    const res = await GET();
-    const json = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(typeof json.overallPassed).toBe('boolean');
-    expect(Array.isArray(json.gates)).toBe(true);
+    expect(json.summary.totalRows).toBeGreaterThanOrEqual(1);
+    expect(Array.isArray(json.ledger)).toBe(true);
   });
 });

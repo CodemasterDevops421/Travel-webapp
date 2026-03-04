@@ -122,6 +122,31 @@ interface ReadinessPayload {
   gates: ReadinessGate[];
 }
 
+interface SettlementSummary {
+  totalRows: number;
+  settledRows: number;
+  awaitingTrackingRows: number;
+  awaitingPaymentRows: number;
+  exceptionRows: number;
+}
+
+interface SettlementEntry {
+  bookingId: string;
+  bookingStatus: string;
+  paymentStatus: string | null;
+  grossAmount: number;
+  commissionAmount: number;
+  currency: string;
+  settlementStatus: 'settled' | 'awaiting_tracking' | 'awaiting_payment' | 'exception';
+  issue: string | null;
+  createdAt: string;
+}
+
+interface SettlementPayload {
+  summary: SettlementSummary;
+  ledger: SettlementEntry[];
+}
+
 export default function AdminPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -135,6 +160,8 @@ export default function AdminPage() {
   const [supportCases, setSupportCases] = useState<SupportSlaCase[]>([]);
   const [readinessOverall, setReadinessOverall] = useState<boolean | null>(null);
   const [readinessGates, setReadinessGates] = useState<ReadinessGate[]>([]);
+  const [settlementSummary, setSettlementSummary] = useState<SettlementSummary | null>(null);
+  const [settlementLedger, setSettlementLedger] = useState<SettlementEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [drilldownLoading, setDrilldownLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
@@ -146,27 +173,35 @@ export default function AdminPage() {
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const [statsRes, reconciliationRes, supportRes, readinessRes] = await Promise.all([
+      const [statsRes, reconciliationRes, supportRes, readinessRes, settlementRes] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch(`/api/admin/reconciliation?days=30&includeResolved=${includeResolved ? '1' : '0'}`),
         fetch('/api/admin/support/sla?days=30&breachHours=24'),
-        fetch('/api/admin/readiness')
+        fetch('/api/admin/readiness'),
+        fetch('/api/admin/settlement/ledger?days=30')
       ]);
 
-      if (statsRes.status === 403 || reconciliationRes.status === 403 || supportRes.status === 403 || readinessRes.status === 403) {
+      if (
+        statsRes.status === 403 ||
+        reconciliationRes.status === 403 ||
+        supportRes.status === 403 ||
+        readinessRes.status === 403 ||
+        settlementRes.status === 403
+      ) {
         setForbidden(true);
         setError('You do not have permission to view admin data.');
         return;
       }
-      if (!statsRes.ok || !reconciliationRes.ok || !supportRes.ok || !readinessRes.ok) {
+      if (!statsRes.ok || !reconciliationRes.ok || !supportRes.ok || !readinessRes.ok || !settlementRes.ok) {
         throw new Error('Could not load admin data.');
       }
 
-      const [statsData, reconciliationData, supportData, readinessData] = await Promise.all([
+      const [statsData, reconciliationData, supportData, readinessData, settlementData] = await Promise.all([
         statsRes.json(),
         reconciliationRes.json(),
         supportRes.json() as Promise<SupportSlaPayload>,
-        readinessRes.json() as Promise<ReadinessPayload>
+        readinessRes.json() as Promise<ReadinessPayload>,
+        settlementRes.json() as Promise<SettlementPayload>
       ]);
 
       setStats(statsData.stats ?? null);
@@ -177,6 +212,8 @@ export default function AdminPage() {
       setSupportCases(supportData.cases ?? []);
       setReadinessOverall(readinessData.overallPassed ?? null);
       setReadinessGates(readinessData.gates ?? []);
+      setSettlementSummary(settlementData.summary ?? null);
+      setSettlementLedger(settlementData.ledger ?? []);
       setForbidden(false);
       setError('');
     } catch (err) {
@@ -403,6 +440,73 @@ export default function AdminPage() {
               ) : (
                 <tr>
                   <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">No support requests in period.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border/40 p-6">
+          <div>
+            <h2 className="font-heading text-lg font-semibold">Settlement Ledger (30 days)</h2>
+            <p className="text-sm text-muted-foreground">Payout readiness view for booking, payment, and commission signals.</p>
+          </div>
+          {settlementSummary && settlementSummary.exceptionRows > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {settlementSummary.exceptionRows} exceptions
+            </span>
+          ) : null}
+        </div>
+        {settlementSummary ? (
+          <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Settled</p>
+              <p className="mt-2 text-2xl font-bold">{settlementSummary.settledRows}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Awaiting Tracking</p>
+              <p className="mt-2 text-2xl font-bold">{settlementSummary.awaitingTrackingRows}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Awaiting Payment</p>
+              <p className="mt-2 text-2xl font-bold">{settlementSummary.awaitingPaymentRows}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Exceptions</p>
+              <p className="mt-2 text-2xl font-bold">{settlementSummary.exceptionRows}</p>
+            </article>
+          </div>
+        ) : null}
+        <div className="border-t border-border/40 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/40 bg-muted/30">
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Booking</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Status</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Gross</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Commission</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Settlement</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Issue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {settlementLedger.length > 0 ? (
+                settlementLedger.slice(0, 12).map((row) => (
+                  <tr key={row.bookingId} className="border-b border-border/20">
+                    <td className="px-6 py-4 font-mono text-xs">{row.bookingId.slice(0, 8)}...</td>
+                    <td className="px-6 py-4">{row.bookingStatus}</td>
+                    <td className="px-6 py-4">{row.currency} {row.grossAmount}</td>
+                    <td className="px-6 py-4">{row.currency} {row.commissionAmount}</td>
+                    <td className="px-6 py-4">{row.settlementStatus}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{row.issue ?? '—'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">No settlement rows in period.</td>
                 </tr>
               )}
             </tbody>
