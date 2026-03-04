@@ -97,6 +97,26 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       booking,
       commission,
       latestPaymentLog: payment,
+      issueState: {
+        resolved:
+          ((booking.metadata as Record<string, unknown> | null)?.reconciliation as Record<string, unknown> | undefined)
+            ?.resolved === true,
+        resolvedAt:
+          typeof ((booking.metadata as Record<string, unknown> | null)?.reconciliation as Record<string, unknown> | undefined)
+            ?.resolvedAt === 'string'
+            ? (((booking.metadata as Record<string, unknown>).reconciliation as Record<string, unknown>).resolvedAt as string)
+            : null,
+        resolvedBy:
+          typeof ((booking.metadata as Record<string, unknown> | null)?.reconciliation as Record<string, unknown> | undefined)
+            ?.resolvedBy === 'string'
+            ? (((booking.metadata as Record<string, unknown>).reconciliation as Record<string, unknown>).resolvedBy as string)
+            : null,
+        resolutionNote:
+          typeof ((booking.metadata as Record<string, unknown> | null)?.reconciliation as Record<string, unknown> | undefined)
+            ?.resolutionNote === 'string'
+            ? (((booking.metadata as Record<string, unknown>).reconciliation as Record<string, unknown>).resolutionNote as string)
+            : null
+      },
       reconciliation: {
         grossDelta,
         commissionDelta,
