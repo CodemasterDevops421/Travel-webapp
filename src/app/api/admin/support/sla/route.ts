@@ -5,6 +5,9 @@ import { HttpError } from '@/server/errors';
 import { buildSupportSlaReport } from '@/server/admin/support-sla-report';
 
 function parsePeriodDays(raw: string | null): number {
+  if (raw == null || raw.trim() === '') {
+    return 30;
+  }
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) {
     return 30;
@@ -13,6 +16,9 @@ function parsePeriodDays(raw: string | null): number {
 }
 
 function parseBreachHours(raw: string | null): number {
+  if (raw == null || raw.trim() === '') {
+    return 24;
+  }
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) {
     return 24;

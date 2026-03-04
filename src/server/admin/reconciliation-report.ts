@@ -137,7 +137,7 @@ export async function buildReconciliationReport(
     const commissionPercent = readMetadataPercent(booking.metadata);
     const expectedFromPercent =
       typeof commissionPercent === 'number' ? bookingTotal * (commissionPercent / 100) : null;
-    const expectedCommission = bookingCommission ?? tracking?.commission_amount ?? expectedFromPercent ?? 0;
+    const expectedCommission = bookingCommission ?? expectedFromPercent ?? tracking?.commission_amount ?? 0;
     expectedCommissionAmount += expectedCommission;
 
     if (!tracking) {
