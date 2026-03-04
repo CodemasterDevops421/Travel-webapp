@@ -40,12 +40,58 @@ interface ReconciliationIssue {
     createdAt: string;
 }
 
+interface ReconciliationDrilldown {
+    booking: {
+        id: string;
+        status: string;
+        total_amount: number | null;
+        commission_amount: number | null;
+        currency: string | null;
+        liteapi_booking_id: string | null;
+        payment_status: string | null;
+        confirmation_code: string | null;
+        latest_payment_log_id: string | null;
+        created_at: string;
+        metadata: Record<string, unknown> | null;
+    };
+    commission: {
+        id: string;
+        booking_id: string;
+        payment_log_id: string | null;
+        gross_booking_value: number;
+        commission_percent: number;
+        commission_amount: number;
+        currency: string;
+        updated_at: string;
+    } | null;
+    latestPaymentLog: {
+        id: string;
+        provider: string;
+        external_payment_id: string | null;
+        event_type: string;
+        status: string;
+        amount: number | null;
+        currency: string | null;
+        created_at: string;
+    } | null;
+    reconciliation: {
+        grossDelta: number | null;
+        commissionDelta: number | null;
+        hasTracking: boolean;
+        hasPaymentLog: boolean;
+    };
+}
+
 export default function AdminPage() {
     const { user, isLoading: authLoading } = useAuth();
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
     const [reconciliationSummary, setReconciliationSummary] = useState<ReconciliationSummary | null>(null);
     const [reconciliationIssues, setReconciliationIssues] = useState<ReconciliationIssue[]>([]);
+    const [selectedIssue, setSelectedIssue] = useState<ReconciliationIssue | null>(null);
+    const [drilldown, setDrilldown] = useState<ReconciliationDrilldown | null>(null);
+    const [drilldownLoading, setDrilldownLoading] = useState(false);
+    const [drilldownError, setDrilldownError] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [forbidden, setForbidden] = useState(false);
@@ -124,6 +170,26 @@ export default function AdminPage() {
     }
 
     const commissionPercent = 12; // mirrors env.PRICE_MARKUP_PERCENT default
+
+    async function openIssue(issue: ReconciliationIssue) {
+        setSelectedIssue(issue);
+        setDrilldown(null);
+        setDrilldownError('');
+        setDrilldownLoading(true);
+        try {
+            const res = await fetch(`/api/admin/reconciliation/${encodeURIComponent(issue.bookingId)}`);
+            if (!res.ok) {
+                throw new Error('Failed to load drilldown');
+            }
+            const data = (await res.json()) as ReconciliationDrilldown;
+            setDrilldown(data);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to load drilldown';
+            setDrilldownError(message);
+        } finally {
+            setDrilldownLoading(false);
+        }
+    }
 
     const statCards = [
         {
@@ -301,7 +367,11 @@ export default function AdminPage() {
                             <tbody>
                                 {reconciliationIssues.length > 0 ? (
                                     reconciliationIssues.map((issue) => (
-                                        <tr key={`${issue.bookingId}-${issue.type}`} className="border-b border-border/20 hover:bg-muted/20 transition-colors">
+                                        <tr
+                                            key={`${issue.bookingId}-${issue.type}`}
+                                            className="cursor-pointer border-b border-border/20 hover:bg-muted/20 transition-colors"
+                                            onClick={() => void openIssue(issue)}
+                                        >
                                             <td className="px-6 py-4 font-mono text-xs">{issue.bookingId.slice(0, 8)}...</td>
                                             <td className="px-6 py-4">
                                                 <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
@@ -323,6 +393,78 @@ export default function AdminPage() {
                         </table>
                     </div>
                 </div>
+            </section>
+
+            <section className="mt-8 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between border-b border-border/40 p-6">
+                    <div>
+                        <h2 className="font-heading text-lg font-semibold">Exception Drilldown</h2>
+                        <p className="text-sm text-muted-foreground">
+                            {selectedIssue ? `Booking ${selectedIssue.bookingId}` : 'Select an issue row to inspect settlement context.'}
+                        </p>
+                    </div>
+                </div>
+                {!selectedIssue ? (
+                    <p className="p-6 text-sm text-muted-foreground">No issue selected.</p>
+                ) : drilldownLoading ? (
+                    <div className="p-6">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                ) : drilldownError ? (
+                    <p className="p-6 text-sm text-destructive">{drilldownError}</p>
+                ) : drilldown ? (
+                    <div className="grid gap-4 p-6 lg:grid-cols-3">
+                        <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Booking</p>
+                            <div className="mt-3 space-y-2 text-sm">
+                                <p><span className="text-muted-foreground">Status:</span> {drilldown.booking.status}</p>
+                                <p><span className="text-muted-foreground">Payment:</span> {drilldown.booking.payment_status ?? '—'}</p>
+                                <p><span className="text-muted-foreground">Gross:</span> {drilldown.booking.currency ?? 'USD'} {drilldown.booking.total_amount ?? 0}</p>
+                                <p><span className="text-muted-foreground">Commission:</span> {drilldown.booking.currency ?? 'USD'} {drilldown.booking.commission_amount ?? 0}</p>
+                                <p><span className="text-muted-foreground">Supplier ID:</span> {drilldown.booking.liteapi_booking_id ?? '—'}</p>
+                            </div>
+                        </article>
+                        <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Commission Tracking</p>
+                            {drilldown.commission ? (
+                                <div className="mt-3 space-y-2 text-sm">
+                                    <p><span className="text-muted-foreground">Gross tracked:</span> {drilldown.commission.currency} {drilldown.commission.gross_booking_value}</p>
+                                    <p><span className="text-muted-foreground">Commission tracked:</span> {drilldown.commission.currency} {drilldown.commission.commission_amount}</p>
+                                    <p><span className="text-muted-foreground">Percent:</span> {drilldown.commission.commission_percent}%</p>
+                                    <p><span className="text-muted-foreground">Payment log link:</span> {drilldown.commission.payment_log_id ?? '—'}</p>
+                                    <p><span className="text-muted-foreground">Updated:</span> {new Date(drilldown.commission.updated_at).toLocaleString()}</p>
+                                </div>
+                            ) : (
+                                <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">No tracking record exists for this booking.</p>
+                            )}
+                        </article>
+                        <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Settlement Signals</p>
+                            <div className="mt-3 space-y-2 text-sm">
+                                <p><span className="text-muted-foreground">Gross delta:</span> {drilldown.reconciliation.grossDelta ?? '—'}</p>
+                                <p><span className="text-muted-foreground">Commission delta:</span> {drilldown.reconciliation.commissionDelta ?? '—'}</p>
+                                <p><span className="text-muted-foreground">Tracking present:</span> {drilldown.reconciliation.hasTracking ? 'yes' : 'no'}</p>
+                                <p><span className="text-muted-foreground">Payment log present:</span> {drilldown.reconciliation.hasPaymentLog ? 'yes' : 'no'}</p>
+                                <div className="pt-2 border-t border-border/40">
+                                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Latest payment log</p>
+                                    {drilldown.latestPaymentLog ? (
+                                        <div className="space-y-1 text-xs">
+                                            <p>{drilldown.latestPaymentLog.provider} · {drilldown.latestPaymentLog.event_type}</p>
+                                            <p>Status: {drilldown.latestPaymentLog.status}</p>
+                                            <p>
+                                                Amount: {drilldown.latestPaymentLog.currency ?? 'USD'} {drilldown.latestPaymentLog.amount ?? 0}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground">No payment log available.</p>
+                                    )}
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                ) : (
+                    <p className="p-6 text-sm text-muted-foreground">Drilldown not available.</p>
+                )}
             </section>
         </main>
     );
