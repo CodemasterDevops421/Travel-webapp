@@ -88,18 +88,39 @@ Copy `.env.example` to `.env.local` and fill in your keys:
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
+| `PAYMENT_PROVIDER` | Yes | Payment mode: `liteapi`, `hybrid`, or `stripe` |
 | `LITEAPI_API_KEY` | Yes | Hotel data provider API key |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase admin key (server only) |
-| `STRIPE_SECRET_KEY` | Yes | Stripe payment processing |
-| `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook verification |
+| `STRIPE_SECRET_KEY` | Conditional | Required when `PAYMENT_PROVIDER` is `stripe` or `hybrid` |
+| `STRIPE_WEBHOOK_SECRET` | Conditional | Required when `PAYMENT_PROVIDER` is `stripe` or `hybrid` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Conditional | Required when `PAYMENT_PROVIDER` is `stripe` or `hybrid` |
 | `QUOTE_SIGNING_SECRET` | Yes | Price quote tamper protection |
+| `LITEAPI_WEBHOOK_SECRET` | Yes (prod) | LiteAPI webhook signature verification |
+| `LITEAPI_SUPPORT_AUTO_FORWARD` | Optional | Auto-forward support packets to LiteAPI support bridge |
+| `LITEAPI_SUPPORT_FORWARD_URL` | Conditional | Required when auto-forward is enabled |
+| `LITEAPI_SUPPORT_FORWARD_TOKEN` | Optional | Bearer token for support bridge endpoint |
 | `UPSTASH_REDIS_REST_URL` | Recommended | Caching & rate limiting |
 | `OPENAI_API_KEY` | Optional | AI concierge feature |
 | `SENTRY_DSN` | Optional | Error monitoring |
 
 See [`.env.example`](.env.example) for the complete list with descriptions.
+
+### Payment Provider Modes
+
+- `liteapi` (default): primary booking and payment flow via LiteAPI SDK.
+- `hybrid`: LiteAPI flow active, Stripe fallback/webhook support available.
+- `stripe`: Stripe-only payment path.
+
+### Windows Git PATH Fix
+
+If your terminal shows `'git' is not recognized`, use one of these:
+
+- Quick workaround: run Git with full path:
+  - `"C:\Program Files\Git\cmd\git.exe" checkout -b <branch-name>`
+  - `"C:\Program Files\Git\cmd\git.exe" status --short --branch`
+- Permanent fix: add `C:\Program Files\Git\cmd` to your user PATH and restart terminal.
 
 ---
 

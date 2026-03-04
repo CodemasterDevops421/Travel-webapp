@@ -28,14 +28,22 @@ function hasVerifiedEmail(user: {
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = getSafeNextPath(searchParams.get('next'));
+  const state = searchParams.get('state');
+  const nextParam = searchParams.get('next');
+  const next = getSafeNextPath(nextParam);
+
+  const isOAuthPath = state !== null || nextParam !== null;
 
   if (!code) {
     return NextResponse.redirect(`${origin}/auth/login?error=callback_failed`);
   }
 
-  // Note: `state` is only present for OAuth flows, not email confirmation links.
-  // We must NOT reject requests without `state` — email signups won't have it.
+  // `state` is expected for OAuth callback flows.
+  // Email confirmation callbacks do not include `state`, so only enforce this
+  // constraint when request shape indicates an OAuth path.
+  if (isOAuthPath && !state) {
+    return NextResponse.redirect(`${origin}/auth/login?error=callback_failed`);
+  }
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -45,10 +53,11 @@ export async function GET(request: Request) {
   }
 
   const {
-    data: { user }
+    data: { user },
+    error: getUserError
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (getUserError || !user) {
     return NextResponse.redirect(`${origin}/auth/login?error=callback_failed`);
   }
 
@@ -58,7 +67,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/auth/login?error=oauth_email_unverified`);
   }
 
-  await supabase.from('profiles').upsert(
+  const { error: upsertError } = await supabase.from('profiles').upsert(
     {
       id: user.id,
       full_name: typeof user.user_metadata?.full_name === 'string'
@@ -69,6 +78,11 @@ export async function GET(request: Request) {
     },
     { onConflict: 'id' }
   );
+
+  if (upsertError) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(`${origin}/auth/login?error=callback_failed`);
+  }
 
   return NextResponse.redirect(`${origin}${next}`);
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { cn } from '@/shared/lib/utils';
 import type { HotelDetails } from '@/server/liteapi';
 import type { HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
@@ -120,6 +121,9 @@ export function HotelDetailSections({
   const nearbyRestaurants = hotel?.nearbyRestaurants ?? [];
   const facilityCategories = hotel?.facilityCategories ?? [];
   const houseRulesDetailed = hotel?.houseRulesDetailed ?? [];
+  const smartHighlights = hotel?.smartHighlights ?? [];
+  const reviewHighlights = hotel?.reviewHighlights;
+  const descriptionNarrative = hotel?.descriptionNarrative;
   const sortedReviews = useMemo(() => {
     const items = [...reviews];
     if (reviewSort === 'newest') {
@@ -135,6 +139,34 @@ export function HotelDetailSections({
     return items;
   }, [reviewSort, reviews]);
   const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 3);
+  const groupedRates = useMemo(() => {
+    const groups = new Map<string, {
+      roomId: string;
+      roomName: string;
+      imageUrl: string | null;
+      offers: HotelRateWithCancellationContext[];
+    }>();
+
+    for (const rate of rates) {
+      const existing = groups.get(rate.roomId);
+      if (existing) {
+        existing.offers.push(rate);
+        if (!existing.imageUrl && rate.imageUrl) {
+          existing.imageUrl = rate.imageUrl;
+        }
+        continue;
+      }
+
+      groups.set(rate.roomId, {
+        roomId: rate.roomId,
+        roomName: rate.roomName,
+        imageUrl: rate.imageUrl ?? null,
+        offers: [rate]
+      });
+    }
+
+    return Array.from(groups.values());
+  }, [rates]);
   const popularFacilityHighlights = amenities.slice(0, 12);
   const surroundings = locationContext?.nearbyLandmarks?.length
     ? locationContext.nearbyLandmarks
@@ -166,20 +198,21 @@ export function HotelDetailSections({
             {hotel?.completeness?.message ?? 'Some supplier details are currently unavailable for this property.'}
           </p>
         ) : null}
-        <ul className="grid gap-4 sm:grid-cols-3">
-          <li className="border border-border bg-card p-6 transition-colors hover:bg-muted/50">
-            <p className="font-semibold text-foreground">Prime location access</p>
-            <p className="mt-2 text-sm text-muted-foreground">Close to major landmarks and city experiences.</p>
-          </li>
-          <li className="border border-border bg-card p-6 transition-colors hover:bg-muted/50">
-            <p className="font-semibold text-foreground">Comfort-focused stay</p>
-            <p className="mt-2 text-sm text-muted-foreground">Dependable rooms and practical amenities for short or long stays.</p>
-          </li>
-          <li className="border border-border bg-card p-6 transition-colors hover:bg-muted/50">
-            <p className="font-semibold text-foreground">Transparent booking flow</p>
-            <p className="mt-2 text-sm text-muted-foreground">Total price and cancellation terms are shown before confirmation.</p>
-          </li>
-        </ul>
+        {smartHighlights.length > 0 ? (
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {smartHighlights.map((highlight) => (
+              <li key={`${highlight.source}-${highlight.title}`} className="border border-border bg-card p-6 transition-colors hover:bg-muted/50">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{highlight.source}</p>
+                <p className="mt-2 font-semibold text-foreground">{highlight.title}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{highlight.detail}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            Smart highlights are currently unavailable because supplier detail signals are limited for this property.
+          </p>
+        )}
         {mapUrl ? (
           <div className="mt-8 border border-border bg-muted">
             <iframe title="Hotel map" src={mapUrl} className="h-[400px] w-full" loading="lazy" />
@@ -328,52 +361,77 @@ export function HotelDetailSections({
           <p className="mt-2 text-sm text-foreground">{rates.length} room options found for your selected dates.</p>
           <p className="mt-1 text-sm text-muted-foreground">Final cancellation and payment terms depend on the selected room and fare conditions.</p>
         </article>
-        {rates.length === 0 ? (
+        {groupedRates.length === 0 ? (
           <p className="rounded-xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
         ) : (
-          rates.map((rate) => {
-            const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
-            const cancellationCopy = getCancellationCopy(rate);
+          groupedRates.map((group) => {
             return (
-              <article
-                key={`${rate.offerId}-${rate.roomId}`}
-                className={cn(
-                  'border p-6 transition-colors',
-                  isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/20'
-                )}
-              >
-                <div className="flex flex-col justify-between gap-6 md:flex-row md:items-start">
-                  <div className="flex-1 space-y-4">
-                    <h3 className="text-xl font-bold text-foreground">{rate.roomName}</h3>
-                    <div className="flex flex-col gap-2">
-                      <span className="inline-flex w-fit items-center gap-1 border border-green-200 bg-green-50 px-2 py-1 text-xs font-bold text-green-700">
-                        ✓ {rate.refundableTag}
-                      </span>
-                      <span className="inline-flex w-fit items-center gap-1 border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
-                        ☕ {rate.boardName}
-                      </span>
-                      <span className="text-xs font-medium text-foreground">{cancellationCopy.status}</span>
-                      <span className="text-xs text-muted-foreground">{cancellationCopy.detail}</span>
+              <article key={group.roomId} className="space-y-4 rounded-xl border border-border bg-card/70 p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start">
+                  {group.imageUrl ? (
+                    <div className="relative h-32 w-full overflow-hidden rounded-lg md:w-48">
+                      <Image
+                        src={group.imageUrl}
+                        alt={group.roomName}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 192px"
+                        className="object-cover"
+                      />
                     </div>
+                  ) : null}
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-foreground">{group.roomName}</h3>
+                    <p className="text-xs text-muted-foreground">{group.offers.length} offer{group.offers.length > 1 ? 's' : ''} for this room type</p>
                   </div>
-                  <div className="min-w-[200px] items-start gap-4 md:items-end flex flex-col">
-                    <div className="w-full text-left md:text-right">
-                      <p className="text-3xl font-bold text-foreground">{formatMoney(rate.currency, rate.amount)}</p>
-                      <p className="mt-1 text-left text-xs text-muted-foreground md:text-right">Includes taxes and charges</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRateKey(buildRateKey(rate))}
-                      className={cn(
-                        'w-full rounded-none px-8 py-3 text-sm font-bold transition-all',
-                        isSelected
-                          ? 'bg-primary text-primary-foreground'
-                          : 'border border-border bg-background text-foreground hover:bg-muted'
-                      )}
-                    >
-                      {isSelected ? 'Selected room' : 'Select room'}
-                    </button>
-                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {group.offers.map((rate) => {
+                    const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
+                    const cancellationCopy = getCancellationCopy(rate);
+
+                    return (
+                      <div
+                        key={`${rate.offerId}-${rate.roomId}`}
+                        className={cn(
+                          'flex flex-col justify-between gap-4 border p-4 transition-colors md:flex-row md:items-center',
+                          isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/20'
+                        )}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex w-fit items-center gap-1 border border-green-200 bg-green-50 px-2 py-1 text-xs font-bold text-green-700">
+                              ✓ {rate.refundableTag}
+                            </span>
+                            <span className="inline-flex w-fit items-center gap-1 border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
+                              ☕ {rate.boardName}
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-foreground">{cancellationCopy.status}</p>
+                          <p className="text-xs text-muted-foreground">{cancellationCopy.detail}</p>
+                        </div>
+
+                        <div className="flex min-w-[220px] flex-col gap-3 md:items-end">
+                          <div className="w-full text-left md:text-right">
+                            <p className="text-2xl font-bold text-foreground">{formatMoney(rate.currency, rate.amount)}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Includes taxes and charges</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRateKey(buildRateKey(rate))}
+                            className={cn(
+                              'w-full rounded-none px-6 py-2 text-sm font-bold transition-all md:w-auto',
+                              isSelected
+                                ? 'bg-primary text-primary-foreground'
+                                : 'border border-border bg-background text-foreground hover:bg-muted'
+                            )}
+                          >
+                            {isSelected ? 'Selected offer' : 'Select offer'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </article>
             );
@@ -400,6 +458,48 @@ export function HotelDetailSections({
             ? ` (supplier returned ${reviews.length} of ${Math.round(hotel.reviewCount)} total).`
             : '.'}
         </p>
+
+        {reviewHighlights && !reviewHighlights.lowSignal && (reviewHighlights.positiveTopics.length > 0 || reviewHighlights.tradeoffTopics.length > 0) ? (
+          <div className="mt-5 space-y-4 rounded-xl border border-border bg-background/70 p-4">
+            <div className="flex flex-wrap gap-2">
+              {[...reviewHighlights.positiveTopics, ...reviewHighlights.tradeoffTopics].slice(0, 8).map((topic) => (
+                <span key={`topic-${topic.label}`} className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground">
+                  {topic.label} ({topic.mentions})
+                </span>
+              ))}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <article className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-emerald-800">Loved by guests</p>
+                {reviewHighlights.positiveTopics.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-emerald-900">
+                    {reviewHighlights.positiveTopics.slice(0, 4).map((topic) => (
+                      <li key={`positive-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-emerald-900">No recurring positive themes met the stability threshold yet.</p>
+                )}
+              </article>
+              <article className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-amber-900">Consider before booking</p>
+                {reviewHighlights.tradeoffTopics.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                    {reviewHighlights.tradeoffTopics.slice(0, 4).map((topic) => (
+                      <li key={`tradeoff-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-amber-900">No recurring trade-offs met the stability threshold yet.</p>
+                )}
+              </article>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            {reviewHighlights?.message ?? 'Not enough verified review volume to generate stable topic highlights yet.'}
+          </p>
+        )}
 
         {reviewBreakdown.length > 0 && (
           <>
@@ -573,9 +673,21 @@ export function HotelDetailSections({
 
       <section id="description" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('description')}>
         <h2 className="text-xl font-semibold">Property description</h2>
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-          {hotel?.description ?? 'Property description is currently unavailable.'}
-        </p>
+        {descriptionNarrative && descriptionNarrative.sections.length > 0 ? (
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {descriptionNarrative.sections.map((section, index) => (
+              <article key={`${section.title}-${index}`} className="rounded-xl border border-border bg-background/70 p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{section.source}</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{section.title}</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{section.body}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            {descriptionNarrative?.message ?? 'Property description is currently unavailable.'}
+          </p>
+        )}
       </section>
 
       <section id="facilities-detail" className="rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('facilities-detail')}>

@@ -10,6 +10,8 @@ describe('hotel booking card selected-rate contract', () => {
 
   it('keeps one selected-rate source of truth shared by room cards and sticky card', () => {
     expect(source).toContain('onClick={() => setSelectedRateKey(buildRateKey(rate))}');
+    expect(source).toContain('const groupedRates = useMemo(() =>');
+    expect(source).toContain('group.offers.map((rate) =>');
   });
 
   it('verifies state contract matches selected props in parent', () => {

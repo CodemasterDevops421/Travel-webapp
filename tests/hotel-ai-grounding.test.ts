@@ -49,6 +49,24 @@ function makeHotel(overrides: Partial<HotelDetails> = {}): HotelDetails {
       pros: ['Clean rooms'],
       cons: []
     },
+    smartHighlights: [],
+    reviewHighlights: {
+      positiveTopics: [],
+      tradeoffTopics: [],
+      lowSignal: true,
+      message: 'Not enough verified review volume to generate stable topic highlights yet.'
+    },
+    descriptionNarrative: {
+      mode: 'supplier',
+      sections: [
+        {
+          title: 'About this property',
+          body: 'A waterfront stay near city-center attractions.',
+          source: 'supplier'
+        }
+      ],
+      message: 'Description sourced directly from supplier content.'
+    },
     completeness: {
       isPartial: false,
       missingSections: [],
@@ -102,6 +120,42 @@ describe('hotel-ai grounding guardrails', () => {
 
     expect(response.answer.toLowerCase()).toContain("can't confirm payments");
     expect(response.answer.toLowerCase()).toContain('review the final booking terms');
+  });
+
+  it('stays grounded when description is synthesized or unavailable', () => {
+    const synthesized = answerHotelQuestion(
+      'Tell me about this hotel',
+      contextFrom({
+        description: null,
+        descriptionNarrative: {
+          mode: 'synthesized',
+          sections: [
+            {
+              title: 'Stay essentials',
+              body: 'Supplier-listed amenities include Parking, Breakfast included, Free WiFi.',
+              source: 'synthesized'
+            }
+          ],
+          message: 'Description is synthesized from available supplier fields because narrative text is unavailable.'
+        }
+      })
+    );
+    const unavailable = answerHotelQuestion(
+      'Tell me about this hotel',
+      contextFrom({
+        description: null,
+        descriptionNarrative: {
+          mode: 'unavailable',
+          sections: [],
+          message: 'Property description is currently unavailable.'
+        }
+      })
+    );
+
+    expect(synthesized.grounded).toBe(true);
+    expect(unavailable.grounded).toBe(true);
+    expect(unavailable.answer.toLowerCase()).toContain('clean rooms');
+    expect(unavailable.answer.toLowerCase()).not.toContain('spa');
   });
 
   it('handles missing hotel payload with explicit unavailable message', () => {

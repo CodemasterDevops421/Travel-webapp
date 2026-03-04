@@ -33,14 +33,14 @@ export default function HomePage() {
               backgroundPosition: 'center 40%'
             }}
           >
-            <h1 className="font-heading text-5xl font-extrabold leading-[1.1] text-white md:text-7xl drop-shadow-xl animate-fade-in">
+            <h1 className="font-heading text-3xl sm:text-5xl font-extrabold leading-[1.1] text-white md:text-7xl drop-shadow-xl animate-fade-in">
               Same Stays.
               <br />
               <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-fuchsia-400 bg-clip-text text-transparent">
                 Better Prices.
               </span>
             </h1>
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 md:text-lg animate-fade-in stagger-2">
+            <p className="mt-6 max-w-2xl text-sm sm:text-base leading-relaxed text-white/80 md:text-lg animate-fade-in stagger-2">
               2 Million Hotels Worldwide. Compare rates, review full terms upfront,
               and book with confidence.
             </p>
@@ -49,7 +49,7 @@ export default function HomePage() {
 
         {/* ── Search bar overlapping the hero bottom ── */}
         <div className="relative z-30 mx-auto -mt-8 w-full max-w-5xl px-4 md:-mt-10 animate-fade-in stagger-3">
-          <div className="overflow-visible rounded-full border border-slate-200 bg-white px-3 py-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900 md:px-4 md:py-3">
+          <div className="overflow-visible rounded-2xl md:rounded-full border border-slate-200 bg-white px-3 py-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900 md:px-4 md:py-3">
             <Suspense fallback={<SearchSkeleton />}>
               <HeroSearchBar className="border-none shadow-none bg-transparent" />
             </Suspense>

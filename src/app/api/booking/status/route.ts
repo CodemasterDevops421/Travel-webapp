@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertSameOrigin } from '@/server/csrf';
 import { toHttpError } from '@/server/errors';
-import { logger } from '@/server/logger';
+import { logger, logStructuredEvent } from '@/server/logger';
 import { verifyCheckoutSessionSignature } from '@/server/booking-session';
 import {
   getCheckoutProgressSessionByPrebookId,
@@ -13,6 +13,12 @@ import {
 import { getBookingById, getBookingByTransactionId } from '@/server/booking/repository';
 import { signBookingViewToken } from '@/server/booking-view-token';
 import { parseRequestBody } from '@/server/request';
+
+function emitStructuredEvent(level: 'error' | 'warn' | 'info' | 'debug', event: string, context: Record<string, unknown>) {
+  if (typeof logStructuredEvent === 'function') {
+    logStructuredEvent(level, event, context);
+  }
+}
 
 const requestSchema = z
   .object({
@@ -59,6 +65,12 @@ function buildProcessingResponse(context: CheckoutProgressSession | null) {
 export async function POST(request: NextRequest) {
   try {
     assertSameOrigin(request);
+    const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('info', 'booking.status.received', {
+      correlation_id: correlationId,
+      route: 'booking-status',
+      module: 'booking.status'
+    });
     const payload = await parseRequestBody(request, requestSchema);
 
     let checkoutContext: CheckoutProgressSession | null = null;
@@ -117,11 +129,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (!booking) {
+      emitStructuredEvent('info', 'booking.status.processing', {
+        correlation_id: correlationId,
+        route: 'booking-status',
+        module: 'booking.status',
+        transaction_id: checkoutContext?.transactionId ?? payload.transactionId ?? null
+      });
       return NextResponse.json(buildProcessingResponse(checkoutContext));
     }
 
     const outcome = toOutcome(booking.status);
     const bookingViewToken = outcome === 'confirmed' ? signBookingViewToken({ bookingId: booking.id }) : null;
+
+    emitStructuredEvent('info', 'booking.status.resolved', {
+      correlation_id: correlationId,
+      route: 'booking-status',
+      module: 'booking.status',
+      booking_id: booking.id,
+      outcome
+    });
+
     const message =
       outcome === 'confirmed'
         ? 'Booking confirmed.'
@@ -141,8 +168,19 @@ export async function POST(request: NextRequest) {
       message
     });
   } catch (error) {
+    const errorCorrelationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('error', 'booking.status.failed', {
+      correlation_id: errorCorrelationId,
+      route: 'booking-status',
+      module: 'booking.status'
+    });
     logger.warn({ error, route: 'booking-status' }, 'Booking status lookup failed');
-    const httpError = toHttpError(error);
+    const httpError = toHttpError(error, {
+      route: 'booking-status',
+      module: 'booking.status',
+      event: 'booking.status.failed',
+      correlationId: errorCorrelationId
+    });
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   }
 }

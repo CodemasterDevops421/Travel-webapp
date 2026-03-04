@@ -17,6 +17,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Hotel Detail and User Workspace** - Ship rich hotel pages, contextual AI Q&A, and wishlist-driven user value. (completed 2026-02-25)
 - [ ] **Phase 4: Checkout and Booking Lifecycle Integrity** - Implement payment-safe checkout with idempotent booking state transitions.
 - [ ] **Phase 5: Admin Monetization and Launch Operations** - Operationalize revenue visibility, controls, analytics, and deployment readiness.
+- [ ] **Phase 6: Auth and Booking Security Gap Closure** - Close milestone-blocking auth-linking and booking security regression gaps from audit.
+- [ ] **Phase 7: Canonical Data Wiring and Observability Closure** - Close canonical runtime wiring and structured observability integration gaps from audit.
+- [x] **Phase 8: Hotel Detail Content Intelligence and Review UX** - Upgrade smart highlights, review synthesis, and description quality for hotel detail conversion. (completed 2026-02-28)
 
 ## Phase Details
 
@@ -102,10 +105,60 @@ Plans:
   5. Production deployment and webhook setup are executable from documented configs with domain-ready settings.
 **Plans**: TBD
 
+### Phase 6: Auth and Booking Security Gap Closure
+**Goal**: Milestone-blocking auth and booking security gaps identified by audit are closed with test-backed behavior.
+**Depends on**: Phase 4
+**Requirements**: AUTH-02, ARCH-01, AUTH-05
+**Gap Closure**: Closes gaps from `.planning/v1.0-v1.0-MILESTONE-AUDIT.md` (AUTH-02 unsatisfied, ARCH-01 partial, AUTH-05 verification flow break)
+**Success Criteria** (what must be TRUE):
+  1. OAuth callback explicitly supports same-email account-link semantics for AUTH-02 and is covered by tests.
+  2. Booking prebook/payment secret exposure policy is enforced so frontend receives only minimal required ephemeral payment data.
+  3. Security regression tests run green without mock drift and verify redaction/forgery protections as intended.
+  4. End-to-end booking security and OAuth-linking flows pass without manual workarounds.
+**Plans**: 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md - Codify OAuth callback same-email linking semantics with fail-closed regression coverage
+- [ ] 06-02-PLAN.md - Enforce prebook secret-safe allowlist policy and stabilize booking security regressions
+
+### Phase 7: Canonical Data Wiring and Observability Closure
+**Goal**: Canonical data consumers and structured logging are fully wired for production operations.
+**Depends on**: Phase 6
+**Requirements**: ARCH-04, ARCH-05
+**Gap Closure**: Closes gaps from `.planning/v1.0-v1.0-MILESTONE-AUDIT.md` (ARCH-04 partial runtime wiring, ARCH-05 integration orphan)
+**Success Criteria** (what must be TRUE):
+  1. Runtime consumers persist and query `payment_logs`, `commission_tracking`, and `reviews_cache` for live platform operations.
+  2. Booking/supplier-critical server paths emit structured events through the shared helper with actionable metadata.
+  3. Data and observability wiring is validated by tests and aligns with requirements traceability.
+**Plans**: 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md - Wire canonical runtime consumers for payment logs, commission tracking, and reviews cache
+- [ ] 07-02-PLAN.md - Activate structured event logging taxonomy and lifecycle wiring on booking/webhook routes
+- [ ] 07-03-PLAN.md - Integrate centralized error capture and safe telemetry for critical booking/webhook failures
+
+### Phase 8: Hotel Detail Content Intelligence and Review UX
+**Goal**: Travelers can evaluate properties faster through high-signal highlights, clearer review synthesis, and structured descriptions grounded in supplier data.
+**Depends on**: Phase 3, Phase 7
+**Requirements**: HOTL-01, HOTL-02
+**Gap Closure**: Closes product parity and content-quality gaps from post-audit UX review (`.planning/research/hotel-detail-ux-gap-research-2026-02-28.md`)
+**Success Criteria** (what must be TRUE):
+  1. Hotel detail pages show a deterministic smart-highlights module that summarizes location, amenities, and rating context without fabricated claims.
+  2. Review surfaces include concise topic-level highlights and balanced positive/trade-off summaries derived from supplier comments.
+  3. Description content is rendered in structured sections with truthful fallback hierarchy when supplier narrative is partial or missing.
+  4. Regression tests verify no-hallucination fallback behavior and protect highlight/topic extraction quality over time.
+**Plans**: 4 plans
+
+Plans:
+- [ ] 08-01-PLAN.md - Build deterministic smart highlights contract and surface in active hotel detail experience
+- [ ] 08-02-PLAN.md - Add review-topic extraction and balanced review highlights rendering
+- [ ] 08-03-PLAN.md - Introduce structured description narratives with truthful fallback hierarchy
+- [ ] 08-04-PLAN.md - Add regression guardrails for highlight quality and no-hallucination copy constraints
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -114,3 +167,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 3. Hotel Detail and User Workspace | 4/4 | Complete | 2026-02-25 |
 | 4. Checkout and Booking Lifecycle Integrity | 0/4 | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |
+| 6. Auth and Booking Security Gap Closure | 0/2 | Not started | - |
+| 7. Canonical Data Wiring and Observability Closure | 0/3 | Not started | - |
+| 8. Hotel Detail Content Intelligence and Review UX | 4/4 | Complete | 2026-02-28 |

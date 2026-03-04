@@ -6,6 +6,7 @@ import type { PriceQuote } from '@/server/pricing';
 import { logger } from '@/server/logger';
 import { assertValidBookingTransition, canTransitionBookingState } from '@/server/booking/lifecycle';
 import { enqueueBookingLifecycleNotification } from '@/server/booking/outbox';
+import { upsertCommissionTracking } from '@/server/commission-tracking-repository';
 
 type GuestInput = {
   adults: number;
@@ -113,6 +114,90 @@ const LIFECYCLE_NOTIFICATION_STATUSES = new Set<LifecycleNotificationStatus>([
   'failed',
   'refunded'
 ]);
+
+const COMMISSION_TRACKING_STATUSES = new Set([
+  'payment_authorized',
+  'confirmed',
+  'refunded',
+  'failed'
+]);
+
+type CommissionTrackingLifecycleInput = {
+  bookingId: string;
+  status: string;
+  totalAmount: number | null;
+  commissionAmount: number | null;
+  currency: string | null;
+  paymentLogId: string | null;
+  metadata: Record<string, unknown> | null;
+};
+
+function normalizeCommissionPercent(value: number): number {
+  if (!Number.isFinite(value)) {
+    return env.PRICE_MARKUP_PERCENT;
+  }
+
+  return Math.min(100, Math.max(0, value));
+}
+
+function roundCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function deriveCommissionPercent(metadata: Record<string, unknown> | null, totalAmount: number, commissionAmount: number): number {
+  const explicitPercent = typeof metadata?.commissionPercent === 'number'
+    ? metadata.commissionPercent
+    : null;
+
+  if (typeof explicitPercent === 'number' && Number.isFinite(explicitPercent)) {
+    return normalizeCommissionPercent(explicitPercent);
+  }
+
+  if (totalAmount > 0 && Number.isFinite(commissionAmount) && commissionAmount > 0) {
+    return normalizeCommissionPercent((commissionAmount / totalAmount) * 100);
+  }
+
+  return normalizeCommissionPercent(env.PRICE_MARKUP_PERCENT);
+}
+
+async function maybeUpsertCommissionTracking(input: CommissionTrackingLifecycleInput): Promise<boolean> {
+  if (!COMMISSION_TRACKING_STATUSES.has(input.status)) {
+    return true;
+  }
+
+  const grossBookingValue = typeof input.totalAmount === 'number' ? input.totalAmount : 0;
+  const initialCommissionAmount = typeof input.commissionAmount === 'number' ? input.commissionAmount : 0;
+  const commissionPercent = deriveCommissionPercent(input.metadata, grossBookingValue, initialCommissionAmount);
+  const commissionAmount = typeof input.commissionAmount === 'number'
+    ? roundCurrency(input.commissionAmount)
+    : roundCurrency(grossBookingValue * (commissionPercent / 100));
+
+  const commissionId = await upsertCommissionTracking({
+    bookingId: input.bookingId,
+    paymentLogId: input.paymentLogId,
+    grossBookingValue: roundCurrency(grossBookingValue),
+    commissionPercent,
+    commissionAmount,
+    currency: input.currency ?? env.DEFAULT_CURRENCY,
+    metadata: {
+      ...(input.metadata ?? {}),
+      bookingStatus: input.status
+    }
+  });
+
+  if (!commissionId && failClosed) {
+    logger.error(
+      {
+        bookingId: input.bookingId,
+        bookingStatus: input.status
+      },
+      'Failed to upsert commission tracking during strict persistence mode'
+    );
+    return false;
+  }
+
+  return true;
+}
 
 function deriveInvoiceStatus(status: string, paymentStatus: string | null): string {
   if (status === 'refunded') {
@@ -365,12 +450,12 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
       confirmation_code: confirmationCode,
       commission_amount: commissionAmount,
       correlation_id: input.correlationId ?? null,
-       search_log_id: input.searchLogId ?? searchLogIdFromMetadata,
-       latest_payment_log_id: input.latestPaymentLogId ?? latestPaymentLogIdFromMetadata,
-       stripe_payment_intent_id: stripePaymentIntentId,
-       stripe_checkout_session_id: stripeCheckoutSessionId,
-       metadata: normalizedMetadata
-      })
+      search_log_id: input.searchLogId ?? searchLogIdFromMetadata,
+      latest_payment_log_id: input.latestPaymentLogId ?? latestPaymentLogIdFromMetadata,
+      stripe_payment_intent_id: stripePaymentIntentId,
+      stripe_checkout_session_id: stripeCheckoutSessionId,
+      metadata: normalizedMetadata
+    })
     .select('id')
     .single();
 
@@ -386,6 +471,18 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
     }
     fallbackBookings.set(fallbackId, fallbackRecord);
     maybeEnqueueLifecycleNotification(fallbackRecord);
+    const commissionPersisted = await maybeUpsertCommissionTracking({
+      bookingId: fallbackId,
+      status: fallbackRecord.status,
+      totalAmount: fallbackRecord.total_amount,
+      commissionAmount: fallbackRecord.commission_amount,
+      currency: fallbackRecord.currency,
+      paymentLogId: fallbackRecord.latest_payment_log_id,
+      metadata: fallbackRecord.metadata
+    });
+    if (!commissionPersisted) {
+      logger.warn({ bookingId: fallbackId }, 'Commission tracking failed after booking insert (fallback) — booking persisted, commission degraded');
+    }
     return fallbackId;
   }
 
@@ -394,6 +491,18 @@ export async function persistBooking(input: PersistBookingInput): Promise<string
     ...fallbackRecord,
     id: persistedId
   });
+  const commissionPersisted = await maybeUpsertCommissionTracking({
+    bookingId: persistedId,
+    status: fallbackRecord.status,
+    totalAmount: fallbackRecord.total_amount,
+    commissionAmount: fallbackRecord.commission_amount,
+    currency: fallbackRecord.currency,
+    paymentLogId: fallbackRecord.latest_payment_log_id,
+    metadata: fallbackRecord.metadata
+  });
+  if (!commissionPersisted) {
+    logger.warn({ bookingId: persistedId }, 'Commission tracking failed after booking insert — booking persisted, commission degraded');
+  }
   return persistedId;
 }
 
@@ -487,13 +596,25 @@ export async function updateBookingStatusById(
 
     fallbackBookings.set(bookingId, updatedBooking);
     maybeEnqueueLifecycleNotification(updatedBooking);
+    const commissionPersisted = await maybeUpsertCommissionTracking({
+      bookingId,
+      status,
+      totalAmount: updatedBooking.total_amount,
+      commissionAmount: updatedBooking.commission_amount,
+      currency: updatedBooking.currency,
+      paymentLogId: updatedBooking.latest_payment_log_id,
+      metadata: updatedBooking.metadata
+    });
+    if (!commissionPersisted) {
+      logger.warn({ bookingId }, 'Commission tracking failed after booking status update (fallback) — update persisted, commission degraded');
+    }
     return true;
   }
 
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, status, liteapi_booking_id, check_in, check_out, currency, metadata, total_amount, commission_amount, payment_status, confirmation_code, stripe_payment_intent_id, stripe_checkout_session_id')
+    .select('id, status, liteapi_booking_id, check_in, check_out, currency, metadata, total_amount, commission_amount, payment_status, confirmation_code, latest_payment_log_id, stripe_payment_intent_id, stripe_checkout_session_id')
     .eq('id', bookingId)
     .single();
 
@@ -554,6 +675,24 @@ export async function updateBookingStatusById(
     currency: (data.currency as string | null) ?? null,
     metadata: normalizedMetadata
   });
+
+  const freshPaymentLogId = typeof normalizedMetadata.latestPaymentLogId === 'string'
+    ? normalizedMetadata.latestPaymentLogId
+    : typeof normalizedMetadata.paymentLogId === 'string'
+      ? normalizedMetadata.paymentLogId
+      : (data.latest_payment_log_id as string | null) ?? null;
+  const commissionPersisted = await maybeUpsertCommissionTracking({
+    bookingId: data.id as string,
+    status,
+    totalAmount: fields.totalAmount,
+    commissionAmount: fields.commissionAmount,
+    currency: (data.currency as string | null) ?? null,
+    paymentLogId: freshPaymentLogId,
+    metadata: normalizedMetadata
+  });
+  if (!commissionPersisted) {
+    logger.warn({ bookingId: data.id }, 'Commission tracking failed after booking status update — update persisted, commission degraded');
+  }
 
   return true;
 }
@@ -633,6 +772,18 @@ export async function updateBookingStatusByLiteApiId(
         ...updatedBooking
       });
       maybeEnqueueLifecycleNotification(updatedBooking);
+      const commissionPersisted = await maybeUpsertCommissionTracking({
+        bookingId: id,
+        status,
+        totalAmount: updatedBooking.total_amount,
+        commissionAmount: updatedBooking.commission_amount,
+        currency: updatedBooking.currency,
+        paymentLogId: updatedBooking.latest_payment_log_id,
+        metadata: updatedBooking.metadata
+      });
+      if (!commissionPersisted) {
+        logger.warn({ bookingId: id }, 'Commission tracking failed after booking status update by liteapi id (fallback) — update persisted, commission degraded');
+      }
       return true;
     }
   }
@@ -644,7 +795,7 @@ export async function updateBookingStatusByLiteApiId(
   const supabase = createAdminClient();
   const { data, error: lookupError } = await supabase
     .from('bookings')
-    .select('id, status, liteapi_booking_id, check_in, check_out, currency, metadata, total_amount, commission_amount, payment_status, confirmation_code, stripe_payment_intent_id, stripe_checkout_session_id')
+    .select('id, status, liteapi_booking_id, check_in, check_out, currency, metadata, total_amount, commission_amount, payment_status, confirmation_code, latest_payment_log_id, stripe_payment_intent_id, stripe_checkout_session_id')
     .eq('liteapi_booking_id', liteApiBookingId)
     .limit(1)
     .single();
@@ -722,6 +873,24 @@ export async function updateBookingStatusByLiteApiId(
     metadata: normalizedMetadata
   });
 
+  const freshPaymentLogId2 = typeof normalizedMetadata.latestPaymentLogId === 'string'
+    ? normalizedMetadata.latestPaymentLogId
+    : typeof normalizedMetadata.paymentLogId === 'string'
+      ? normalizedMetadata.paymentLogId
+      : (data.latest_payment_log_id as string | null) ?? null;
+  const commissionPersisted = await maybeUpsertCommissionTracking({
+    bookingId: data.id as string,
+    status,
+    totalAmount: fields.totalAmount,
+    commissionAmount: fields.commissionAmount,
+    currency: (data.currency as string | null) ?? null,
+    paymentLogId: freshPaymentLogId2,
+    metadata: normalizedMetadata
+  });
+  if (!commissionPersisted) {
+    logger.warn({ bookingId: data.id }, 'Commission tracking failed after booking status update by liteapi id — update persisted, commission degraded');
+  }
+
   return true;
 }
 
@@ -766,6 +935,18 @@ export async function updateBookingStatusByTransactionId(
         ...updatedBooking
       });
       maybeEnqueueLifecycleNotification(updatedBooking);
+      const commissionPersisted = await maybeUpsertCommissionTracking({
+        bookingId: id,
+        status,
+        totalAmount: updatedBooking.total_amount,
+        commissionAmount: updatedBooking.commission_amount,
+        currency: updatedBooking.currency,
+        paymentLogId: updatedBooking.latest_payment_log_id,
+        metadata: updatedBooking.metadata
+      });
+      if (!commissionPersisted) {
+        logger.warn({ bookingId: id }, 'Commission tracking failed after booking status update by txn id (fallback) — update persisted, commission degraded');
+      }
       return true;
     }
   }
@@ -777,7 +958,7 @@ export async function updateBookingStatusByTransactionId(
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, status, liteapi_booking_id, check_in, check_out, currency, metadata, total_amount, commission_amount, payment_status, confirmation_code, stripe_payment_intent_id, stripe_checkout_session_id')
+    .select('id, status, liteapi_booking_id, check_in, check_out, currency, metadata, total_amount, commission_amount, payment_status, confirmation_code, latest_payment_log_id, stripe_payment_intent_id, stripe_checkout_session_id')
     .contains('metadata', { transactionId })
     .limit(1)
     .single();
@@ -849,6 +1030,24 @@ export async function updateBookingStatusByTransactionId(
     currency: (data.currency as string | null) ?? null,
     metadata: normalizedMetadata
   });
+
+  const freshPaymentLogId3 = typeof normalizedMetadata.latestPaymentLogId === 'string'
+    ? normalizedMetadata.latestPaymentLogId
+    : typeof normalizedMetadata.paymentLogId === 'string'
+      ? normalizedMetadata.paymentLogId
+      : (data.latest_payment_log_id as string | null) ?? null;
+  const commissionPersisted = await maybeUpsertCommissionTracking({
+    bookingId: data.id as string,
+    status,
+    totalAmount: fields.totalAmount,
+    commissionAmount: fields.commissionAmount,
+    currency: (data.currency as string | null) ?? null,
+    paymentLogId: freshPaymentLogId3,
+    metadata: normalizedMetadata
+  });
+  if (!commissionPersisted) {
+    logger.warn({ bookingId: data.id }, 'Commission tracking failed after booking status update by txn id — update persisted, commission degraded');
+  }
 
   return true;
 }

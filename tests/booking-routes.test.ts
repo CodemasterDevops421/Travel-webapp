@@ -1,12 +1,29 @@
 import { createHmac } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockSecurityRouteDependencies, resetSecurityRouteMocks } from './helpers/security-route-mocks';
+
+function collectSecretLikeKeys(input: unknown): string[] {
+  if (Array.isArray(input)) {
+    return input.flatMap((value) => collectSecretLikeKeys(value));
+  }
+
+  if (!input || typeof input !== 'object') {
+    return [];
+  }
+
+  const entries = Object.entries(input as Record<string, unknown>);
+  const directMatches = entries
+    .filter(([key]) => /(api[_-]?key|secret)/i.test(key))
+    .map(([key]) => key);
+
+  return directMatches.concat(entries.flatMap(([, value]) => collectSecretLikeKeys(value)));
+}
 
 describe('booking route handlers', () => {
   beforeEach(() => {
-    vi.resetModules();
-    vi.clearAllMocks();
-    vi.unstubAllEnvs();
+    resetSecurityRouteMocks();
     vi.doUnmock('@/server/booking-idempotency');
+    mockSecurityRouteDependencies();
     vi.stubEnv('NODE_ENV', 'test');
     process.env.QUOTE_SIGNING_SECRET = '1234567890abcdef';
     process.env.LITEAPI_API_KEY = 'test';
@@ -22,25 +39,6 @@ describe('booking route handlers', () => {
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_123';
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = 'pk_test_123';
 
-    vi.doMock('@/server/supabase/server', () => ({
-      createServerSupabaseClient: vi.fn().mockResolvedValue({
-        auth: {
-          getUser: vi.fn().mockResolvedValue({
-            data: { user: { id: 'user_1' } }
-          })
-        }
-      })
-    }));
-    vi.doMock('@/server/settings/repository', () => ({
-      getAppSettings: vi.fn().mockResolvedValue({
-        commissionPercent: 12,
-        environmentMode: 'sandbox',
-        requireLoginForBooking: false,
-        updatedAt: null,
-        updatedBy: null,
-        source: 'fallback'
-      })
-    }));
   });
 
   it('prebook route returns payment sdk payload and persists session', async () => {
@@ -51,11 +49,11 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/pricing', () => ({
-      buildPriceQuoteWithMarkup: vi.fn().mockReturnValue({
+      buildPriceQuoteExact: vi.fn().mockReturnValue({
         hotelId: 'h1',
         roomId: 'r1',
         baseAmount: 100,
-        totalAmount: 112,
+        totalAmount: 100,
         currency: 'USD',
         signature: 'sig-1'
       })
@@ -98,8 +96,42 @@ describe('booking route handlers', () => {
     expect(res.status).toBe(200);
     expect(body.paymentSdk).toBe(true);
     expect(body.prebookId).toBe('pb-1');
+    expect(body.paymentToken).toBe('sk-1');
+    expect(collectSecretLikeKeys(body)).toEqual([]);
     expect(savePrebookSession).toHaveBeenCalledOnce();
     expect(persistQuote).toHaveBeenCalledOnce();
+  });
+
+  it('prebook route fails closed when supplier prebook payload is malformed', async () => {
+    vi.doMock('@/server/liteapi', () => ({
+      prebookRate: vi.fn().mockResolvedValue({
+        prebookId: 'pb-1',
+        transactionId: '',
+        secretKey: 'sk-1',
+        price: 112,
+        currency: 'USD'
+      })
+    }));
+
+    const { POST } = await import('@/app/api/booking/prebook/route');
+    const req = {
+      url: 'https://example.com/api/booking/prebook',
+      headers: new Headers({ origin: 'https://example.com' }),
+      json: async () => ({
+        hotelId: 'h1',
+        roomId: 'r1',
+        offerId: 'offer-1',
+        checkIn: '2026-04-10',
+        checkOut: '2026-04-12',
+        guests: [{ adults: 2 }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(502);
+    expect(body.error).toMatch(/prebook payload is invalid/i);
   });
 
   it('prebook route rejects unauthenticated requests', async () => {
@@ -148,11 +180,11 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/pricing', () => ({
-      buildPriceQuoteWithMarkup: vi.fn().mockReturnValue({
+      buildPriceQuoteExact: vi.fn().mockReturnValue({
         hotelId: 'h1',
         roomId: 'r1',
         baseAmount: 100,
-        totalAmount: 112,
+        totalAmount: 100,
         currency: 'USD',
         signature: 'sig-1'
       })
@@ -545,6 +577,56 @@ describe('booking route handlers', () => {
     expect(persistBooking).toHaveBeenCalledOnce();
   });
 
+  it('book route fails closed when supplier booking payload is malformed', async () => {
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/liteapi', () => ({
+      bookRate: vi.fn().mockResolvedValue({ data: 'invalid-shape' })
+    }));
+    vi.doMock('@/server/booking-store', () => ({
+      getPrebookSession: vi.fn().mockResolvedValue({
+        prebookId: 'pb-1',
+        transactionId: 'tx-malformed',
+        clientReference: 'client-ref-1',
+        quoteId: 'q-1',
+        quote: {
+          hotelId: 'h1',
+          roomId: 'r1',
+          baseAmount: 100,
+          totalAmount: 112,
+          currency: 'USD',
+          signature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        }
+      })
+    }));
+    vi.doMock('@/server/pricing', () => ({
+      verifyPriceQuoteSignature: vi.fn().mockReturnValue(true)
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      persistBooking: vi.fn()
+    }));
+
+    const { POST } = await import('@/app/api/booking/book/route');
+    const req = {
+      url: 'https://example.com/api/booking/book',
+      headers: new Headers({ origin: 'https://example.com' }),
+      json: async () => ({
+        prebookId: 'pb-1',
+        transactionId: 'tx-malformed',
+        quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        holder: { firstName: 'A', lastName: 'B', email: 'a@b.com' },
+        guests: [{ occupancyNumber: 1, firstName: 'A', lastName: 'B' }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(502);
+    expect(body.error).toMatch(/booking payload is invalid/i);
+  });
+
   it('webhook route verifies signature and updates booking status', async () => {
     process.env.LITEAPI_WEBHOOK_SECRET = 'test-webhook-secret';
     process.env.QUOTE_SIGNING_SECRET = 'replace-with-strong-quote-signing-secret';
@@ -560,15 +642,20 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/webhook-idempotency', () => ({
-      markWebhookEventProcessed: vi.fn().mockResolvedValue(true)
+      claimWebhookEvent: vi.fn().mockResolvedValue(true),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking/repository', () => ({
       updateBookingStatusByLiteApiId: updateByLiteApiId,
       updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
       persistBooking: vi.fn().mockResolvedValue(null)
     }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog: vi.fn().mockResolvedValue('payment-log-1')
+    }));
     vi.doMock('@/server/logger', () => ({
-      logger: { info: loggerInfo }
+      logger: { info: loggerInfo },
+      logStructuredEvent: vi.fn()
     }));
 
     const raw = JSON.stringify({
@@ -620,15 +707,20 @@ describe('booking route handlers', () => {
       assertRateLimit: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/webhook-idempotency', () => ({
-      markWebhookEventProcessed: vi.fn().mockResolvedValue(false)
+      claimWebhookEvent: vi.fn().mockResolvedValue(false),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking/repository', () => ({
       updateBookingStatusByLiteApiId: updateByLiteApiId,
       updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
       persistBooking: vi.fn().mockResolvedValue(null)
     }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog: vi.fn().mockResolvedValue('payment-log-1')
+    }));
     vi.doMock('@/server/logger', () => ({
-      logger: { info: loggerInfo }
+      logger: { info: loggerInfo },
+      logStructuredEvent: vi.fn()
     }));
 
     const raw = JSON.stringify({
@@ -660,5 +752,212 @@ describe('booking route handlers', () => {
     expect(body.duplicate).toBe(true);
     expect(updateByLiteApiId).not.toHaveBeenCalled();
     expect(loggerInfo).toHaveBeenCalled();
+  });
+
+  it('webhook route ignores unsupported supplier status', async () => {
+    process.env.LITEAPI_WEBHOOK_SECRET = 'test-webhook-secret';
+    process.env.QUOTE_SIGNING_SECRET = 'replace-with-strong-quote-signing-secret';
+    process.env.LITEAPI_API_KEY = 'test';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
+
+    const updateByLiteApiId = vi.fn();
+    const loggerInfo = vi.fn();
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/webhook-idempotency', () => ({
+      claimWebhookEvent: vi.fn().mockResolvedValue(true),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      updateBookingStatusByLiteApiId: updateByLiteApiId,
+      updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
+      persistBooking: vi.fn().mockResolvedValue(null)
+    }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog: vi.fn().mockResolvedValue('payment-log-1')
+    }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: loggerInfo, warn: vi.fn() },
+      logStructuredEvent: vi.fn()
+    }));
+
+    const raw = JSON.stringify({
+      id: 'evt-unsupported',
+      type: 'booking_notice',
+      data: {
+        bookingId: 'lite-booking-1',
+        status: 'queued_for_manual_review'
+      }
+    });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac('sha256', process.env.LITEAPI_WEBHOOK_SECRET).update(`${timestamp}.${raw}`).digest('hex');
+
+    const { POST } = await import('@/app/api/webhooks/liteapi/route');
+    const req = {
+      headers: new Headers({
+        'x-liteapi-signature': signature,
+        'x-liteapi-timestamp': timestamp,
+        'x-request-id': 'rid-unsupported'
+      }),
+      text: async () => raw
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.ignored).toBe(true);
+    expect(updateByLiteApiId).not.toHaveBeenCalled();
+    expect(loggerInfo).toHaveBeenCalled();
+  });
+
+  it('webhook route returns 500 when reconciliation persistence fails', async () => {
+    process.env.LITEAPI_WEBHOOK_SECRET = 'test-webhook-secret';
+    process.env.QUOTE_SIGNING_SECRET = 'replace-with-strong-quote-signing-secret';
+    process.env.LITEAPI_API_KEY = 'test';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
+
+    const claimWebhookEvent = vi.fn().mockResolvedValue(true);
+    const finalizeWebhookEvent = vi.fn().mockResolvedValue(undefined);
+    const loggerWarn = vi.fn();
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/webhook-idempotency', () => ({
+      claimWebhookEvent,
+      finalizeWebhookEvent
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      updateBookingStatusByLiteApiId: vi.fn().mockResolvedValue(false),
+      updateBookingStatusByTransactionId: vi.fn().mockResolvedValue(false),
+      persistBooking: vi.fn().mockResolvedValue(null)
+    }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog: vi.fn().mockResolvedValue('payment-log-1')
+    }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: vi.fn(), warn: loggerWarn },
+      logStructuredEvent: vi.fn()
+    }));
+
+    const raw = JSON.stringify({
+      id: 'evt-persist-fail',
+      type: 'booking_confirmed',
+      data: {
+        bookingId: 'lite-booking-fail',
+        status: 'confirmed'
+      }
+    });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac('sha256', process.env.LITEAPI_WEBHOOK_SECRET).update(`${timestamp}.${raw}`).digest('hex');
+
+    const { POST } = await import('@/app/api/webhooks/liteapi/route');
+    const req = {
+      headers: new Headers({
+        'x-liteapi-signature': signature,
+        'x-liteapi-timestamp': timestamp,
+        'x-request-id': 'rid-persist-fail'
+      }),
+      text: async () => raw
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toMatch(/reconciliation failed/i);
+    expect(claimWebhookEvent).toHaveBeenCalledOnce();
+    expect(finalizeWebhookEvent).not.toHaveBeenCalled();
+    expect(loggerWarn).toHaveBeenCalled();
+  });
+
+  it('emits booking.prebook.failed structured event when prebook route throws', async () => {
+    const logStructuredEvent = vi.fn();
+
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn() },
+      logStructuredEvent
+    }));
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException: vi.fn()
+    }));
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockRejectedValue(new Error('rate limit failed'))
+    }));
+
+    const { POST } = await import('@/app/api/booking/prebook/route');
+    const req = {
+      url: 'https://example.com/api/booking/prebook',
+      headers: new Headers({ origin: 'https://example.com', 'x-request-id': 'cid-prebook-err' }),
+      json: async () => ({
+        hotelId: 'h1',
+        roomId: 'r1',
+        offerId: 'offer-1',
+        checkIn: '2026-04-10',
+        checkOut: '2026-04-12',
+        guests: [{ adults: 2 }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    expect(res.status).toBe(500);
+
+    const failedCalls = logStructuredEvent.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'booking.prebook.failed'
+    );
+    expect(failedCalls.length).toBe(1);
+    expect(failedCalls[0][0]).toBe('error');
+    expect(failedCalls[0][2]).toMatchObject({
+      route: 'booking-prebook',
+      module: 'booking.prebook'
+    });
+  });
+
+  it('emits booking.finalize.failed structured event when book route throws', async () => {
+    const logStructuredEvent = vi.fn();
+
+    vi.doMock('@/server/logger', () => ({
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn() },
+      logStructuredEvent
+    }));
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException: vi.fn()
+    }));
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockRejectedValue(new Error('rate limit failed'))
+    }));
+
+    const { POST } = await import('@/app/api/booking/book/route');
+    const req = {
+      url: 'https://example.com/api/booking/book',
+      headers: new Headers({ origin: 'https://example.com', 'x-request-id': 'cid-book-err' }),
+      json: async () => ({
+        prebookId: 'pb-err',
+        transactionId: 'tx-err',
+        quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        holder: { firstName: 'A', lastName: 'B', email: 'a@b.com' },
+        guests: [{ occupancyNumber: 1, firstName: 'A', lastName: 'B' }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    expect(res.status).toBe(500);
+
+    const failedCalls = logStructuredEvent.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'booking.finalize.failed'
+    );
+    expect(failedCalls.length).toBe(1);
+    expect(failedCalls[0][0]).toBe('error');
+    expect(failedCalls[0][2]).toMatchObject({
+      route: 'booking-book',
+      module: 'booking.finalize'
+    });
   });
 });

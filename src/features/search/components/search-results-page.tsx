@@ -33,6 +33,7 @@ const SearchResultsMap = dynamic(
 
 type SearchResultsPageProps = {
   query: string;
+  mode: 'destination' | 'vibe';
   checkin: string;
   checkout: string;
   adults: number;
@@ -64,7 +65,7 @@ function computePopularityScore(price: number | null, reviewScore: number | null
   return (reviewScore ?? 0) * 12 + (starRating ?? 0) * 6 - (price ?? 0) / 120;
 }
 
-export function SearchResultsPage({ query, checkin, checkout, adults, rooms, language, currency }: SearchResultsPageProps) {
+export function SearchResultsPage({ query, mode, checkin, checkout, adults, rooms, language, currency }: SearchResultsPageProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -73,8 +74,8 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
   const { isSaved, toggleSave, authRequired, clearAuthRequired } = useWishlist();
 
   const queryParams = useMemo(
-    () => ({ query, checkin, checkout, adults, rooms, language, currency }),
-    [query, checkin, checkout, adults, rooms, language, currency]
+    () => ({ query, mode, checkin, checkout, adults, rooms, language, currency }),
+    [query, mode, checkin, checkout, adults, rooms, language, currency]
   );
 
   const urlState = useMemo(() => {
@@ -101,6 +102,7 @@ export function SearchResultsPage({ query, checkin, checkout, adults, rooms, lan
 
   const { data: previewEnvelope, isFetching } = usePropertyPreview(
     query,
+    mode,
     language,
     currency,
     checkin,

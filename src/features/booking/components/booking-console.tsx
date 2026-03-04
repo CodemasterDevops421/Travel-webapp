@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import Link from 'next/link';
 import { publicEnv } from '@/shared/env.public';
 import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
 
@@ -31,7 +32,7 @@ type PrebookResult = {
   prebookId: string;
   transactionId: string;
   clientReference: string;
-  secretKey: string;
+  paymentToken: string;
   quoteId: string | null;
   sessionSignature: string;
   quote: {
@@ -444,7 +445,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     const returnUrl = `${window.location.origin}/booking/return?${returnParams.toString()}`;
     const liteAPIPayment = new window.LiteAPIPayment({
       publicKey: publicEnv.NEXT_PUBLIC_LITEAPI_ENV,
-      secretKey: activePrebook.secretKey,
+      secretKey: activePrebook.paymentToken,
       returnUrl,
       targetElement: '#liteapi-payment-target',
       appearance: { theme: 'flat' },
@@ -510,18 +511,17 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input className="rounded-none border-border" aria-label="Hotel ID" placeholder="Hotel ID" {...form.register('hotelId')} />
-              <Input className="rounded-none border-border" aria-label="Room ID" placeholder="Room ID" {...form.register('roomId')} />
-              <Input className="rounded-none border-border" aria-label="Offer ID" placeholder="Offer ID" {...form.register('offerId')} />
-              <Input className="rounded-none border-border" aria-label="Amount" placeholder="Amount" type="number" step="1" {...form.register('amount')} />
-              <Input className="rounded-none border-border" aria-label="Currency" placeholder="Currency (USD)" {...form.register('currency')} />
-              <div className="grid grid-cols-2 gap-4">
-                <Input className="rounded-none border-border" aria-label="Adults" placeholder="Adults" type="number" min={1} step="1" {...form.register('adults')} />
-                <Input className="rounded-none border-border" aria-label="Rooms" placeholder="Rooms" type="number" min={1} step="1" {...form.register('rooms')} />
-              </div>
-              <Input className="rounded-none border-border" aria-label="Check-in date" placeholder="Check-in YYYY-MM-DD" {...form.register('checkIn')} />
-              <Input className="rounded-none border-border" aria-label="Check-out date" placeholder="Check-out YYYY-MM-DD" {...form.register('checkOut')} />
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-800 dark:bg-amber-950/30">
+              <p className="text-base font-semibold text-amber-800 dark:text-amber-300">No room selected</p>
+              <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                Please select a room from a hotel page to begin checkout.
+              </p>
+              <Link
+                href="/"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Browse hotels
+              </Link>
             </div>
           )}
 
@@ -555,7 +555,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
           </div>
         </form>
 
-        <aside className="sticky top-24 self-start border border-border bg-card p-6 shadow-editorial-md">
+        <aside className="order-last lg:order-none lg:sticky lg:top-24 lg:self-start border border-border bg-card p-6 shadow-editorial-md">
           <p className="font-heading text-2xl font-light mb-6">Price Summary</p>
           <div className="space-y-4 text-sm">
             <div className="flex items-center justify-between">

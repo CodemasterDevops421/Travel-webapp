@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
 
 type CheckoutSessionPayload = {
+  prebookId: string;
   clientReference: string;
   quoteId: string | null;
   sessionSignature: string;
   quoteSignature: string;
+  updatedAt: string;
   holder: {
     firstName: string;
     lastName: string;
@@ -36,6 +38,7 @@ function checkoutStorageKey(transactionId: string): string {
 function isCheckoutSessionPayload(value: unknown): value is CheckoutSessionPayload {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<CheckoutSessionPayload>;
+  if (typeof candidate.prebookId !== 'string') return false;
   if (typeof candidate.clientReference !== 'string') return false;
   if (typeof candidate.sessionSignature !== 'string') return false;
   if (typeof candidate.quoteSignature !== 'string') return false;
@@ -81,6 +84,15 @@ function readCheckoutSession(transactionId: string): CheckoutSessionPayload | nu
   return null;
 }
 
+function isRecentCheckoutSession(updatedAt: string): boolean {
+  const parsed = Date.parse(updatedAt);
+  if (Number.isNaN(parsed)) {
+    return false;
+  }
+  const maxAgeMs = 2 * 60 * 60 * 1000;
+  return Date.now() - parsed <= maxAgeMs;
+}
+
 function clearCheckoutSession(transactionId: string): void {
   const key = checkoutStorageKey(transactionId);
   removeFromStorage(sessionStorage, key);
@@ -121,6 +133,22 @@ export function BookingReturnClient() {
         if (!active) return;
         setStatus('error');
         setMessage('Checkout session not found. Please restart booking.');
+        return;
+      }
+
+      if (session.prebookId !== prebookId) {
+        clearCheckoutSession(transactionId);
+        if (!active) return;
+        setStatus('error');
+        setMessage('Checkout session mismatch. Please restart booking.');
+        return;
+      }
+
+      if (!isRecentCheckoutSession(session.updatedAt)) {
+        clearCheckoutSession(transactionId);
+        if (!active) return;
+        setStatus('error');
+        setMessage('Checkout session expired. Please restart booking.');
         return;
       }
 

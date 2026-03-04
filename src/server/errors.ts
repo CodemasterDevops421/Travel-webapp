@@ -1,4 +1,5 @@
 import { ZodError } from 'zod';
+import * as Sentry from '@sentry/nextjs';
 import { logger } from '@/server/logger';
 
 type ErrorCaptureContext = {
@@ -11,6 +12,34 @@ type ErrorCaptureContext = {
   supplier?: string;
   metadata?: Record<string, unknown>;
 };
+
+const SENSITIVE_KEY_PATTERN = /(token|secret|authorization|api[_-]?key|password|cookie|set-cookie)/i;
+const RAW_PAYLOAD_KEY_PATTERN = /(supplier[_-]?payload|supplier[_-]?body|raw[_-]?body|request[_-]?body|response[_-]?body|payload)/i;
+
+function redactSensitive(input: unknown): unknown {
+  if (Array.isArray(input)) {
+    return input.map((value) => redactSensitive(value));
+  }
+
+  if (!input || typeof input !== 'object') {
+    return input;
+  }
+
+  const output: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      output[key] = '[REDACTED]';
+      continue;
+    }
+    if (RAW_PAYLOAD_KEY_PATTERN.test(key)) {
+      output[key] = '[REDACTED_PAYLOAD]';
+      continue;
+    }
+    output[key] = redactSensitive(value);
+  }
+
+  return output;
+}
 
 export class HttpError extends Error {
   status: number;
@@ -38,7 +67,7 @@ export class RateLimitError extends HttpError {
 export function captureServerError(error: unknown, context: ErrorCaptureContext = {}): void {
   const routeOrModule = context.route ?? context.module ?? 'unknown';
   const event = context.event ?? 'server_error';
-  const metadata = context.metadata ?? {};
+  const metadata = redactSensitive(context.metadata ?? {}) as Record<string, unknown>;
   const err = error instanceof Error ? error : new Error('Non-error exception');
 
   const payload = {
@@ -53,6 +82,27 @@ export function captureServerError(error: unknown, context: ErrorCaptureContext 
     error_message: err.message,
     ...metadata
   };
+
+  if (typeof Sentry.captureException === 'function') {
+    try {
+      Sentry.captureException(err, {
+        tags: {
+          event,
+          route: context.route,
+          module: context.module,
+          supplier: context.supplier
+        },
+        extra: {
+          correlation_id: context.correlationId,
+          user_id: context.userId,
+          admin_user_id: context.adminUserId,
+          metadata
+        }
+      });
+    } catch {
+      // Never let observability transport failures change API behavior.
+    }
+  }
 
   if (typeof logger.error === 'function') {
     logger.error(
@@ -91,6 +141,7 @@ export function captureServerError(error: unknown, context: ErrorCaptureContext 
       ...metadata
     });
   }
+
 }
 
 export function toHttpError(error: unknown, context: ErrorCaptureContext = {}): HttpError {

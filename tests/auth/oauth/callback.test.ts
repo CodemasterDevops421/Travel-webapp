@@ -24,7 +24,7 @@ describe('oauth callback flow', () => {
     expect(response.headers.get('location')).toBe('https://example.com/auth/login?error=callback_failed');
   });
 
-  it('upserts profile and redirects to safe relative path', async () => {
+  it('upserts one profile row for linked same-email google logins', async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     const exchangeCodeForSession = vi.fn().mockResolvedValue({ error: null });
 
@@ -50,18 +50,51 @@ describe('oauth callback flow', () => {
 
     const { GET } = await import('@/app/auth/callback/route');
     const response = await GET(
-      new Request('https://example.com/auth/callback?code=abc&state=xyz&next=https://evil.com')
+      new Request('https://example.com/auth/callback?code=abc&state=xyz&next=/dashboard')
     );
 
     expect(exchangeCodeForSession).toHaveBeenCalledWith('abc');
+    expect(upsert).toHaveBeenCalledTimes(1);
     expect(upsert).toHaveBeenCalledWith(
       { id: 'user-1', full_name: 'Alex Traveler' },
       { onConflict: 'id' }
     );
+    expect(response.headers.get('location')).toBe('https://example.com/dashboard');
+  });
+
+  it('forces unsafe next values to resolve to root', async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          exchangeCodeForSession: vi.fn().mockResolvedValue({ error: null }),
+          getUser: vi.fn().mockResolvedValue({
+            data: {
+              user: {
+                id: 'user-1',
+                email: 'alex@example.com',
+                email_confirmed_at: '2026-02-23T00:00:00.000Z',
+                app_metadata: { provider: 'google' },
+                user_metadata: { name: 'Alex Traveler' }
+              }
+            }
+          })
+        },
+        from: vi.fn().mockReturnValue({ upsert })
+      })
+    }));
+
+    const { GET } = await import('@/app/auth/callback/route');
+    const response = await GET(
+      new Request('https://example.com/auth/callback?code=abc&state=xyz&next=https://evil.com')
+    );
+
     expect(response.headers.get('location')).toBe('https://example.com/');
   });
 
   it('rejects unverified google accounts to avoid unsafe linking', async () => {
+    const upsert = vi.fn();
     const signOut = vi.fn().mockResolvedValue({ error: null });
 
     vi.doMock('@/server/supabase/server', () => ({
@@ -81,7 +114,7 @@ describe('oauth callback flow', () => {
           }),
           signOut
         },
-        from: vi.fn().mockReturnValue({ upsert: vi.fn() })
+        from: vi.fn().mockReturnValue({ upsert })
       })
     }));
 
@@ -89,8 +122,46 @@ describe('oauth callback flow', () => {
     const response = await GET(new Request('https://example.com/auth/callback?code=abc&state=xyz'));
 
     expect(signOut).toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
     expect(response.headers.get('location')).toBe(
       'https://example.com/auth/login?error=oauth_email_unverified'
     );
+  });
+
+  it('fails closed for oauth-shaped callbacks missing state', async () => {
+    const exchangeCodeForSession = vi.fn();
+
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          exchangeCodeForSession
+        }
+      })
+    }));
+
+    const { GET } = await import('@/app/auth/callback/route');
+    const response = await GET(new Request('https://example.com/auth/callback?code=abc&next=/dashboard'));
+
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(response.headers.get('location')).toBe('https://example.com/auth/login?error=callback_failed');
+  });
+
+  it('fails closed when authenticated user cannot be loaded after code exchange', async () => {
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          exchangeCodeForSession: vi.fn().mockResolvedValue({ error: null }),
+          getUser: vi.fn().mockResolvedValue({
+            data: { user: null },
+            error: { message: 'invalid_claims' }
+          })
+        }
+      })
+    }));
+
+    const { GET } = await import('@/app/auth/callback/route');
+    const response = await GET(new Request('https://example.com/auth/callback?code=abc&state=xyz'));
+
+    expect(response.headers.get('location')).toBe('https://example.com/auth/login?error=callback_failed');
   });
 });

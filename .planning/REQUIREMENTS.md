@@ -84,32 +84,32 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ARCH-01 | Phase 1 | Pending |
-| ARCH-02 | Phase 1 | Pending |
-| ARCH-03 | Phase 1 | Pending |
-| ARCH-04 | Phase 1 | Pending |
-| ARCH-05 | Phase 1 | Pending |
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
-| DISC-01 | Phase 2 | Pending |
-| DISC-02 | Phase 2 | Pending |
-| DISC-03 | Phase 2 | Pending |
-| DISC-04 | Phase 2 | Pending |
-| DISC-05 | Phase 2 | Pending |
-| DISC-06 | Phase 2 | Pending |
-| HOTL-01 | Phase 3 | Pending |
-| HOTL-02 | Phase 3 | Pending |
-| HOTL-03 | Phase 3 | Pending |
-| HOTL-04 | Phase 3 | Pending |
-| BOOK-01 | Phase 4 | Pending |
-| BOOK-02 | Phase 4 | Pending |
-| BOOK-03 | Phase 4 | Pending |
-| BOOK-04 | Phase 4 | Pending |
-| BOOK-05 | Phase 4 | Pending |
-| BOOK-06 | Phase 4 | Pending |
+| ARCH-01 | Phase 6 | Code verified (live human verification pending) |
+| ARCH-02 | Phase 1 | Verified |
+| ARCH-03 | Phase 1 | Verified |
+| ARCH-04 | Phase 7 | Implemented (phase verification pending) |
+| ARCH-05 | Phase 7 | Implemented (phase verification pending) |
+| AUTH-01 | Phase 1 | Verified |
+| AUTH-02 | Phase 6 | Code verified (live human verification pending) |
+| AUTH-03 | Phase 1 | Verified |
+| AUTH-04 | Phase 1 | Verified |
+| AUTH-05 | Phase 6 | Code verified (live human verification pending) |
+| DISC-01 | Phase 2 | Implemented (verification artifact pending) |
+| DISC-02 | Phase 2 | Implemented (verification artifact pending) |
+| DISC-03 | Phase 2 | Implemented (verification artifact pending) |
+| DISC-04 | Phase 2 | Implemented (verification artifact pending) |
+| DISC-05 | Phase 2 | Implemented (verification artifact pending) |
+| DISC-06 | Phase 2 | Implemented (verification artifact pending) |
+| HOTL-01 | Phase 3 | Verified (reinforced in Phase 8) |
+| HOTL-02 | Phase 3 | Verified (reinforced in Phase 8) |
+| HOTL-03 | Phase 3 | Implemented (verification artifact pending) |
+| HOTL-04 | Phase 3 | Implemented (verification artifact pending) |
+| BOOK-01 | Phase 4 | Implemented (verification artifact pending) |
+| BOOK-02 | Phase 4 | Implemented (verification artifact pending) |
+| BOOK-03 | Phase 4 | Implemented (verification artifact pending) |
+| BOOK-04 | Phase 4 | Implemented (verification artifact pending) |
+| BOOK-05 | Phase 4 | Implemented (verification artifact pending) |
+| BOOK-06 | Phase 4 | Implemented (verification artifact pending) |
 | OPER-01 | Phase 5 | Pending |
 | OPER-02 | Phase 5 | Pending |
 | OPER-03 | Phase 5 | Pending |
@@ -123,4 +123,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after roadmap revision*
+*Last updated: 2026-02-28 after milestone gap closure phase mapping*

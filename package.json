@@ -9,7 +9,10 @@
     "lint": "next lint",
     "typecheck": "next typegen && tsc --noEmit --incremental false",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify:live:webhook": "node scripts/verify-live-webhook.js",
+    "verify:live:webhook:liteapi": "node scripts/verify-live-liteapi-webhook.js",
+    "verify:live:email": "node scripts/verify-live-email.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -59,6 +62,7 @@
     "vitest": "^3.0.5"
   },
   "overrides": {
-    "minimatch": "^10.2.3"
+    "minimatch": "^10.2.3",
+    "serialize-javascript": "^7.0.4"
   }
 }

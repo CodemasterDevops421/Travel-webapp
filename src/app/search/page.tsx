@@ -33,7 +33,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     ...queryState,
     destination: ''
   });
+  const rawMode = typeof params.mode === 'string' ? params.mode.trim().toLowerCase() : Array.isArray(params.mode) ? params.mode[0]?.trim().toLowerCase() : undefined;
+  if (rawMode === 'vibe') {
+    canonicalQuery.set('mode', 'vibe');
+  }
   const queryString = canonicalQuery.toString();
+  if (rawMode === 'vibe') {
+    redirect((queryString ? `/hotels?${queryString}` : '/hotels') as Route);
+  }
   const destinationPath = buildDestinationPath(slug);
 
   redirect((queryString ? `${destinationPath}?${queryString}` : destinationPath) as Route);

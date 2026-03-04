@@ -159,7 +159,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                 className
             )}
         >
-            <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="flex flex-col md:flex-row md:items-stretch transition-all rounded-full bg-transparent">
+            <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="flex flex-col md:flex-row md:items-stretch transition-all rounded-2xl md:rounded-full bg-transparent">
 
                 {/* Destination Input */}
                 <div className="relative z-50 flex-1">
@@ -187,27 +187,27 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     {/* Autocomplete Dropdown */}
                     {isSuggestionsOpen && (
                         <div
-                            className="absolute left-0 right-0 top-full mt-2 rounded-xl border border-slate-200 p-2 dark:border-slate-700"
-                            style={{ zIndex: 9999, backgroundColor: '#ffffff', color: '#1e293b', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
+                            className="absolute left-0 right-0 top-full mt-2 rounded-xl border border-slate-200 bg-card p-2 shadow-2xl dark:border-slate-700"
+                            style={{ zIndex: 9999 }}
                         >
                             {isFetching ? (
-                                <div className="p-4 text-sm" style={{ color: '#64748b' }}>Searching...</div>
+                                <div className="p-4 text-sm text-muted-foreground">Searching...</div>
                             ) : suggestions.length === 0 ? (
-                                <div className="p-4 text-sm" style={{ color: '#64748b' }}>No destinations found.</div>
+                                <div className="p-4 text-sm text-muted-foreground">No destinations found.</div>
                             ) : (
                                 <ul className="max-h-[300px] overflow-y-auto py-2">
                                     {suggestions.map((item, idx) => (
                                         <li
                                             key={item.id}
                                             className={cn(
-                                                "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-blue-50",
-                                                highlightedIndex === idx && "bg-blue-50"
+                                                "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-accent",
+                                                highlightedIndex === idx && "bg-accent"
                                             )}
                                             onMouseDown={(e) => { e.preventDefault(); onPickSuggestion(item.name); }}
                                             onMouseEnter={() => setHighlightedIndex(idx)}
                                         >
-                                            <span style={{ color: '#0f172a', fontWeight: 500 }}>{item.name}</span>
-                                            <span style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'capitalize' }}>{item.source}</span>
+                                            <span className="font-medium text-foreground">{item.name}</span>
+                                            <span className="text-xs capitalize text-muted-foreground">{item.source}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -256,7 +256,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                 </div>
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-80 border-border shadow-editorial-md p-6 z-[100] rounded-none" align="end">
+                        <PopoverContent className="w-80 border-border shadow-editorial-md p-6 z-[100] rounded-xl" align="end">
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <div>

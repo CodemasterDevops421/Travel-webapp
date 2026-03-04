@@ -18,6 +18,29 @@ export const logger = pino({
   redact: ['req.headers.authorization', 'apiKey', '*.token', '*.email', '*.cardNumber']
 });
 
+export const STRUCTURED_EVENT_PREFIXES = ['booking.', 'webhook.', 'supplier.', 'persistence.'] as const;
+
+function toStructuredContext(context: StructuredLogContext): StructuredLogContext {
+  const normalized: StructuredLogContext = { ...context };
+
+  if (typeof normalized.correlation_id !== 'string' || normalized.correlation_id.trim().length === 0) {
+    const alt = normalized.correlationId;
+    if (typeof alt === 'string' && alt.trim().length > 0) {
+      normalized.correlation_id = alt;
+    }
+  }
+
+  if (!normalized.route && !normalized.module) {
+    normalized.module = 'unknown';
+  }
+
+  return normalized;
+}
+
+function isStructuredEventName(event: string): boolean {
+  return STRUCTURED_EVENT_PREFIXES.some((prefix) => event.startsWith(prefix));
+}
+
 export function withCorrelation(correlationId: string, context?: Record<string, unknown>) {
   return logger.child({ correlation_id: correlationId, correlationId, ...(context ?? {}) });
 }
@@ -28,5 +51,20 @@ export function logStructuredEvent(
   context: StructuredLogContext = {},
   message?: string
 ): void {
-  logger[level]({ event, ...context }, message ?? event);
+  const safeContext = toStructuredContext(context);
+
+  if (!isStructuredEventName(event)) {
+    logger.warn(
+      {
+        event: 'observability.invalid_event_name',
+        provided_event: event,
+        allowed_prefixes: STRUCTURED_EVENT_PREFIXES,
+        ...safeContext
+      },
+      'Invalid structured event name; expected approved namespace prefix'
+    );
+    return;
+  }
+
+  logger[level]({ event, ...safeContext }, message ?? event);
 }

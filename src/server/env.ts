@@ -11,6 +11,7 @@ const emptyStringToUndefined = <TSchema extends z.ZodTypeAny>(schema: TSchema) =
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PAYMENT_PROVIDER: z.enum(['liteapi', 'hybrid', 'stripe']).default('liteapi'),
   LITEAPI_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
   NEXT_PUBLIC_APP_URL: emptyStringToUndefined(z.string().url().default('http://localhost:3000')),
   LITEAPI_API_KEY: emptyStringToUndefined(z.string().min(1).default('liteapi-placeholder-key')),
@@ -25,6 +26,9 @@ const envSchema = z.object({
   LITEAPI_DASHBOARD_BASE_URL: emptyStringToUndefined(z.string().url().default('https://da.liteapi.travel')),
   LITEAPI_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
   LITEAPI_WEBHOOK_SECRET: emptyStringToUndefined(z.string().optional()),
+  LITEAPI_SUPPORT_FORWARD_URL: emptyStringToUndefined(z.string().url().optional()),
+  LITEAPI_SUPPORT_FORWARD_TOKEN: emptyStringToUndefined(z.string().optional()),
+  LITEAPI_SUPPORT_AUTO_FORWARD: z.coerce.boolean().default(false),
   QUOTE_SIGNING_SECRET: emptyStringToUndefined(z.string().min(16).optional()),
   BOOKING_VIEW_TOKEN_SECRET: emptyStringToUndefined(z.string().min(16).optional()),
   BOOKING_API_AUTH_SECRET: emptyStringToUndefined(z.string().min(24).optional()),
@@ -124,6 +128,14 @@ function isPlaceholderValue(value: string | undefined, patterns: string[]): bool
   return patterns.some((pattern) => normalized === pattern || normalized.includes(pattern));
 }
 
+export function usesStripePayments(): boolean {
+  return parsedEnv.PAYMENT_PROVIDER === 'stripe' || parsedEnv.PAYMENT_PROVIDER === 'hybrid';
+}
+
+export function usesLiteApiPayments(): boolean {
+  return parsedEnv.PAYMENT_PROVIDER === 'liteapi' || parsedEnv.PAYMENT_PROVIDER === 'hybrid';
+}
+
 export function assertProductionReadiness(): void {
   if (parsedEnv.NODE_ENV !== 'production') {
     return;
@@ -165,14 +177,19 @@ export function assertProductionReadiness(): void {
   if (!parsedEnv.BOOKING_API_AUTH_SECRET) {
     problems.push('BOOKING_API_AUTH_SECRET is required in production to protect booking APIs.');
   }
-  if (!parsedEnv.STRIPE_SECRET_KEY) {
-    problems.push('STRIPE_SECRET_KEY is required in production.');
+  if (parsedEnv.LITEAPI_SUPPORT_AUTO_FORWARD && !parsedEnv.LITEAPI_SUPPORT_FORWARD_URL) {
+    problems.push('LITEAPI_SUPPORT_FORWARD_URL is required in production when LITEAPI_SUPPORT_AUTO_FORWARD=true.');
   }
-  if (!parsedEnv.STRIPE_WEBHOOK_SECRET) {
-    problems.push('STRIPE_WEBHOOK_SECRET is required in production.');
-  }
-  if (!parsedEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-    problems.push('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is required in production.');
+  if (usesStripePayments()) {
+    if (!parsedEnv.STRIPE_SECRET_KEY) {
+      problems.push('STRIPE_SECRET_KEY is required in production when PAYMENT_PROVIDER=stripe or hybrid.');
+    }
+    if (!parsedEnv.STRIPE_WEBHOOK_SECRET) {
+      problems.push('STRIPE_WEBHOOK_SECRET is required in production when PAYMENT_PROVIDER=stripe or hybrid.');
+    }
+    if (!parsedEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+      problems.push('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is required in production when PAYMENT_PROVIDER=stripe or hybrid.');
+    }
   }
   if (parsedEnv.LITEAPI_ENV === 'sandbox') {
     problems.push('LITEAPI_ENV must be set to production for production runtime.');

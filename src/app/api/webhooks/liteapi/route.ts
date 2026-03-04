@@ -1,16 +1,35 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { assertProductionReadiness, env } from '@/server/env';
-import { logger } from '@/server/logger';
+import { logger, logStructuredEvent } from '@/server/logger';
 import { assertRateLimit } from '@/server/ratelimit';
-import { markWebhookEventProcessed } from '@/server/webhook-idempotency';
+import { claimWebhookEvent, finalizeWebhookEvent } from '@/server/webhook-idempotency';
 import { toHttpError } from '@/server/errors';
 import {
   persistBooking,
   updateBookingStatusByLiteApiId,
   updateBookingStatusByTransactionId
 } from '@/server/booking/repository';
+import { insertPaymentLog } from '@/server/payment-logs-repository';
 import { getClientIp, getCorrelationId } from '@/server/request';
+import { normalizeSupplierBookingState } from '@/server/booking/lifecycle';
+
+function emitStructuredEvent(
+  level: 'error' | 'warn' | 'info' | 'debug',
+  event: string,
+  context: Record<string, unknown>
+): void {
+  if (typeof logStructuredEvent === 'function') {
+    logStructuredEvent(level, event, context);
+  }
+}
+
+type ReconciliationUpdate = {
+  bookingId: string | null;
+  transactionId: string | null;
+  status: 'pending' | 'payment_authorized' | 'confirmed' | 'failed' | 'refunded';
+  metadata: Record<string, unknown>;
+};
 
 function readSignatureHeader(request: NextRequest): string {
   return (
@@ -77,11 +96,93 @@ function verifySignature(rawBody: string, signature: string, rawTimestamp: strin
   return safeCompareHex(expectedLegacySignature, signature);
 }
 
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+  return value;
+}
+
+function derivePaymentStatus(canonicalState: ReconciliationUpdate['status']): string {
+  if (canonicalState === 'payment_authorized') {
+    return 'authorized';
+  }
+  if (canonicalState === 'confirmed') {
+    return 'captured';
+  }
+  if (canonicalState === 'refunded') {
+    return 'refunded';
+  }
+  if (canonicalState === 'failed') {
+    return 'failed';
+  }
+  return 'pending';
+}
+
+function buildReconciliationUpdate(event: Record<string, unknown>): ReconciliationUpdate | null {
+  const payload = readRecord(event.data) ?? {};
+  const bookingId =
+    readString(payload.bookingId)
+    ?? readString(payload.liteapiBookingId)
+    ?? readString(event.bookingId);
+  const transactionId = readString(payload.transactionId) ?? readString(event.transactionId);
+
+  const candidates = [
+    readString(payload.status),
+    readString(event.status),
+    readString(event.type)
+  ].filter((value): value is string => Boolean(value));
+
+  let normalizedStatus: ReconciliationUpdate['status'] | null = null;
+  for (const candidate of candidates) {
+    const mapped = normalizeSupplierBookingState(candidate);
+    if (mapped) {
+      normalizedStatus = mapped;
+      break;
+    }
+  }
+
+  if (!normalizedStatus) {
+    return null;
+  }
+
+  return {
+    bookingId: bookingId ?? null,
+    transactionId: transactionId ?? null,
+    status: normalizedStatus,
+    metadata: {
+      ...payload,
+      supplierStatus: readString(payload.status) ?? readString(event.status) ?? null,
+      eventId: event.id ?? null,
+      eventType: event.type ?? null,
+      paymentStatus: derivePaymentStatus(normalizedStatus)
+    }
+  };
+}
+
 export async function POST(request: NextRequest) {
+  let liteApiEventId: string | null = null;
+  let transactionId: string | null = null;
+  let liteApiBookingId: string | null = null;
+
   try {
     assertProductionReadiness();
     const clientIp = getClientIp(request);
     await assertRateLimit(`webhook-liteapi:${clientIp}`);
+    const correlationId = getCorrelationId(request);
+    emitStructuredEvent('info', 'webhook.liteapi.received', {
+      correlation_id: correlationId,
+      route: 'webhook-liteapi',
+      module: 'webhook.liteapi'
+    });
 
     const rawBody = await request.text();
     const signature = readSignatureHeader(request);
@@ -97,67 +198,135 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    const correlationId = getCorrelationId(request);
     const eventId = String(event.id ?? createHash('sha256').update(rawBody).digest('hex'));
-    const firstSeen = await markWebhookEventProcessed(eventId, 7 * 24 * 60 * 60, 'liteapi');
-    if (!firstSeen) {
+    liteApiEventId = eventId;
+    const claimed = await claimWebhookEvent(eventId, 'liteapi', 60);
+    if (!claimed) {
       logger.info({ correlationId, eventId }, 'Duplicate LiteAPI webhook ignored');
+      emitStructuredEvent('info', 'webhook.liteapi.duplicate', {
+        correlation_id: correlationId,
+        route: 'webhook-liteapi',
+        module: 'webhook.liteapi',
+        event_id: eventId
+      });
       return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
     }
 
-    const payload = event.data as Record<string, unknown> | undefined;
-    const bookingId = String(
-      payload?.bookingId
-      ?? payload?.liteapiBookingId
-      ?? event.bookingId
-      ?? ''
-    );
-    const transactionId = String(payload?.transactionId ?? event.transactionId ?? '');
-    const status = String(payload?.status ?? event.status ?? event.type ?? 'received');
+    const update = buildReconciliationUpdate(event);
+    if (!update) {
+      await finalizeWebhookEvent(eventId, 'liteapi');
+      logger.info({ correlationId, eventId, eventType: event.type ?? 'unknown' }, 'LiteAPI webhook ignored (unsupported status)');
+      return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
+    }
+    transactionId = update.transactionId;
+    liteApiBookingId = update.bookingId;
+
+    const paymentLogId = await insertPaymentLog({
+      bookingId: update.bookingId,
+      provider: 'liteapi',
+      externalPaymentId: eventId,
+      eventType: readString(event.type) ?? `liteapi_${update.status}`,
+      status: update.status,
+      amount: readNumber(update.metadata.amount) ?? readNumber(update.metadata.totalAmount),
+      currency: readString(update.metadata.currency)?.toUpperCase() ?? null,
+      correlationId,
+      metadata: {
+        bookingId: update.bookingId,
+        transactionId: update.transactionId,
+        ...update.metadata
+      }
+    });
+
+    if (!paymentLogId) {
+      emitStructuredEvent('warn', 'persistence.payment_log.failed', {
+        correlation_id: correlationId,
+        route: 'webhook-liteapi',
+        module: 'webhook.liteapi',
+        event_id: eventId
+      });
+      logger.warn({ correlationId, eventId, eventType: event.type ?? 'unknown' }, 'LiteAPI webhook payment log persistence failed; allow retry');
+      return NextResponse.json({ error: 'Reconciliation failed' }, { status: 500 });
+    }
 
     let persisted = false;
-    if (bookingId) {
-      persisted = await updateBookingStatusByLiteApiId(bookingId, status, {
-        ...payload,
-        eventId: event.id ?? null,
-        eventType: event.type ?? null
+    if (update.bookingId) {
+      persisted = await updateBookingStatusByLiteApiId(update.bookingId, update.status, {
+        ...update.metadata,
+        latestPaymentLogId: paymentLogId,
+        paymentLogId
       });
-    } else if (transactionId) {
-      persisted = await updateBookingStatusByTransactionId(transactionId, status, {
-        ...payload,
-        eventId: event.id ?? null,
-        eventType: event.type ?? null
+    } else if (update.transactionId) {
+      persisted = await updateBookingStatusByTransactionId(update.transactionId, update.status, {
+        ...update.metadata,
+        latestPaymentLogId: paymentLogId,
+        paymentLogId
       });
     } else {
       const localId = await persistBooking({
         quoteId: null,
         liteApiBookingId: null,
-        status,
+        status: update.status,
         metadata: {
-          ...payload,
-          eventId: event.id ?? null,
-          eventType: event.type ?? null
+          ...update.metadata,
+          latestPaymentLogId: paymentLogId,
+          paymentLogId
         }
       });
       persisted = Boolean(localId);
     }
+
+    if (!persisted) {
+      logger.warn({ correlationId, eventId, eventType: event.type ?? 'unknown' }, 'LiteAPI webhook reconciliation failed; allow retry');
+      return NextResponse.json({ error: 'Reconciliation failed' }, { status: 500 });
+    }
+
+    await finalizeWebhookEvent(eventId, 'liteapi');
 
     logger.info(
       {
         correlationId,
         eventId,
         eventType: event.type ?? 'unknown',
-        bookingId: bookingId || null,
-        transactionId: transactionId || null,
-        status,
+        bookingId: update.bookingId,
+        transactionId: update.transactionId,
+        status: update.status,
         persisted
       },
       'LiteAPI webhook received'
     );
+    emitStructuredEvent('info', 'webhook.liteapi.reconciled', {
+      correlation_id: correlationId,
+      route: 'webhook-liteapi',
+      module: 'webhook.liteapi',
+      event_id: eventId,
+      event_type: String(event.type ?? 'unknown'),
+      booking_id: update.bookingId,
+      transaction_id: update.transactionId,
+      booking_status: update.status
+    });
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    const httpError = toHttpError(error);
-    return NextResponse.json({ error: httpError.message }, { status: httpError.status });
+    const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('error', 'webhook.liteapi.failed', {
+      correlation_id: correlationId,
+      route: 'webhook-liteapi',
+      module: 'webhook.liteapi',
+      event_id: liteApiEventId,
+      transaction_id: transactionId,
+      booking_id: liteApiBookingId
+    });
+    const httpError = toHttpError(error, {
+      route: 'webhook-liteapi',
+      module: 'webhook.liteapi',
+      event: 'webhook.liteapi.failed',
+      correlationId,
+      metadata: {
+        eventId: liteApiEventId,
+        transactionId,
+        bookingId: liteApiBookingId
+      }
+    });
+    return NextResponse.json({ error: httpError.safeMessage }, { status: httpError.status });
   }
 }

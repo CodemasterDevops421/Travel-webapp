@@ -42,7 +42,7 @@ export function buildPriceQuoteWithMarkup(
   commissionPercent: number
 ): PriceQuote {
   const normalizedPercent = Number.isFinite(commissionPercent)
-    ? Math.min(15, Math.max(5, commissionPercent))
+    ? Math.min(40, Math.max(0, commissionPercent))
     : env.PRICE_MARKUP_PERCENT;
   const totalAmount = applyMarkup(payload.amount, normalizedPercent);
   const quote: QuotePayload = {
@@ -50,6 +50,21 @@ export function buildPriceQuoteWithMarkup(
     roomId: payload.roomId,
     baseAmount: payload.amount,
     totalAmount,
+    currency: payload.currency
+  };
+
+  return {
+    ...quote,
+    signature: createQuoteSignature(quote)
+  };
+}
+
+export function buildPriceQuoteExact(payload: { hotelId: string; roomId: string; amount: number; currency: string }): PriceQuote {
+  const quote: QuotePayload = {
+    hotelId: payload.hotelId,
+    roomId: payload.roomId,
+    baseAmount: payload.amount,
+    totalAmount: payload.amount,
     currency: payload.currency
   };
 

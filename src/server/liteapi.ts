@@ -168,6 +168,36 @@ export type HotelHouseRuleItem = {
   detail: string;
 };
 
+export type HotelSmartHighlight = {
+  title: string;
+  detail: string;
+  source: 'reviews' | 'location' | 'amenities' | 'policies';
+};
+
+export type HotelReviewTopic = {
+  label: string;
+  mentions: number;
+};
+
+export type HotelReviewHighlights = {
+  positiveTopics: HotelReviewTopic[];
+  tradeoffTopics: HotelReviewTopic[];
+  lowSignal: boolean;
+  message: string;
+};
+
+export type HotelDescriptionSection = {
+  title: string;
+  body: string;
+  source: 'supplier' | 'synthesized';
+};
+
+export type HotelDescriptionNarrative = {
+  mode: 'supplier' | 'synthesized' | 'unavailable';
+  sections: HotelDescriptionSection[];
+  message: string;
+};
+
 export type HotelDetailCompleteness = {
   isPartial: boolean;
   missingSections: string[];
@@ -198,6 +228,9 @@ export type HotelDetails = {
   areaInfo?: HotelAreaInfoItem[];
   nearbyRestaurants?: HotelRestaurantInfo[];
   houseRulesDetailed?: HotelHouseRuleItem[];
+  smartHighlights: HotelSmartHighlight[];
+  reviewHighlights: HotelReviewHighlights;
+  descriptionNarrative: HotelDescriptionNarrative;
   completeness: HotelDetailCompleteness;
 };
 
@@ -804,6 +837,224 @@ function pickProsAndCons(reviews: HotelGuestReview[]): HotelProsAndCons {
   };
 }
 
+function composeSmartHighlights(input: {
+  city: string;
+  reviewScore: number | null;
+  reviewCount: number | null;
+  locationContext: HotelLocationContext;
+  facilities: string[];
+  policies: HotelPolicyDetails;
+}): HotelSmartHighlight[] {
+  const highlights: HotelSmartHighlight[] = [];
+
+  if (typeof input.reviewScore === 'number') {
+    const scoreLabel = input.reviewScore >= 9 ? 'Excellent' : input.reviewScore >= 8 ? 'Very good' : 'Good';
+    const reviewCountCopy =
+      typeof input.reviewCount === 'number'
+        ? `based on ${Math.round(input.reviewCount).toLocaleString()} reviews`
+        : 'based on available supplier reviews';
+    highlights.push({
+      title: 'Guest sentiment',
+      detail: `${scoreLabel} rating of ${input.reviewScore.toFixed(1)} / 10, ${reviewCountCopy}.`,
+      source: 'reviews'
+    });
+  }
+
+  if (input.locationContext.nearbyLandmarks.length > 0) {
+    highlights.push({
+      title: 'Area context',
+      detail: `Close to ${input.locationContext.nearbyLandmarks.slice(0, 3).join(', ')}.`,
+      source: 'location'
+    });
+  } else if (input.locationContext.addressLine || input.locationContext.neighborhood) {
+    const locationLabel =
+      input.locationContext.neighborhood ??
+      input.locationContext.addressLine ??
+      `central ${input.city}`;
+    highlights.push({
+      title: 'Area context',
+      detail: `Located around ${locationLabel}.`,
+      source: 'location'
+    });
+  }
+
+  if (input.facilities.length > 0) {
+    highlights.push({
+      title: 'Popular amenities',
+      detail: `Top amenities include ${input.facilities.slice(0, 4).join(', ')}.`,
+      source: 'amenities'
+    });
+  }
+
+  if (
+    input.policies.cancellation.length > 0 ||
+    input.policies.checkInFrom !== null ||
+    input.policies.checkOutUntil !== null
+  ) {
+    const checkIn = input.policies.checkInFrom ?? 'not provided';
+    const checkOut = input.policies.checkOutUntil ?? 'not provided';
+    const cancellation = input.policies.cancellation[0] ?? 'Cancellation terms depend on selected room and rate.';
+    highlights.push({
+      title: 'Arrival and cancellation',
+      detail: `Check-in from ${checkIn}, check-out until ${checkOut}. ${cancellation}`,
+      source: 'policies'
+    });
+  }
+
+  return highlights.slice(0, 5);
+}
+
+const REVIEW_TOPIC_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
+  { label: 'Location', pattern: /\blocation|area|neighbou?rhood|nearby|walkable|transport\b/i },
+  { label: 'Cleanliness', pattern: /\bclean|tidy|hygiene|spotless\b/i },
+  { label: 'Service', pattern: /\bstaff|service|friendly|helpful|host\b/i },
+  { label: 'Room comfort', pattern: /\broom|bed|comfort|spacious|quiet\b/i },
+  { label: 'Breakfast and food', pattern: /\bbreakfast|food|restaurant|meal|buffet\b/i },
+  { label: 'Value for money', pattern: /\bvalue|price|expensive|affordable|worth\b/i },
+  { label: 'Wi-Fi', pattern: /\bwi[ -]?fi|internet\b/i },
+  { label: 'Bathroom', pattern: /\bbathroom|shower|toilet|water pressure\b/i }
+];
+
+function rankReviewTopics(counter: Map<string, number>, minMentions: number): HotelReviewTopic[] {
+  return Array.from(counter.entries())
+    .filter(([, mentions]) => mentions >= minMentions)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 6)
+    .map(([label, mentions]) => ({ label, mentions }));
+}
+
+function buildReviewHighlights(reviews: HotelGuestReview[]): HotelReviewHighlights {
+  if (reviews.length < 3) {
+    return {
+      positiveTopics: [],
+      tradeoffTopics: [],
+      lowSignal: true,
+      message: 'Not enough verified review volume to generate stable topic highlights yet.'
+    };
+  }
+
+  const positiveCounts = new Map<string, number>();
+  const tradeoffCounts = new Map<string, number>();
+
+  const increment = (counter: Map<string, number>, label: string) => {
+    counter.set(label, (counter.get(label) ?? 0) + 1);
+  };
+
+  for (const review of reviews) {
+    const positiveText = [review.pros, review.comment]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .join(' ');
+    const tradeoffText = [review.cons, review.comment]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .join(' ');
+
+    for (const topic of REVIEW_TOPIC_PATTERNS) {
+      if (positiveText && topic.pattern.test(positiveText)) {
+        increment(positiveCounts, topic.label);
+      }
+      if (tradeoffText && topic.pattern.test(tradeoffText)) {
+        increment(tradeoffCounts, topic.label);
+      }
+    }
+  }
+
+  const minimumMentions = reviews.length >= 10 ? 3 : 2;
+  const positiveTopics = rankReviewTopics(positiveCounts, minimumMentions);
+  const tradeoffTopics = rankReviewTopics(tradeoffCounts, minimumMentions);
+
+  if (positiveTopics.length === 0 && tradeoffTopics.length === 0) {
+    return {
+      positiveTopics: [],
+      tradeoffTopics: [],
+      lowSignal: true,
+      message: 'Review comments are available, but recurring topics are too sparse for a reliable summary.'
+    };
+  }
+
+  return {
+    positiveTopics,
+    tradeoffTopics,
+    lowSignal: false,
+    message: 'Topic highlights summarize recurring review themes from supplier comments.'
+  };
+}
+
+function composeDescriptionNarrative(input: {
+  description: string | null;
+  city: string;
+  locationContext: HotelLocationContext;
+  facilities: string[];
+  policies: HotelPolicyDetails;
+  reviewScore: number | null;
+}): HotelDescriptionNarrative {
+  const supplierDescription = input.description?.trim() ?? null;
+  if (supplierDescription && supplierDescription.length > 0) {
+    return {
+      mode: 'supplier',
+      message: 'Description sourced directly from supplier content.',
+      sections: [
+        {
+          title: 'About this property',
+          body: supplierDescription,
+          source: 'supplier'
+        }
+      ]
+    };
+  }
+
+  const sections: HotelDescriptionSection[] = [];
+
+  if (input.locationContext.nearbyLandmarks.length > 0 || input.locationContext.neighborhood) {
+    const nearby = input.locationContext.nearbyLandmarks.slice(0, 3).join(', ');
+    const locationLine = nearby
+      ? `Guests often use this stay as a base for ${nearby}.`
+      : `The property is located around ${input.locationContext.neighborhood ?? `central ${input.city}`}.`;
+    sections.push({
+      title: 'Location fit',
+      body: locationLine,
+      source: 'synthesized'
+    });
+  }
+
+  if (input.facilities.length > 0) {
+    sections.push({
+      title: 'Stay essentials',
+      body: `Supplier-listed amenities include ${input.facilities.slice(0, 5).join(', ')}.`,
+      source: 'synthesized'
+    });
+  }
+
+  if (typeof input.reviewScore === 'number') {
+    sections.push({
+      title: 'Guest sentiment',
+      body: `Current supplier rating is ${input.reviewScore.toFixed(1)} / 10 based on available review data.`,
+      source: 'synthesized'
+    });
+  }
+
+  if (input.policies.checkInFrom || input.policies.checkOutUntil || input.policies.cancellation.length > 0) {
+    sections.push({
+      title: 'Booking notes',
+      body: `Check-in from ${input.policies.checkInFrom ?? 'not provided'}, check-out until ${input.policies.checkOutUntil ?? 'not provided'}. ${input.policies.cancellation[0] ?? 'Cancellation terms depend on selected room and fare.'}`,
+      source: 'synthesized'
+    });
+  }
+
+  if (sections.length > 0) {
+    return {
+      mode: 'synthesized',
+      sections,
+      message: 'Description is synthesized from available supplier fields because narrative text is unavailable.'
+    };
+  }
+
+  return {
+    mode: 'unavailable',
+    sections: [],
+    message: 'Property description is currently unavailable.'
+  };
+}
+
 function buildCompleteness(details: {
   photos: string[];
   facilities: string[];
@@ -1404,6 +1655,7 @@ export async function searchPropertyPreviews(
   adults?: number,
   rooms?: number,
   filters?: {
+    searchMode?: 'destination' | 'vibe';
     brief?: string;
     minStars?: number;
     minGuestRating?: number;
@@ -1447,6 +1699,7 @@ export async function searchPropertyPreviews(
     const occupancies = Array.from({ length: activeRooms }, () => ({ adults: activeAdults }));
     const selectedCurrency = currency ?? env.DEFAULT_CURRENCY;
     const trimmedBrief = filters?.brief?.trim();
+    const searchMode = filters?.searchMode ?? 'destination';
     const aiSearchQuery = trimmedBrief ? `${query} ${trimmedBrief}` : query;
     const timeoutSeconds = Math.max(1, Math.round(env.LITEAPI_TIMEOUT_MS / 1000));
     const normalizedMinStars = typeof filters?.minStars === 'number' ? Math.min(5, Math.max(0, filters.minStars)) : undefined;
@@ -1488,6 +1741,48 @@ export async function searchPropertyPreviews(
     };
 
     let degradedReason: SupplierDegradedReason | null = null;
+
+    if (searchMode === 'vibe') {
+      const byAiSearch = await searchRates(
+        {
+          ...basePayload,
+          aiSearch: aiSearchQuery
+        },
+        query,
+        runtime
+      );
+      if (byAiSearch.degradedReason) {
+        degradedReason = byAiSearch.degradedReason;
+      }
+      const filteredByAiSearch = applyFilters(byAiSearch.items);
+      if (filteredByAiSearch.length > 0) {
+        return toResult(filteredByAiSearch.slice(0, 8), degradedReason === null ? null : 'partial');
+      }
+
+      const semanticMatches = await searchHotelsBySemanticQuery(aiSearchQuery, language, 8);
+      if (semanticMatches.length > 0) {
+        const semanticMapped = applyFilters(
+          semanticMatches.map((match) => ({
+            hotelId: match.hotelId,
+            name: match.name,
+            city: match.city || query,
+            countryCode: match.countryCode ?? undefined,
+            starRating: null,
+            reviewScore: match.score,
+            reviewCount: null,
+            imageUrl: match.imageUrl ?? undefined,
+            price: null,
+            currency: selectedCurrency,
+            amenities: match.tags
+          }))
+        );
+        if (semanticMapped.length > 0) {
+          return toResult(semanticMapped.slice(0, 8), degradedReason === null ? null : 'partial');
+        }
+      }
+
+      return toResult(fallbackProperties, degradedReason ?? 'unavailable');
+    }
 
     if (trimmedBrief) {
       const byAiSearch = await searchRates(
@@ -1859,6 +2154,26 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
     const areaInfo = pickAreaInfo(data, locationContext);
     const nearbyRestaurants = pickNearbyRestaurants(data);
     const houseRulesDetailed = pickHouseRulesDetailed(data, policies);
+    const smartHighlights = composeSmartHighlights({
+      city,
+      reviewScore: reviewScore ?? enrichment?.reviewScore ?? null,
+      reviewCount: reviewCount ?? enrichment?.reviewCount ?? null,
+      locationContext,
+      facilities,
+      policies
+    });
+    const reviewHighlights = buildReviewHighlights(resolvedReviews);
+    const description =
+      cleanString(data.description) ??
+      cleanString(data.overview);
+    const descriptionNarrative = composeDescriptionNarrative({
+      description,
+      city,
+      locationContext,
+      facilities,
+      policies,
+      reviewScore: reviewScore ?? enrichment?.reviewScore ?? null
+    });
     const completeness = buildCompleteness({
       photos,
       facilities,
@@ -1877,9 +2192,7 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       mainPhoto,
       photos,
       facilities,
-      description:
-        cleanString(data.description) ??
-        cleanString(data.overview),
+      description,
       latitude,
       longitude,
       starRating: parseNumber(data.starRating),
@@ -1894,6 +2207,9 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
       areaInfo,
       nearbyRestaurants,
       houseRulesDetailed,
+      smartHighlights,
+      reviewHighlights,
+      descriptionNarrative,
       completeness
     };
   } catch (error) {
@@ -1993,11 +2309,31 @@ export async function getHotelRates(params: {
   rooms?: number;
   currency?: string;
   guestNationality?: string;
+  margin?: number;
+  additionalMarkup?: number;
 }): Promise<HotelRateOption[]> {
   try {
     const runtime = await resolveLiteApiRuntimeConfig();
     const numRooms = params.rooms ?? 1;
     const occupancies = Array.from({ length: numRooms }, () => ({ adults: params.adults }));
+
+    const ratePayload: Record<string, unknown> = {
+      hotelIds: [params.hotelId],
+      checkin: params.checkin,
+      checkout: params.checkout,
+      occupancies,
+      guestNationality: params.guestNationality ?? env.DEFAULT_GUEST_NATIONALITY,
+      currency: params.currency ?? env.DEFAULT_CURRENCY,
+      includeHotelData: true,
+      roomMapping: true
+    };
+
+    if (typeof params.margin === 'number' && Number.isFinite(params.margin)) {
+      ratePayload.margin = params.margin;
+    }
+    if (typeof params.additionalMarkup === 'number' && Number.isFinite(params.additionalMarkup)) {
+      ratePayload.additionalMarkup = params.additionalMarkup;
+    }
 
     const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
@@ -2006,16 +2342,7 @@ export async function getHotelRates(params: {
         'content-type': 'application/json',
         'X-API-Key': runtime.apiKey
       },
-      body: JSON.stringify({
-        hotelIds: [params.hotelId],
-        checkin: params.checkin,
-        checkout: params.checkout,
-        occupancies,
-        guestNationality: params.guestNationality ?? env.DEFAULT_GUEST_NATIONALITY,
-        currency: params.currency ?? env.DEFAULT_CURRENCY,
-        includeHotelData: true,
-        roomMapping: true
-      }),
+      body: JSON.stringify(ratePayload),
       cache: 'no-store'
     });
     if (!response.ok) {

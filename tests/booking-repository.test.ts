@@ -33,6 +33,9 @@ describe('booking repository fallback mode', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role';
+    vi.doMock('@/server/commission-tracking-repository', () => ({
+      upsertCommissionTracking: vi.fn().mockResolvedValue('commission-default')
+    }));
   });
 
   it('enables fallback mode on PGRST205 and avoids repeated Supabase writes', async () => {
@@ -304,5 +307,104 @@ describe('booking repository fallback mode', () => {
       commission_amount: 52.5,
       confirmation_code: 'CONF-123'
     });
+  });
+
+  it('upserts commission tracking once per booking across replayed transitions', async () => {
+    const upsertCommissionTracking = vi.fn().mockResolvedValue('commission-1');
+    const createAdminClient = vi.fn(() => ({
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST205', message: 'missing booking schema' }
+            })
+          }))
+        }))
+      }))
+    }));
+
+    vi.doMock('@/server/supabase/admin', () => ({ createAdminClient }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { warn: vi.fn(), error: vi.fn() }
+    }));
+    vi.doMock('@/server/commission-tracking-repository', () => ({
+      upsertCommissionTracking
+    }));
+
+    const repo = await import('@/server/booking/repository');
+    const bookingId = await repo.persistBooking(
+      buildBookingInput({
+        status: 'payment_authorized',
+        metadata: {
+          transactionId: 'txn-1',
+          totalAmount: 200,
+          commissionAmount: 20,
+          paymentStatus: 'authorized'
+        }
+      })
+    );
+
+    expect(bookingId).toBeTypeOf('string');
+
+    const confirmed = await repo.updateBookingStatusByTransactionId('txn-1', 'confirmed', {
+      paymentStatus: 'captured',
+      confirmationCode: 'CONF-999'
+    });
+
+    expect(confirmed).toBe(true);
+    expect(upsertCommissionTracking).toHaveBeenCalledTimes(2);
+    expect(upsertCommissionTracking).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      bookingId,
+      commissionAmount: 20,
+      currency: 'USD'
+    }));
+    expect(upsertCommissionTracking).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      bookingId,
+      metadata: expect.objectContaining({
+        bookingStatus: 'confirmed',
+        confirmationCode: 'CONF-999'
+      })
+    }));
+  });
+
+  it('allows fallback booking persistence when commission table is unavailable in non-production', async () => {
+    const upsertCommissionTracking = vi.fn().mockResolvedValue(null);
+    const createAdminClient = vi.fn(() => ({
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST205', message: 'missing booking schema' }
+            })
+          }))
+        }))
+      }))
+    }));
+
+    vi.doMock('@/server/supabase/admin', () => ({ createAdminClient }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { warn: vi.fn(), error: vi.fn() }
+    }));
+    vi.doMock('@/server/commission-tracking-repository', () => ({
+      upsertCommissionTracking
+    }));
+
+    const repo = await import('@/server/booking/repository');
+    const bookingId = await repo.persistBooking(
+      buildBookingInput({
+        status: 'payment_authorized',
+        metadata: {
+          transactionId: 'txn-1',
+          totalAmount: 150,
+          commissionAmount: 18,
+          paymentStatus: 'authorized'
+        }
+      })
+    );
+
+    expect(bookingId).toBeTypeOf('string');
+    expect(upsertCommissionTracking).toHaveBeenCalledOnce();
   });
 });

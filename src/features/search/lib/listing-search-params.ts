@@ -9,6 +9,7 @@ type ListingDefaults = {
 
 export type ListingQueryParams = {
   query: string;
+  mode: 'destination' | 'vibe';
   checkin: string;
   checkout: string;
   adults: number;
@@ -46,6 +47,7 @@ const VALID_VIEWS: ListingView[] = ['grid', 'map'];
 
 const SERIALIZE_ORDER = [
   'q',
+  'mode',
   'checkin',
   'checkout',
   'guests',
@@ -162,6 +164,7 @@ export function serializeListingSearchParams({ query, ui }: SerializeListingInpu
   const entries = new Map<string, string>();
 
   entries.set('q', query.query);
+  entries.set('mode', query.mode);
   entries.set('checkin', query.checkin);
   entries.set('checkout', query.checkout);
   entries.set('guests', String(query.adults));
@@ -218,8 +221,12 @@ export function parseListingSearchParams(
     defaultCurrency: defaults.defaultCurrency
   });
 
+  const rawMode = readParamValue(params.mode)?.trim().toLowerCase();
+  const mode: 'destination' | 'vibe' = rawMode === 'vibe' ? 'vibe' : 'destination';
+
   return {
     query: query.destination,
+    mode,
     checkin: query.checkin,
     checkout: query.checkout,
     adults: query.guests,

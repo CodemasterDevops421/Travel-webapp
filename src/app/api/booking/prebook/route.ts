@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
 import { assertSameOrigin } from '@/server/csrf';
-import { buildPriceQuoteWithMarkup } from '@/server/pricing';
+import { buildPriceQuoteExact } from '@/server/pricing';
 import { prebookRate } from '@/server/liteapi';
 import { savePrebookSession } from '@/server/booking-store';
 import { HttpError, toHttpError } from '@/server/errors';
 import { persistQuote } from '@/server/booking/repository';
 import { signCheckoutSession } from '@/server/booking-session';
-import { logger } from '@/server/logger';
+import { logger, logStructuredEvent } from '@/server/logger';
 import { getRequestContext, parseRequestBody, sanitizeUnknown } from '@/server/request';
 import { assertProductionReadiness } from '@/server/env';
-import { getAppSettings } from '@/server/settings/repository';
 import { createServerSupabaseClient } from '@/server/supabase/server';
 
 const requestSchema = z.object({
@@ -36,6 +35,30 @@ const supplierPrebookSchema = z.object({
   currency: z.string().trim().length(3)
 });
 
+const clientPrebookResponseSchema = z.object({
+  prebookId: z.string().trim().min(1),
+  transactionId: z.string().trim().min(1),
+  clientReference: z.string().trim().min(1),
+  paymentToken: z.string().trim().min(1),
+  paymentSdk: z.literal(true),
+  quoteId: z.string().trim().min(1).nullable(),
+  sessionSignature: z.string().trim().min(1),
+  quote: z.object({
+    hotelId: z.string().trim().min(1),
+    roomId: z.string().trim().min(1),
+    baseAmount: z.number().nonnegative(),
+    totalAmount: z.number().nonnegative(),
+    currency: z.string().trim().length(3),
+    signature: z.string().trim().min(1)
+  })
+});
+
+function emitStructuredEvent(level: 'error' | 'warn' | 'info' | 'debug', event: string, context: Record<string, unknown>) {
+  if (typeof logStructuredEvent === 'function') {
+    logStructuredEvent(level, event, context);
+  }
+}
+
 function createClientReference(input: { hotelId: string; roomId: string; offerId: string }): string {
   const compact = `${input.hotelId}-${input.roomId}-${input.offerId}`
     .replace(/[^a-zA-Z0-9_-]/g, '')
@@ -57,6 +80,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { clientIp, correlationId } = getRequestContext(request);
+    emitStructuredEvent('info', 'booking.prebook.received', {
+      correlation_id: correlationId,
+      route: 'booking-prebook',
+      module: 'booking.prebook'
+    });
     await assertRateLimit(`booking:${clientIp}:prebook`, 'booking');
 
     const payload = await parseRequestBody(request, requestSchema);
@@ -69,13 +97,12 @@ export async function POST(request: NextRequest) {
       throw new HttpError(502, 'Supplier prebook payload is invalid');
     }
     const prebook = parsedPrebook.data;
-    const settings = await getAppSettings();
-    const quote = buildPriceQuoteWithMarkup({
+    const quote = buildPriceQuoteExact({
       hotelId: payload.hotelId,
       roomId: payload.roomId,
       amount: prebook.price,
       currency: prebook.currency.toUpperCase()
-    }, settings.commissionPercent);
+    });
     const clientReference = createClientReference({
       hotelId: payload.hotelId,
       roomId: payload.roomId,
@@ -89,6 +116,11 @@ export async function POST(request: NextRequest) {
     });
     if (!quoteId) {
       logger.warn({ correlationId }, 'Booking quote persistence unavailable; continuing with signed session only.');
+      emitStructuredEvent('warn', 'persistence.quote.degraded', {
+        correlation_id: correlationId,
+        route: 'booking-prebook',
+        module: 'booking.prebook'
+      });
     }
 
     await savePrebookSession({
@@ -116,20 +148,41 @@ export async function POST(request: NextRequest) {
       },
       'Prebook session created'
     );
+    emitStructuredEvent('info', 'booking.prebook.succeeded', {
+      correlation_id: correlationId,
+      route: 'booking-prebook',
+      module: 'booking.prebook',
+      prebook_id: prebook.prebookId,
+      transaction_id: prebook.transactionId,
+      quote_id: quoteId
+    });
 
-    return NextResponse.json({
+    const responsePayload = clientPrebookResponseSchema.parse({
       prebookId: prebook.prebookId,
       transactionId: prebook.transactionId,
       clientReference,
-      secretKey: prebook.secretKey,
+      paymentToken: prebook.secretKey,
       paymentSdk: true,
       quoteId,
       sessionSignature,
       quote
     });
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
+    const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
+    emitStructuredEvent('error', 'booking.prebook.failed', {
+      correlation_id: correlationId,
+      route: 'booking-prebook',
+      module: 'booking.prebook'
+    });
     logger.warn({ error, route: 'booking-prebook' }, 'Prebook request failed');
-    const httpError = toHttpError(error);
+    const httpError = toHttpError(error, {
+      route: 'booking-prebook',
+      module: 'booking.prebook',
+      event: 'booking.prebook.failed',
+      correlationId
+    });
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });
   }
 }

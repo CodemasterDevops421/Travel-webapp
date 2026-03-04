@@ -26,14 +26,16 @@ describe('payload sanitization and redaction', () => {
     const redacted = stripSupplierSecrets({
       bookingId: 'b-1',
       supplierApiKey: 'secret',
+      paymentToken: 'allowed-client-bootstrap-token',
       details: {
         supplier_secret: 'secret',
-        nested: [{ label: 'safe', apiKey: 'drop-me' }]
+        nested: [{ label: 'safe', apiKey: 'drop-me', providerSecretToken: 'drop-me-too' }]
       }
     });
 
     expect(redacted).toEqual({
       bookingId: 'b-1',
+      paymentToken: 'allowed-client-bootstrap-token',
       details: {
         nested: [{ label: 'safe' }]
       }

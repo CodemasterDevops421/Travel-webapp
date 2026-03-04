@@ -12,12 +12,31 @@ The core hotel booking platform is **functionally complete**. A user can:
 
 **Phases 1 through 4 are done.** This means:
 - The website works end-to-end for the booking flow
-- Payments are processed securely via Stripe
+- Payments can run in LiteAPI-first mode with Stripe optional fallback
 - User accounts work (email, password, Google login)
 - The database stores all bookings, quotes, and events
 - Security protections are in place (encryption, validation, rate limiting)
-- Webhook integrations handle booking status updates from Stripe and LiteAPI
+- Webhook integrations reconcile booking status updates with idempotent processing
 - Automated tests cover critical paths (28+ test files)
+
+### LiteAPI-First Rollout Gates (Current Program)
+
+Before public rollout, execute these gates in order:
+
+1. **Sandbox Gate (LiteAPI mode)**
+   - `PAYMENT_PROVIDER=liteapi`
+   - Validate end-to-end flow: rates -> prebook -> LiteAPI payment SDK -> booking finalize -> status polling
+   - Validate cancel + refund-managed lifecycle using LiteAPI events
+
+2. **Hybrid Shadow Gate**
+   - `PAYMENT_PROVIDER=hybrid`
+   - Keep Stripe webhooks live as fallback while LiteAPI remains primary path
+   - Confirm no regressions in booking lifecycle transitions or idempotency
+
+3. **LiteAPI Primary Production Gate**
+   - Keep `PAYMENT_PROVIDER=liteapi`
+   - Ensure support handoff packet generation is available from booking confirmation page
+   - Monitor webhook reconciliation failures and retry behavior for 7 days before full traffic ramp
 
 ---
 
@@ -45,9 +64,9 @@ The core hotel booking platform is **functionally complete**. A user can:
 
 **What you'll be able to see:**
 - **Gross booking value** — total amount travelers paid
-- **Commission earned** — the platform's cut (currently configurable as a percentage markup)
+- **Commission earned** — the platform's cut based on LiteAPI margin/additional markup strategy
 - **Revenue breakdown** — by time period, by destination, by booking status
-- **Reconciliation** — ensure the numbers match what Stripe actually processed
+- **Reconciliation** — ensure local reports match supplier lifecycle events and payment outcomes
 
 **Why it matters:** A business needs accurate financial reporting from day one. This connects the commission settings (already built) to real reporting.
 
@@ -160,7 +179,7 @@ These items were flagged during code reviews and should be addressed before or d
 | ✅ What's Done | 🔜 What's Next | 🔮 Future Vision |
 |---------------|----------------|-----------------|
 | Full booking flow (search to confirmation) | Admin dashboard & business controls | Mobile apps (iOS/Android) |
-| Stripe payments & webhooks | Revenue & commission reporting | Multiple hotel suppliers |
+| LiteAPI-first payments + lifecycle webhooks | Revenue & commission reporting | Multiple hotel suppliers |
 | User accounts & auth | Analytics & funnel tracking | AI-powered recommendations |
 | Security hardening | Production launch checklist | Loyalty & rewards program |
 | AI chatbot & hotel Q&A | Performance benchmarks | Advanced fraud detection |

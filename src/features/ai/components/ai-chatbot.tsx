@@ -65,7 +65,7 @@ export function AIChatbot() {
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="fixed bottom-24 right-4 z-50 flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/10 sm:right-8"
+                        className="fixed bottom-24 right-4 z-50 flex h-[min(500px,calc(100vh-8rem))] w-[calc(100vw-2rem)] max-w-[350px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/10 sm:right-8"
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between border-b bg-primary p-4 text-primary-foreground">
@@ -75,7 +75,7 @@ export function AIChatbot() {
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-sm">TravelApp AI</h3>
-                                    <p className="text-xs text-primary-foreground/80">Always here to help</p>
+                                    <p className="text-xs text-primary-foreground/80">Beta · Demo mode</p>
                                 </div>
                             </div>
                             <Button
@@ -109,7 +109,7 @@ export function AIChatbot() {
                                                 "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
                                                 msg.role === 'user'
                                                     ? "bg-primary text-primary-foreground rounded-br-sm"
-                                                    : "bg-white text-foreground shadow-sm rounded-bl-sm border border-border/50"
+                                                    : "bg-card text-foreground shadow-sm rounded-bl-sm border border-border/50"
                                             )}
                                         >
                                             {msg.content}
@@ -126,7 +126,7 @@ export function AIChatbot() {
                                         <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
                                             <Bot className="h-3.5 w-3.5 text-primary" />
                                         </div>
-                                        <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm border border-border/50 bg-white px-4 py-3 shadow-sm">
+                                        <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm border border-border/50 bg-card px-4 py-3 shadow-sm">
                                             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/40 [animation-delay:-0.3s]"></span>
                                             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/40 [animation-delay:-0.15s]"></span>
                                             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/40"></span>
