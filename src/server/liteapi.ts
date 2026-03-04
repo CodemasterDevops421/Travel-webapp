@@ -1931,7 +1931,7 @@ export async function searchPropertyPreviews(
       throw new Error(`LiteAPI rates request failed: ${ratesRes.status}`);
     }
     const ratesResponse = (await ratesRes.json()) as LiteApiResponse<Array<Record<string, unknown>>>;
-    const mapped = paginate(applyFilters(mapRatesResponse(ratesResponse, query)));
+    const mapped = applyFilters(mapRatesResponse(ratesResponse, query));
 
     if (mapped.length > 0) {
       return toResult(mapped, degradedReason === null ? null : 'partial');
