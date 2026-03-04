@@ -129,6 +129,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
     const filtered = source.filter((hotel) => {
       const price = hotel.price ?? 0;
       const review = hotel.reviewScore ?? 0;
+      const reviewCount = hotel.reviewCount ?? 0;
       const stars = hotel.starRating ?? 0;
       const name = (hotel.name ?? '').toLowerCase();
 
@@ -139,6 +140,9 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
         return false;
       }
       if (urlState.filters.minGuestRating > 0 && review < urlState.filters.minGuestRating) {
+        return false;
+      }
+      if (urlState.filters.minReviewCount > 0 && reviewCount < urlState.filters.minReviewCount) {
         return false;
       }
       if (urlState.filters.minStars > 0 && stars < urlState.filters.minStars) {
@@ -179,6 +183,13 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
       }
       if (urlState.sort === 'rating') {
         return (b.reviewScore ?? 0) - (a.reviewScore ?? 0);
+      }
+      if (urlState.sort === 'distance') {
+        const distanceA = Number((a as { distanceFromCenterKm?: unknown }).distanceFromCenterKm);
+        const distanceB = Number((b as { distanceFromCenterKm?: unknown }).distanceFromCenterKm);
+        const normalizedA = Number.isFinite(distanceA) ? distanceA : Number.MAX_SAFE_INTEGER;
+        const normalizedB = Number.isFinite(distanceB) ? distanceB : Number.MAX_SAFE_INTEGER;
+        return normalizedA - normalizedB;
       }
       return (
         computePopularityScore(b.price, b.reviewScore, b.starRating) -
@@ -236,10 +247,13 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
     (urlState.filters.minPrice > 0 ? 1 : 0) +
     (urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? 1 : 0) +
     (urlState.filters.minGuestRating > 0 ? 1 : 0) +
+    (urlState.filters.minReviewCount > 0 ? 1 : 0) +
     (urlState.filters.minStars > 0 ? 1 : 0) +
     (urlState.filters.maxDistanceKm < DEFAULT_LISTING_FILTERS.maxDistanceKm ? 1 : 0) +
     urlState.filters.amenities.length +
     urlState.filters.propertyTypes.length;
+
+  const mapViewActive = urlState.view === 'map';
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
@@ -289,6 +303,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               <option value="popularity">popularity</option>
               <option value="price">price</option>
               <option value="rating">guest rating</option>
+              <option value="distance">distance to center</option>
             </select>
           </div>
 
@@ -335,6 +350,46 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
         </div>
       )}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50"
+          onClick={() =>
+            updateUrlState((previous) => ({
+              ...previous,
+              filters: { ...previous.filters, minGuestRating: 8, minReviewCount: Math.max(previous.filters.minReviewCount, 50) },
+              page: 1
+            }))
+          }
+        >
+          Guest rating 8+ (50+ reviews)
+        </button>
+        <button
+          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50"
+          onClick={() =>
+            updateUrlState((previous) => ({
+              ...previous,
+              filters: { ...previous.filters, maxPrice: Math.min(previous.filters.maxPrice, 200) },
+              sort: 'price',
+              page: 1
+            }))
+          }
+        >
+          Budget stays under $200
+        </button>
+        <button
+          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50"
+          onClick={() =>
+            updateUrlState((previous) => ({
+              ...previous,
+              filters: { ...previous.filters, minStars: Math.max(previous.filters.minStars, 4) },
+              page: 1
+            }))
+          }
+        >
+          4-star and above
+        </button>
+      </div>
+
       {showMobileFilters && (
         <div className="lg:hidden">
             <FiltersSidebar
@@ -373,18 +428,20 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
             />
           </div>
 
-        <div className="space-y-4">
-          {urlState.view === 'map' && (
-            <article className="mb-4 overflow-hidden rounded-xl border border-border shadow-sm">
+        <div className={cn('space-y-4', mapViewActive && 'lg:grid lg:grid-cols-[1fr,420px] lg:gap-4 lg:space-y-0')}>
+          {mapViewActive && (
+            <article className="mb-4 overflow-hidden rounded-xl border border-border shadow-sm lg:order-2 lg:mb-0 lg:sticky lg:top-24 lg:h-[calc(100vh-7rem)]">
               {deferMapRender ? (
                 <SearchResultsMap hotels={paginatedListings} />
               ) : (
-                <div className="flex h-[320px] items-center justify-center bg-slate-100 text-sm text-muted-foreground dark:bg-slate-800">
+                <div className="flex h-[320px] items-center justify-center bg-slate-100 text-sm text-muted-foreground dark:bg-slate-800 lg:h-full">
                   Preparing map view...
                 </div>
               )}
             </article>
           )}
+
+          <div className={cn(mapViewActive && 'lg:order-1 lg:space-y-4')}>
 
           {isFetching ? (
             <div className="space-y-4">
@@ -469,6 +526,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               </Button>
             </div>
           )}
+          </div>
         </div>
       </div>
     </main>

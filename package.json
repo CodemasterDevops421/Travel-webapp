@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit --incremental false",
     "test": "vitest run",
     "test:watch": "vitest",
+    "perf:proof": "node scripts/perf-proof.js",
     "verify:live:webhook": "node scripts/verify-live-webhook.js",
     "verify:live:webhook:liteapi": "node scripts/verify-live-liteapi-webhook.js",
     "verify:live:email": "node scripts/verify-live-email.js"

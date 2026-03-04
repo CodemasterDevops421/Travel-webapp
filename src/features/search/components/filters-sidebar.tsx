@@ -12,6 +12,7 @@ export interface FilterState {
     minPrice: number;
     maxPrice: number;
     minGuestRating: number;
+    minReviewCount: number;
     minStars: number;
     amenities: string[];
     propertyTypes: string[];
@@ -83,6 +84,7 @@ export function FiltersSidebar({ filters, onFilterChange, query, onShowMap }: Fi
             minPrice: 0,
             maxPrice: 1000,
             minGuestRating: 0,
+            minReviewCount: 0,
             minStars: 0,
             amenities: [],
             propertyTypes: [],
@@ -95,6 +97,7 @@ export function FiltersSidebar({ filters, onFilterChange, query, onShowMap }: Fi
         filters.minPrice > 0 ||
         filters.maxPrice < 1000 ||
         filters.minGuestRating > 0 ||
+        filters.minReviewCount > 0 ||
         filters.minStars > 0 ||
         filters.maxDistanceKm < 30 ||
         filters.amenities.length > 0 ||
@@ -203,6 +206,23 @@ export function FiltersSidebar({ filters, onFilterChange, query, onShowMap }: Fi
                         max={10}
                         step={0.5}
                         onChange={(e: ChangeEvent<HTMLInputElement>) => updateFilter({ minGuestRating: Number(e.target.value) })}
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-border bg-white dark:bg-card p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold">Review count</h4>
+                    <span className="text-xs font-medium text-primary">
+                        {filters.minReviewCount > 0 ? `${filters.minReviewCount}+` : 'Any'}
+                    </span>
+                </div>
+                <div className="px-2 pt-2">
+                    <Slider
+                        value={filters.minReviewCount}
+                        max={500}
+                        step={25}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => updateFilter({ minReviewCount: Number(e.target.value) })}
                     />
                 </div>
             </div>

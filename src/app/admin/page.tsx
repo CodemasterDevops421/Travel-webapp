@@ -117,6 +117,39 @@ interface SupportSlaPayload {
   cases: SupportSlaCase[];
 }
 
+type SupportOpsState = 'new' | 'in_progress' | 'awaiting_supplier' | 'resolved' | 'closed';
+type SupportOpsPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+interface SupportOpsSummary {
+  totalCases: number;
+  openCases: number;
+  breachedCases: number;
+  highPriorityOpenCases: number;
+  assignedCases: number;
+  unresolvedForwardingFailures: number;
+}
+
+interface SupportOpsCase {
+  bookingId: string;
+  bookingStatus: string;
+  state: SupportOpsState;
+  priority: SupportOpsPriority;
+  assignedTo: string | null;
+  supportRequestId: string | null;
+  supportRequestedAt: string;
+  updatedAt: string;
+  ageHours: number;
+  slaBreach: boolean;
+  supportForwarded: boolean;
+  lastError: string | null;
+  resolutionNote: string | null;
+}
+
+interface SupportOpsPayload {
+  summary: SupportOpsSummary;
+  cases: SupportOpsCase[];
+}
+
 interface ReadinessPayload {
   overallPassed: boolean;
   gates: ReadinessGate[];
@@ -158,6 +191,15 @@ export default function AdminPage() {
   const [resolutionNote, setResolutionNote] = useState('');
   const [supportSummary, setSupportSummary] = useState<SupportSlaSummary | null>(null);
   const [supportCases, setSupportCases] = useState<SupportSlaCase[]>([]);
+  const [supportOpsSummary, setSupportOpsSummary] = useState<SupportOpsSummary | null>(null);
+  const [supportOpsCases, setSupportOpsCases] = useState<SupportOpsCase[]>([]);
+  const [selectedSupportCase, setSelectedSupportCase] = useState<SupportOpsCase | null>(null);
+  const [supportStateDraft, setSupportStateDraft] = useState<SupportOpsState>('new');
+  const [supportPriorityDraft, setSupportPriorityDraft] = useState<SupportOpsPriority>('medium');
+  const [supportAssigneeDraft, setSupportAssigneeDraft] = useState('');
+  const [supportResolutionDraft, setSupportResolutionDraft] = useState('');
+  const [supportUpdateLoading, setSupportUpdateLoading] = useState(false);
+  const [supportUpdateError, setSupportUpdateError] = useState('');
   const [readinessOverall, setReadinessOverall] = useState<boolean | null>(null);
   const [readinessGates, setReadinessGates] = useState<ReadinessGate[]>([]);
   const [settlementSummary, setSettlementSummary] = useState<SettlementSummary | null>(null);
@@ -173,10 +215,11 @@ export default function AdminPage() {
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const [statsRes, reconciliationRes, supportRes, readinessRes, settlementRes] = await Promise.all([
+      const [statsRes, reconciliationRes, supportRes, supportOpsRes, readinessRes, settlementRes] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch(`/api/admin/reconciliation?days=30&includeResolved=${includeResolved ? '1' : '0'}`),
         fetch('/api/admin/support/sla?days=30&breachHours=24'),
+        fetch('/api/admin/support/operations?days=30&breachHours=24'),
         fetch('/api/admin/readiness'),
         fetch('/api/admin/settlement/ledger?days=30')
       ]);
@@ -185,6 +228,7 @@ export default function AdminPage() {
         statsRes.status === 403 ||
         reconciliationRes.status === 403 ||
         supportRes.status === 403 ||
+        supportOpsRes.status === 403 ||
         readinessRes.status === 403 ||
         settlementRes.status === 403
       ) {
@@ -192,14 +236,15 @@ export default function AdminPage() {
         setError('You do not have permission to view admin data.');
         return;
       }
-      if (!statsRes.ok || !reconciliationRes.ok || !supportRes.ok || !readinessRes.ok || !settlementRes.ok) {
+      if (!statsRes.ok || !reconciliationRes.ok || !supportRes.ok || !supportOpsRes.ok || !readinessRes.ok || !settlementRes.ok) {
         throw new Error('Could not load admin data.');
       }
 
-      const [statsData, reconciliationData, supportData, readinessData, settlementData] = await Promise.all([
+      const [statsData, reconciliationData, supportData, supportOpsData, readinessData, settlementData] = await Promise.all([
         statsRes.json(),
         reconciliationRes.json(),
         supportRes.json() as Promise<SupportSlaPayload>,
+        supportOpsRes.json() as Promise<SupportOpsPayload>,
         readinessRes.json() as Promise<ReadinessPayload>,
         settlementRes.json() as Promise<SettlementPayload>
       ]);
@@ -210,6 +255,8 @@ export default function AdminPage() {
       setReconciliationIssues(reconciliationData.issues ?? []);
       setSupportSummary(supportData.summary ?? null);
       setSupportCases(supportData.cases ?? []);
+      setSupportOpsSummary(supportOpsData.summary ?? null);
+      setSupportOpsCases(supportOpsData.cases ?? []);
       setReadinessOverall(readinessData.overallPassed ?? null);
       setReadinessGates(readinessData.gates ?? []);
       setSettlementSummary(settlementData.summary ?? null);
@@ -228,6 +275,15 @@ export default function AdminPage() {
     if (!user) return;
     void fetchDashboardData();
   }, [fetchDashboardData, user]);
+
+  useEffect(() => {
+    if (!selectedSupportCase) return;
+    setSupportStateDraft(selectedSupportCase.state);
+    setSupportPriorityDraft(selectedSupportCase.priority);
+    setSupportAssigneeDraft(selectedSupportCase.assignedTo ?? '');
+    setSupportResolutionDraft(selectedSupportCase.resolutionNote ?? '');
+    setSupportUpdateError('');
+  }, [selectedSupportCase]);
 
   const openIssue = useCallback(async (issue: ReconciliationIssue) => {
     setSelectedIssue(issue);
@@ -278,6 +334,33 @@ export default function AdminPage() {
       setDrilldownError(message);
     } finally {
       setResolving(false);
+    }
+  }
+
+  async function updateSupportCase() {
+    if (!selectedSupportCase) return;
+    setSupportUpdateLoading(true);
+    setSupportUpdateError('');
+    try {
+      const res = await fetch(`/api/admin/support/operations/${encodeURIComponent(selectedSupportCase.bookingId)}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          state: supportStateDraft,
+          priority: supportPriorityDraft,
+          assignedTo: supportAssigneeDraft.trim() ? supportAssigneeDraft.trim() : null,
+          resolutionNote: supportResolutionDraft.trim() ? supportResolutionDraft.trim() : null
+        })
+      });
+      if (!res.ok) {
+        throw new Error('Failed to update support case');
+      }
+      await fetchDashboardData();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update support case';
+      setSupportUpdateError(message);
+    } finally {
+      setSupportUpdateLoading(false);
     }
   }
 
@@ -444,6 +527,138 @@ export default function AdminPage() {
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border/40 p-6">
+          <div>
+            <h2 className="font-heading text-lg font-semibold">Support Operations Queue</h2>
+            <p className="text-sm text-muted-foreground">Triage, assignment, and resolution workflow for support tickets.</p>
+          </div>
+        </div>
+        {supportOpsSummary ? (
+          <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Open Cases</p>
+              <p className="mt-2 text-2xl font-bold">{supportOpsSummary.openCases}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Breached Cases</p>
+              <p className="mt-2 text-2xl font-bold">{supportOpsSummary.breachedCases}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">High Priority Open</p>
+              <p className="mt-2 text-2xl font-bold">{supportOpsSummary.highPriorityOpenCases}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Assigned</p>
+              <p className="mt-2 text-2xl font-bold">{supportOpsSummary.assignedCases}</p>
+            </article>
+          </div>
+        ) : null}
+        <div className="border-t border-border/40 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/40 bg-muted/30">
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Booking</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">State</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Priority</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Assignee</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Age (h)</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Forwarded</th>
+              </tr>
+            </thead>
+            <tbody>
+              {supportOpsCases.length > 0 ? (
+                supportOpsCases.slice(0, 15).map((row) => (
+                  <tr
+                    key={row.bookingId}
+                    className="cursor-pointer border-b border-border/20 hover:bg-muted/20"
+                    onClick={() => setSelectedSupportCase(row)}
+                  >
+                    <td className="px-6 py-4 font-mono text-xs">{row.bookingId.slice(0, 8)}...</td>
+                    <td className="px-6 py-4">{row.state}</td>
+                    <td className="px-6 py-4">{row.priority}</td>
+                    <td className="px-6 py-4">{row.assignedTo ?? '—'}</td>
+                    <td className="px-6 py-4">{row.ageHours}</td>
+                    <td className="px-6 py-4">{row.supportForwarded ? 'yes' : 'no'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">No support operations cases in period.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="border-t border-border/40 p-6">
+          <h3 className="font-semibold">Case Triage</h3>
+          {!selectedSupportCase ? (
+            <p className="mt-2 text-sm text-muted-foreground">Select a support case row to triage and update.</p>
+          ) : (
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <article className="rounded-xl border border-border/50 bg-muted/20 p-4 text-sm">
+                <p><span className="text-muted-foreground">Booking:</span> {selectedSupportCase.bookingId}</p>
+                <p><span className="text-muted-foreground">Current state:</span> {selectedSupportCase.state}</p>
+                <p><span className="text-muted-foreground">Last error:</span> {selectedSupportCase.lastError ?? '—'}</p>
+              </article>
+              <article className="rounded-xl border border-border/50 bg-muted/20 p-4 text-sm">
+                <div className="grid gap-3">
+                  <label className="grid gap-1">
+                    <span className="text-muted-foreground">State</span>
+                    <select
+                      className="rounded-md border border-border bg-background p-2"
+                      value={supportStateDraft}
+                      onChange={(event) => setSupportStateDraft(event.target.value as SupportOpsState)}
+                    >
+                      <option value="new">new</option>
+                      <option value="in_progress">in_progress</option>
+                      <option value="awaiting_supplier">awaiting_supplier</option>
+                      <option value="resolved">resolved</option>
+                      <option value="closed">closed</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-muted-foreground">Priority</span>
+                    <select
+                      className="rounded-md border border-border bg-background p-2"
+                      value={supportPriorityDraft}
+                      onChange={(event) => setSupportPriorityDraft(event.target.value as SupportOpsPriority)}
+                    >
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                      <option value="urgent">urgent</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-muted-foreground">Assignee</span>
+                    <input
+                      value={supportAssigneeDraft}
+                      onChange={(event) => setSupportAssigneeDraft(event.target.value)}
+                      placeholder="Ops agent"
+                      className="rounded-md border border-border bg-background p-2"
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-muted-foreground">Resolution note</span>
+                    <textarea
+                      value={supportResolutionDraft}
+                      onChange={(event) => setSupportResolutionDraft(event.target.value)}
+                      className="min-h-[72px] rounded-md border border-border bg-background p-2"
+                    />
+                  </label>
+                  {supportUpdateError ? <p className="text-destructive">{supportUpdateError}</p> : null}
+                  <Button size="sm" onClick={() => void updateSupportCase()} disabled={supportUpdateLoading}>
+                    {supportUpdateLoading ? 'Updating...' : 'Update Case'}
+                  </Button>
+                </div>
+              </article>
+            </div>
+          )}
         </div>
       </section>
 
