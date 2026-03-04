@@ -6,6 +6,7 @@ import { HttpError } from '@/server/errors';
 type AdminPrincipal = {
   id: string;
   app_metadata?: Record<string, unknown>;
+  user_metadata?: Record<string, unknown>;
 };
 
 const ADMIN_ROLES = new Set(['admin', 'owner']);

@@ -25,34 +25,27 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-7xl overflow-hidden rounded-3xl">
           {/* Background image + overlay */}
           <div
-            className="flex flex-col items-center justify-center px-6 py-20 text-center md:py-28 lg:py-36"
+            className="flex flex-col items-center justify-center px-6 py-20 text-center md:py-32 lg:py-40"
             style={{
               backgroundImage:
-                'linear-gradient(180deg, rgba(15,10,40,0.35) 0%, rgba(15,10,40,0.75) 60%, rgba(15,10,40,0.92) 100%), url("https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=2000&q=80")',
+                'linear-gradient(180deg, rgba(15,10,40,0.20) 0%, rgba(15,10,40,0.50) 50%, rgba(15,10,40,0.80) 100%), url("/images/hero-bg.png")',
               backgroundSize: 'cover',
-              backgroundPosition: 'center 40%'
+              backgroundPosition: 'center'
             }}
           >
-            <h1 className="font-heading text-3xl sm:text-5xl font-extrabold leading-[1.1] text-white md:text-7xl drop-shadow-xl animate-fade-in">
-              Same Stays.
-              <br />
-              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-fuchsia-400 bg-clip-text text-transparent">
-                Better Prices.
-              </span>
+            <h1 className="font-heading text-3xl sm:text-5xl font-extrabold leading-[1.1] text-white md:text-7xl drop-shadow-lg animate-fade-in relative z-20">
+              Same Stays. Better Prices.
             </h1>
-            <p className="mt-6 max-w-2xl text-sm sm:text-base leading-relaxed text-white/80 md:text-lg animate-fade-in stagger-2">
-              2 Million Hotels Worldwide. Compare rates, review full terms upfront,
-              and book with confidence.
+            <p className="mt-4 max-w-2xl text-sm sm:text-base font-medium text-white/90 md:text-lg animate-fade-in stagger-2 relative z-20">
+              2 Million Hotels Worldwide.
             </p>
-          </div>
-        </div>
 
-        {/* ── Search bar overlapping the hero bottom ── */}
-        <div className="relative z-30 mx-auto -mt-8 w-full max-w-5xl px-4 md:-mt-10 animate-fade-in stagger-3">
-          <div className="overflow-visible rounded-2xl md:rounded-full border border-slate-200 bg-white px-3 py-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900 md:px-4 md:py-3">
-            <Suspense fallback={<SearchSkeleton />}>
-              <HeroSearchBar className="border-none shadow-none bg-transparent" />
-            </Suspense>
+            {/* ── Search bar inside the hero ── */}
+            <div className="relative z-30 mt-10 md:mt-12 w-full max-w-4xl px-2 md:px-0 animate-fade-in stagger-3">
+              <Suspense fallback={<SearchSkeleton />}>
+                <HeroSearchBar className="" />
+              </Suspense>
+            </div>
           </div>
         </div>
       </section>
