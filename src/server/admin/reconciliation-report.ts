@@ -99,14 +99,14 @@ export async function buildReconciliationReport(
   const bookings: BookingRow[] =
     (bookingsResult.data as BookingRow[] | null) ?? [];
 
-  const commissionRowsResult = await supabase
-    .from('commission_tracking')
-    .select('booking_id, gross_booking_value, commission_amount, commission_percent, currency, updated_at')
-    .gte('updated_at', periodStart.toISOString())
-    .in('booking_id', bookings.map((b) => b.id))
-    .order('updated_at', { ascending: false });
-
-  const commissionRows: CommissionRow[] = (commissionRowsResult.data as CommissionRow[] | null) ?? [];
+  const commissionRows: CommissionRow[] = bookings.length > 0
+    ? (((await supabase
+      .from('commission_tracking')
+      .select('booking_id, gross_booking_value, commission_amount, commission_percent, currency, updated_at')
+      .gte('updated_at', periodStart.toISOString())
+      .in('booking_id', bookings.map((b) => b.id))
+      .order('updated_at', { ascending: false })).data as CommissionRow[] | null) ?? [])
+    : [];
 
   const commissionByBookingId = new Map<string, CommissionRow>();
   for (const row of commissionRows) {

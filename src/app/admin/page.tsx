@@ -56,7 +56,6 @@ interface ReconciliationDrilldown {
     currency: string | null;
     liteapi_booking_id: string | null;
     payment_status: string | null;
-    created_at: string;
   };
   commission: {
     payment_log_id: string | null;
@@ -87,6 +86,42 @@ interface ReconciliationDrilldown {
   };
 }
 
+interface SupportSlaSummary {
+  totalCases: number;
+  openCases: number;
+  forwardedCases: number;
+  forwardingFailures: number;
+  breachCount: number;
+  averageAgeHours: number;
+}
+
+interface SupportSlaCase {
+  bookingId: string;
+  bookingStatus: string;
+  supportRequestedAt: string;
+  supportForwarded: boolean;
+  supportForwardError: string | null;
+  ageHours: number;
+  breach: boolean;
+}
+
+interface ReadinessGate {
+  id: string;
+  title: string;
+  passed: boolean;
+  details: string[];
+}
+
+interface SupportSlaPayload {
+  summary: SupportSlaSummary;
+  cases: SupportSlaCase[];
+}
+
+interface ReadinessPayload {
+  overallPassed: boolean;
+  gates: ReadinessGate[];
+}
+
 export default function AdminPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -96,36 +131,52 @@ export default function AdminPage() {
   const [selectedIssue, setSelectedIssue] = useState<ReconciliationIssue | null>(null);
   const [drilldown, setDrilldown] = useState<ReconciliationDrilldown | null>(null);
   const [resolutionNote, setResolutionNote] = useState('');
+  const [supportSummary, setSupportSummary] = useState<SupportSlaSummary | null>(null);
+  const [supportCases, setSupportCases] = useState<SupportSlaCase[]>([]);
+  const [readinessOverall, setReadinessOverall] = useState<boolean | null>(null);
+  const [readinessGates, setReadinessGates] = useState<ReadinessGate[]>([]);
+  const [loading, setLoading] = useState(true);
   const [drilldownLoading, setDrilldownLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const [drilldownError, setDrilldownError] = useState('');
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [drilldownError, setDrilldownError] = useState('');
   const [forbidden, setForbidden] = useState(false);
   const [includeResolved, setIncludeResolved] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const [statsRes, reconciliationRes] = await Promise.all([
+      const [statsRes, reconciliationRes, supportRes, readinessRes] = await Promise.all([
         fetch('/api/admin/stats'),
-        fetch(`/api/admin/reconciliation?days=30&includeResolved=${includeResolved ? '1' : '0'}`)
+        fetch(`/api/admin/reconciliation?days=30&includeResolved=${includeResolved ? '1' : '0'}`),
+        fetch('/api/admin/support/sla?days=30&breachHours=24'),
+        fetch('/api/admin/readiness')
       ]);
 
-      if (statsRes.status === 403 || reconciliationRes.status === 403) {
+      if (statsRes.status === 403 || reconciliationRes.status === 403 || supportRes.status === 403 || readinessRes.status === 403) {
         setForbidden(true);
         setError('You do not have permission to view admin data.');
         return;
       }
-      if (!statsRes.ok || !reconciliationRes.ok) {
-        throw new Error('Could not load admin data');
+      if (!statsRes.ok || !reconciliationRes.ok || !supportRes.ok || !readinessRes.ok) {
+        throw new Error('Could not load admin data.');
       }
 
-      const [statsData, reconciliationData] = await Promise.all([statsRes.json(), reconciliationRes.json()]);
+      const [statsData, reconciliationData, supportData, readinessData] = await Promise.all([
+        statsRes.json(),
+        reconciliationRes.json(),
+        supportRes.json() as Promise<SupportSlaPayload>,
+        readinessRes.json() as Promise<ReadinessPayload>
+      ]);
+
       setStats(statsData.stats ?? null);
       setRecentBookings(statsData.recentBookings ?? []);
       setReconciliationSummary(reconciliationData.summary ?? null);
       setReconciliationIssues(reconciliationData.issues ?? []);
+      setSupportSummary(supportData.summary ?? null);
+      setSupportCases(supportData.cases ?? []);
+      setReadinessOverall(readinessData.overallPassed ?? null);
+      setReadinessGates(readinessData.gates ?? []);
       setForbidden(false);
       setError('');
     } catch (err) {
@@ -137,9 +188,7 @@ export default function AdminPage() {
   }, [includeResolved]);
 
   useEffect(() => {
-    if (!user) {
-      return;
-    }
+    if (!user) return;
     void fetchDashboardData();
   }, [fetchDashboardData, user]);
 
@@ -152,9 +201,7 @@ export default function AdminPage() {
 
     try {
       const res = await fetch(`/api/admin/reconciliation/${encodeURIComponent(issue.bookingId)}`);
-      if (!res.ok) {
-        throw new Error('Failed to load drilldown');
-      }
+      if (!res.ok) throw new Error('Failed to load drilldown');
       const data = (await res.json()) as ReconciliationDrilldown;
       setDrilldown(data);
     } catch (err) {
@@ -166,9 +213,7 @@ export default function AdminPage() {
   }, []);
 
   async function markResolved() {
-    if (!selectedIssue) {
-      return;
-    }
+    if (!selectedIssue) return;
     if (resolutionNote.trim().length < 3) {
       setDrilldownError('Resolution note must be at least 3 characters.');
       return;
@@ -185,9 +230,8 @@ export default function AdminPage() {
           resolutionNote: resolutionNote.trim()
         })
       });
-      if (!res.ok) {
-        throw new Error('Failed to resolve issue');
-      }
+      if (!res.ok) throw new Error('Failed to resolve issue');
+
       await fetchDashboardData();
       setSelectedIssue(null);
       setDrilldown(null);
@@ -242,34 +286,10 @@ export default function AdminPage() {
   }
 
   const statCards = [
-    {
-      title: 'Total Bookings',
-      value: stats?.totalBookings ?? 0,
-      icon: ShoppingBag,
-      color: 'text-blue-500',
-      bg: 'bg-blue-50 dark:bg-blue-950/30'
-    },
-    {
-      title: 'Revenue',
-      value: `$${(stats?.totalRevenue ?? 0).toLocaleString()}`,
-      icon: DollarSign,
-      color: 'text-emerald-500',
-      bg: 'bg-emerald-50 dark:bg-emerald-950/30'
-    },
-    {
-      title: 'Active Users',
-      value: stats?.activeUsers ?? 0,
-      icon: Users,
-      color: 'text-violet-500',
-      bg: 'bg-violet-50 dark:bg-violet-950/30'
-    },
-    {
-      title: 'Conversion Rate',
-      value: `${stats?.conversionRate ?? '0.0'}%`,
-      icon: TrendingUp,
-      color: 'text-amber-500',
-      bg: 'bg-amber-50 dark:bg-amber-950/30'
-    }
+    { title: 'Total Bookings', value: stats?.totalBookings ?? 0, icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+    { title: 'Revenue', value: `$${(stats?.totalRevenue ?? 0).toLocaleString()}`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+    { title: 'Active Users', value: stats?.activeUsers ?? 0, icon: Users, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/30' },
+    { title: 'Conversion Rate', value: `${stats?.conversionRate ?? '0.0'}%`, icon: TrendingUp, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30' }
   ];
 
   return (
@@ -280,7 +300,7 @@ export default function AdminPage() {
         </Link>
         <div>
           <h1 className="font-heading text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Commission and reconciliation controls</p>
+          <p className="text-muted-foreground">Reconciliation, support SLA, and launch readiness.</p>
         </div>
       </div>
 
@@ -301,6 +321,219 @@ export default function AdminPage() {
       </div>
 
       <section className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-border/40">
+          <h2 className="font-heading text-lg font-semibold">Launch Readiness Gates</h2>
+          <p className="text-sm text-muted-foreground">
+            Overall status: {readinessOverall === null ? 'unknown' : readinessOverall ? 'PASS' : 'FAIL'}
+          </p>
+        </div>
+        <div className="p-6 space-y-3">
+          {readinessGates.map((gate) => (
+            <article key={gate.id} className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="font-semibold">
+                {gate.passed ? 'PASS' : 'FAIL'} - {gate.title}
+              </p>
+              <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">
+                {gate.details.map((detail) => (
+                  <li key={detail}>{detail}</li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border/40 p-6">
+          <div>
+            <h2 className="font-heading text-lg font-semibold">Support SLA (30 days, 24h breach)</h2>
+            <p className="text-sm text-muted-foreground">Operational queue health for LiteAPI support handoffs.</p>
+          </div>
+          {supportSummary && supportSummary.breachCount > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {supportSummary.breachCount} breaches
+            </span>
+          ) : null}
+        </div>
+        {supportSummary ? (
+          <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Cases</p>
+              <p className="mt-2 text-2xl font-bold">{supportSummary.totalCases}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Open Cases</p>
+              <p className="mt-2 text-2xl font-bold">{supportSummary.openCases}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Forwarding Failures</p>
+              <p className="mt-2 text-2xl font-bold">{supportSummary.forwardingFailures}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Avg Age (h)</p>
+              <p className="mt-2 text-2xl font-bold">{supportSummary.averageAgeHours}</p>
+            </article>
+          </div>
+        ) : (
+          <p className="p-6 text-sm text-muted-foreground">No support SLA data available.</p>
+        )}
+        <div className="border-t border-border/40 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/40 bg-muted/30">
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Booking</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Status</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Age (h)</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Forwarded</th>
+                <th className="px-6 py-3 text-left font-medium text-muted-foreground">Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {supportCases.length > 0 ? (
+                supportCases.slice(0, 10).map((row) => (
+                  <tr key={row.bookingId} className="border-b border-border/20">
+                    <td className="px-6 py-4 font-mono text-xs">{row.bookingId.slice(0, 8)}...</td>
+                    <td className="px-6 py-4">{row.bookingStatus}</td>
+                    <td className="px-6 py-4">{row.ageHours}</td>
+                    <td className="px-6 py-4">{row.supportForwarded ? 'yes' : 'no'}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{row.supportForwardError ?? '—'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">No support requests in period.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border/40 p-6">
+          <div>
+            <h2 className="font-heading text-lg font-semibold">Revenue Reconciliation (30 days)</h2>
+            <p className="text-sm text-muted-foreground">Tracks booking totals against commission tracking records.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <a href={`/api/admin/reconciliation/export?days=30&includeResolved=${includeResolved ? '1' : '0'}`}>
+              <Button variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+            </a>
+          </div>
+        </div>
+
+        {reconciliationSummary ? (
+          <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Coverage</p>
+              <p className="mt-2 text-2xl font-bold">{reconciliationSummary.coveragePercent}%</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Open Issues</p>
+              <p className="mt-2 text-2xl font-bold">{reconciliationSummary.openIssueCount}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Variance</p>
+              <p className="mt-2 text-2xl font-bold">${reconciliationSummary.varianceAmount.toLocaleString()}</p>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Gross Volume</p>
+              <p className="mt-2 text-2xl font-bold">${reconciliationSummary.grossConfirmedAmount.toLocaleString()}</p>
+            </article>
+          </div>
+        ) : null}
+
+        <div className="border-t border-border/40">
+          <div className="flex items-center justify-between p-6">
+            <h3 className="font-semibold">Exception Queue</h3>
+            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <input type="checkbox" checked={includeResolved} onChange={(event) => setIncludeResolved(event.target.checked)} />
+              Show resolved
+            </label>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/40 bg-muted/30">
+                  <th className="px-6 py-3 text-left font-medium text-muted-foreground">Booking</th>
+                  <th className="px-6 py-3 text-left font-medium text-muted-foreground">Issue</th>
+                  <th className="px-6 py-3 text-left font-medium text-muted-foreground">State</th>
+                  <th className="px-6 py-3 text-left font-medium text-muted-foreground">Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reconciliationIssues.length > 0 ? (
+                  reconciliationIssues.map((issue) => (
+                    <tr key={`${issue.bookingId}-${issue.type}`} className="cursor-pointer border-b border-border/20 hover:bg-muted/20" onClick={() => void openIssue(issue)}>
+                      <td className="px-6 py-4 font-mono text-xs">{issue.bookingId.slice(0, 8)}...</td>
+                      <td className="px-6 py-4">{issue.type}</td>
+                      <td className="px-6 py-4">{issue.reconciliation.resolved ? 'resolved' : 'open'}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{issue.detail}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">No reconciliation issues in selected view.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+        <div className="border-b border-border/40 p-6">
+          <h2 className="font-heading text-lg font-semibold">Exception Drilldown</h2>
+          <p className="text-sm text-muted-foreground">{selectedIssue ? `Booking ${selectedIssue.bookingId}` : 'Select an issue row to inspect and resolve.'}</p>
+        </div>
+        {!selectedIssue ? (
+          <p className="p-6 text-sm text-muted-foreground">No issue selected.</p>
+        ) : drilldownLoading ? (
+          <div className="p-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : drilldownError ? (
+          <p className="p-6 text-sm text-destructive">{drilldownError}</p>
+        ) : drilldown ? (
+          <div className="grid gap-4 p-6 lg:grid-cols-3">
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Booking</p>
+              <div className="mt-3 space-y-2 text-sm">
+                <p><span className="text-muted-foreground">Status:</span> {drilldown.booking.status}</p>
+                <p><span className="text-muted-foreground">Gross:</span> {drilldown.booking.currency ?? 'USD'} {drilldown.booking.total_amount ?? 0}</p>
+                <p><span className="text-muted-foreground">Commission:</span> {drilldown.booking.currency ?? 'USD'} {drilldown.booking.commission_amount ?? 0}</p>
+              </div>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Tracking</p>
+              <div className="mt-3 space-y-2 text-sm">
+                <p><span className="text-muted-foreground">Gross delta:</span> {drilldown.reconciliation.grossDelta ?? '—'}</p>
+                <p><span className="text-muted-foreground">Commission delta:</span> {drilldown.reconciliation.commissionDelta ?? '—'}</p>
+                <p><span className="text-muted-foreground">Payment log:</span> {drilldown.reconciliation.hasPaymentLog ? 'present' : 'missing'}</p>
+              </div>
+            </article>
+            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Resolve</p>
+              <textarea
+                value={resolutionNote}
+                onChange={(event) => setResolutionNote(event.target.value)}
+                placeholder="Add a resolution note"
+                className="mt-3 min-h-[90px] w-full rounded-md border border-border bg-background p-2 text-sm"
+              />
+              <Button size="sm" className="mt-3" onClick={() => void markResolved()} disabled={resolving}>
+                {resolving ? 'Resolving...' : 'Mark Resolved'}
+              </Button>
+            </article>
+          </div>
+        ) : (
+          <p className="p-6 text-sm text-muted-foreground">Drilldown not available.</p>
+        )}
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
         <div className="p-6 border-b border-border/40">
           <h2 className="font-heading text-lg font-semibold">Recent Bookings</h2>
         </div>
@@ -326,203 +559,12 @@ export default function AdminPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
-                    No bookings yet
-                  </td>
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">No bookings yet</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </section>
-
-      <section className="mt-8 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border/40 p-6">
-          <div>
-            <h2 className="font-heading text-lg font-semibold">Revenue Reconciliation (30 days)</h2>
-            <p className="text-sm text-muted-foreground">Tracks booking totals against commission tracking records.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <a href={`/api/admin/reconciliation/export?days=30&includeResolved=${includeResolved ? '1' : '0'}`}>
-              <Button variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </Button>
-            </a>
-            {reconciliationSummary && reconciliationSummary.mismatchCount > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                {reconciliationSummary.mismatchCount} mismatches
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        {reconciliationSummary ? (
-          <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
-            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Coverage</p>
-              <p className="mt-2 text-2xl font-bold">{reconciliationSummary.coveragePercent}%</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {reconciliationSummary.reconciledCount}/{reconciliationSummary.confirmedCount} confirmed tracked
-              </p>
-            </article>
-            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Open Issues</p>
-              <p className="mt-2 text-2xl font-bold">{reconciliationSummary.openIssueCount}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Resolved: {reconciliationSummary.resolvedIssueCount}
-              </p>
-            </article>
-            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Commission Variance</p>
-              <p className="mt-2 text-2xl font-bold">${reconciliationSummary.varianceAmount.toLocaleString()}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Expected - recorded commission</p>
-            </article>
-            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Gross Confirmed Volume</p>
-              <p className="mt-2 text-2xl font-bold">${reconciliationSummary.grossConfirmedAmount.toLocaleString()}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Total booking value in period</p>
-            </article>
-          </div>
-        ) : (
-          <p className="p-6 text-sm text-muted-foreground">No reconciliation data available yet.</p>
-        )}
-
-        <div className="border-t border-border/40">
-          <div className="flex items-center justify-between p-6">
-            <h3 className="font-semibold">Exception Queue</h3>
-            <div className="flex items-center gap-3">
-              <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={includeResolved}
-                  onChange={(event) => setIncludeResolved(event.target.checked)}
-                />
-                Show resolved
-              </label>
-              <span className="text-sm text-muted-foreground">{reconciliationIssues.length} showing</span>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/40 bg-muted/30">
-                  <th className="px-6 py-3 text-left font-medium text-muted-foreground">Booking</th>
-                  <th className="px-6 py-3 text-left font-medium text-muted-foreground">Issue</th>
-                  <th className="px-6 py-3 text-left font-medium text-muted-foreground">State</th>
-                  <th className="px-6 py-3 text-left font-medium text-muted-foreground">Detail</th>
-                  <th className="px-6 py-3 text-left font-medium text-muted-foreground">Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reconciliationIssues.length > 0 ? (
-                  reconciliationIssues.map((issue) => (
-                    <tr
-                      key={`${issue.bookingId}-${issue.type}`}
-                      className="cursor-pointer border-b border-border/20 transition-colors hover:bg-muted/20"
-                      onClick={() => void openIssue(issue)}
-                    >
-                      <td className="px-6 py-4 font-mono text-xs">{issue.bookingId.slice(0, 8)}...</td>
-                      <td className="px-6 py-4">{issue.type}</td>
-                      <td className="px-6 py-4">
-                        {issue.reconciliation.resolved ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                            resolved
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                            open
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-muted-foreground">{issue.detail}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{new Date(issue.createdAt).toLocaleDateString()}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                      No reconciliation issues in the selected view.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-8 rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-        <div className="border-b border-border/40 p-6">
-          <h2 className="font-heading text-lg font-semibold">Exception Drilldown</h2>
-          <p className="text-sm text-muted-foreground">
-            {selectedIssue ? `Booking ${selectedIssue.bookingId}` : 'Select an issue row to inspect and resolve.'}
-          </p>
-        </div>
-
-        {!selectedIssue ? (
-          <p className="p-6 text-sm text-muted-foreground">No issue selected.</p>
-        ) : drilldownLoading ? (
-          <div className="p-6">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : drilldownError ? (
-          <p className="p-6 text-sm text-destructive">{drilldownError}</p>
-        ) : drilldown ? (
-          <div className="grid gap-4 p-6 lg:grid-cols-3">
-            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Booking</p>
-              <div className="mt-3 space-y-2 text-sm">
-                <p><span className="text-muted-foreground">Status:</span> {drilldown.booking.status}</p>
-                <p><span className="text-muted-foreground">Payment:</span> {drilldown.booking.payment_status ?? '—'}</p>
-                <p><span className="text-muted-foreground">Gross:</span> {drilldown.booking.currency ?? 'USD'} {drilldown.booking.total_amount ?? 0}</p>
-                <p><span className="text-muted-foreground">Commission:</span> {drilldown.booking.currency ?? 'USD'} {drilldown.booking.commission_amount ?? 0}</p>
-                <p><span className="text-muted-foreground">Supplier ID:</span> {drilldown.booking.liteapi_booking_id ?? '—'}</p>
-              </div>
-            </article>
-
-            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Commission Tracking</p>
-              {drilldown.commission ? (
-                <div className="mt-3 space-y-2 text-sm">
-                  <p><span className="text-muted-foreground">Gross tracked:</span> {drilldown.commission.currency} {drilldown.commission.gross_booking_value}</p>
-                  <p><span className="text-muted-foreground">Commission tracked:</span> {drilldown.commission.currency} {drilldown.commission.commission_amount}</p>
-                  <p><span className="text-muted-foreground">Percent:</span> {drilldown.commission.commission_percent}%</p>
-                  <p><span className="text-muted-foreground">Updated:</span> {new Date(drilldown.commission.updated_at).toLocaleString()}</p>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">No tracking record exists for this booking.</p>
-              )}
-            </article>
-
-            <article className="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Resolution</p>
-              <div className="mt-3 space-y-2 text-sm">
-                <p><span className="text-muted-foreground">Gross delta:</span> {drilldown.reconciliation.grossDelta ?? '—'}</p>
-                <p><span className="text-muted-foreground">Commission delta:</span> {drilldown.reconciliation.commissionDelta ?? '—'}</p>
-                <p><span className="text-muted-foreground">Current state:</span> {drilldown.issueState.resolved ? 'resolved' : 'open'}</p>
-                {drilldown.issueState.resolvedAt ? (
-                  <p><span className="text-muted-foreground">Resolved at:</span> {new Date(drilldown.issueState.resolvedAt).toLocaleString()}</p>
-                ) : null}
-                {drilldown.issueState.resolvedBy ? (
-                  <p><span className="text-muted-foreground">Resolved by:</span> {drilldown.issueState.resolvedBy}</p>
-                ) : null}
-                <textarea
-                  value={resolutionNote}
-                  onChange={(event) => setResolutionNote(event.target.value)}
-                  placeholder="Add a resolution note"
-                  className="mt-2 min-h-[90px] w-full rounded-md border border-border bg-background p-2 text-sm"
-                />
-                <Button size="sm" onClick={() => void markResolved()} disabled={resolving}>
-                  {resolving ? 'Resolving...' : 'Mark Resolved'}
-                </Button>
-              </div>
-            </article>
-          </div>
-        ) : (
-          <p className="p-6 text-sm text-muted-foreground">Drilldown not available.</p>
-        )}
       </section>
     </main>
   );
