@@ -73,7 +73,31 @@ describe('admin support operations routes', () => {
     expect(Array.isArray(json.cases)).toBe(true);
   });
 
+  it('defaults breachHours to 24 when query param is absent', async () => {
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue(createSupabaseMock())
+    }));
+    const buildSupportOperationsReport = vi.fn().mockResolvedValue({
+      summary: { totalCases: 0 },
+      cases: []
+    });
+    vi.doMock('@/server/admin/support-operations-report', () => ({
+      buildSupportOperationsReport
+    }));
+
+    const { GET } = await import('@/app/api/admin/support/operations/route');
+    const req = new NextRequest('http://localhost/api/admin/support/operations?days=30');
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    expect(buildSupportOperationsReport).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ breachHours: 24 })
+    );
+  });
+
   it('updates support case state via patch route', async () => {
+    const updateBookingStatusById = vi.fn().mockResolvedValue(true);
     vi.doMock('@/server/supabase/server', () => ({
       createServerSupabaseClient: vi.fn().mockResolvedValue(createSupabaseMock())
     }));
@@ -81,9 +105,9 @@ describe('admin support operations routes', () => {
       getBookingById: vi.fn().mockResolvedValue({
         id: 'booking-1',
         status: 'confirmed',
-        metadata: {}
+        metadata: { supportAssignedTo: 'Existing Assignee', supportResolutionNote: 'Existing note' }
       }),
-      updateBookingStatusById: vi.fn().mockResolvedValue(true)
+      updateBookingStatusById
     }));
 
     const { PATCH } = await import('@/app/api/admin/support/operations/[bookingId]/route');
@@ -91,8 +115,7 @@ describe('admin support operations routes', () => {
       method: 'PATCH',
       body: JSON.stringify({
         state: 'in_progress',
-        priority: 'high',
-        assignedTo: 'Ops Agent 1'
+        priority: 'high'
       })
     });
     const res = await PATCH(req, { params: Promise.resolve({ bookingId: 'booking-1' }) });
@@ -101,5 +124,13 @@ describe('admin support operations routes', () => {
     expect(res.status).toBe(200);
     expect(json.ok).toBe(true);
     expect(json.state).toBe('in_progress');
+    expect(updateBookingStatusById).toHaveBeenCalledWith(
+      'booking-1',
+      'confirmed',
+      expect.not.objectContaining({
+        supportAssignedTo: expect.anything(),
+        supportResolutionNote: expect.anything()
+      })
+    );
   });
 });

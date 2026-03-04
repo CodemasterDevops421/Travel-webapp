@@ -5,12 +5,14 @@ import { HttpError } from '@/server/errors';
 import { buildSupportOperationsReport } from '@/server/admin/support-operations-report';
 
 function parsePeriodDays(raw: string | null): number {
+  if (raw == null || raw.trim() === '') return 30;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return 30;
   return Math.max(7, Math.min(180, Math.floor(parsed)));
 }
 
 function parseBreachHours(raw: string | null): number {
+  if (raw == null || raw.trim() === '') return 24;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return 24;
   return Math.max(1, Math.min(168, Math.floor(parsed)));

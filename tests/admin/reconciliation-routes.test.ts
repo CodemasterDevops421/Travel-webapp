@@ -164,6 +164,62 @@ describe('admin reconciliation routes', () => {
     expect(csv).toContain('booking_id,issue_type,detail');
   });
 
+  it('returns 503 when bookings query fails', async () => {
+    const supabase = {
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: 'admin-1', email: 'admin@example.com', app_metadata: { role: 'admin' } } }
+        })
+      },
+      from: vi.fn().mockImplementation((table: string) => {
+        if (table === 'admin_users') {
+          return {
+            select: vi.fn().mockImplementation(() => ({
+              eq: vi.fn().mockImplementation(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'admin' }, error: null })
+              }))
+            }))
+          };
+        }
+
+        if (table === 'bookings') {
+          return {
+            select: vi.fn().mockImplementation(() => ({
+              gte: vi.fn().mockImplementation(() => ({
+                in: vi.fn().mockImplementation(() => ({
+                  order: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: 'temporary database failure' }
+                  })
+                }))
+              }))
+            }))
+          };
+        }
+
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
+            })
+          })
+        };
+      })
+    };
+
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue(supabase)
+    }));
+
+    const { GET } = await import('@/app/api/admin/reconciliation/route');
+    const req = new NextRequest('http://localhost/api/admin/reconciliation?days=30');
+    const res = await GET(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(json.error).toContain('Failed to load bookings');
+  });
+
   it('resolves a reconciliation issue with note', async () => {
     const supabase = createSupabaseMock();
 

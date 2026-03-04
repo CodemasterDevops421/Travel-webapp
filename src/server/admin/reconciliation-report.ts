@@ -1,4 +1,5 @@
 import 'server-only';
+import { HttpError } from '@/server/errors';
 
 type BookingRow = {
   id: string;
@@ -96,17 +97,28 @@ export async function buildReconciliationReport(
     .in('status', ['confirmed', 'refunded'])
     .order('created_at', { ascending: false });
 
+  if (bookingsResult.error) {
+    throw new HttpError(503, 'Failed to load bookings for reconciliation report');
+  }
+
   const bookings: BookingRow[] =
     (bookingsResult.data as BookingRow[] | null) ?? [];
 
-  const commissionRows: CommissionRow[] = bookings.length > 0
-    ? (((await supabase
+  const commissionResult = bookings.length > 0
+    ? (await supabase
       .from('commission_tracking')
       .select('booking_id, gross_booking_value, commission_amount, commission_percent, currency, updated_at')
       .gte('updated_at', periodStart.toISOString())
       .in('booking_id', bookings.map((b) => b.id))
-      .order('updated_at', { ascending: false })).data as CommissionRow[] | null) ?? [])
-    : [];
+      .order('updated_at', { ascending: false }))
+    : { data: [] as CommissionRow[], error: null as unknown };
+
+  if (commissionResult.error) {
+    throw new HttpError(503, 'Failed to load commission tracking for reconciliation report');
+  }
+
+  const commissionRows: CommissionRow[] =
+    (commissionResult.data as CommissionRow[] | null) ?? [];
 
   const commissionByBookingId = new Map<string, CommissionRow>();
   for (const row of commissionRows) {

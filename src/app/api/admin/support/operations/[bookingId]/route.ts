@@ -37,17 +37,24 @@ export async function PATCH(
     }
 
     const nowIso = new Date().toISOString();
-    const persisted = await updateBookingStatusById(booking.id, booking.status, {
+    const supportMetadata: Record<string, unknown> = {
       supportState: payload.state,
       supportPriority: payload.priority ?? (booking.metadata?.supportPriority ?? 'medium'),
-      supportAssignedTo: payload.assignedTo ?? null,
-      supportResolutionNote: payload.resolutionNote ?? null,
       supportUpdatedAt: nowIso,
       supportResolvedAt:
         payload.state === 'resolved' || payload.state === 'closed'
           ? nowIso
           : null
-    });
+    };
+
+    if ('assignedTo' in payload) {
+      supportMetadata.supportAssignedTo = payload.assignedTo;
+    }
+    if ('resolutionNote' in payload) {
+      supportMetadata.supportResolutionNote = payload.resolutionNote;
+    }
+
+    const persisted = await updateBookingStatusById(booking.id, booking.status, supportMetadata);
 
     if (!persisted) {
       return NextResponse.json({ error: 'Support case update could not be persisted' }, { status: 409 });
