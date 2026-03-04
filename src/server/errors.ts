@@ -14,6 +14,7 @@ type ErrorCaptureContext = {
 };
 
 const SENSITIVE_KEY_PATTERN = /(token|secret|authorization|api[_-]?key|password|cookie|set-cookie)/i;
+const RAW_PAYLOAD_KEY_PATTERN = /(supplier[_-]?payload|supplier[_-]?body|raw[_-]?body|request[_-]?body|response[_-]?body|payload)/i;
 
 function redactSensitive(input: unknown): unknown {
   if (Array.isArray(input)) {
@@ -28,6 +29,10 @@ function redactSensitive(input: unknown): unknown {
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
     if (SENSITIVE_KEY_PATTERN.test(key)) {
       output[key] = '[REDACTED]';
+      continue;
+    }
+    if (RAW_PAYLOAD_KEY_PATTERN.test(key)) {
+      output[key] = '[REDACTED_PAYLOAD]';
       continue;
     }
     output[key] = redactSensitive(value);

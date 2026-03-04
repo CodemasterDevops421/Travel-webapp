@@ -59,6 +59,33 @@ describe('error mapping', () => {
     expect(metadata.ok).toBe('safe');
   });
 
+  it('redacts raw payload blobs from capture metadata', async () => {
+    const captureException = vi.fn();
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException
+    }));
+
+    const { toHttpError } = await import('@/server/errors');
+    toHttpError(new Error('supplier-failure'), {
+      route: 'webhook-liteapi',
+      event: 'webhook.liteapi.failed',
+      metadata: {
+        supplierPayload: { huge: 'payload', nested: { cardToken: 'tok_123' } },
+        requestBody: { token: 'x' },
+        response_body: { details: 'sensitive' },
+        summary: 'safe-context'
+      }
+    });
+
+    expect(captureException).toHaveBeenCalledOnce();
+    const [, scope] = captureException.mock.calls[0] as [unknown, { extra?: Record<string, unknown> }];
+    const metadata = (scope.extra?.metadata ?? {}) as Record<string, unknown>;
+    expect(metadata.supplierPayload).toBe('[REDACTED_PAYLOAD]');
+    expect(metadata.requestBody).toBe('[REDACTED_PAYLOAD]');
+    expect(metadata.response_body).toBe('[REDACTED_PAYLOAD]');
+    expect(metadata.summary).toBe('safe-context');
+  });
+
   it('passes route and module as Sentry tags for structured tracing', async () => {
     const captureException = vi.fn();
     vi.doMock('@sentry/nextjs', () => ({
