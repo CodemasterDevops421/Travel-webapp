@@ -61,6 +61,7 @@ Progress: [##########] 100%
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P03 | 4 min | 3 tasks | 4 files |
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P04 | 4 min | 3 tasks | 3 files |
 | Phase 07-canonical-data-wiring-and-observability-closure P01 | 1 min | 3 tasks | 10 files |
+| Phase 07 P02 | 5 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,9 @@ Recent decisions affecting current work:
 - [Phase 07-canonical-data-wiring-and-observability-closure]: Webhook reconciliation now writes payment_logs before booking status updates and propagates latest payment log linkage through booking metadata.
 - [Phase 07-canonical-data-wiring-and-observability-closure]: Commission tracking is lifecycle-authoritative in booking repository transitions for payment_authorized, confirmed, refunded, and failed states.
 - [Phase 07-canonical-data-wiring-and-observability-closure]: Review snippets now use canonical reviews_cache stale-aware read-through while retaining Redis as additive fast-path cache.
+- [Phase 07]: Enforced compact structured-event namespaces (booking/webhook/supplier/persistence) to prevent telemetry taxonomy drift.
+- [Phase 07]: Required correlation_id and route/module context on critical booking and webhook structured events while keeping logs additive.
+- [Phase 07]: Standardized ingress/success/replay/error telemetry branches across booking and webhook paths without changing API response contracts.
 
 ### Pending Todos
 
@@ -140,6 +144,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-01 17:43
-Stopped at: Completed 07-canonical-data-wiring-and-observability-closure-01-PLAN.md
+Last session: 2026-03-04 11:56
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None
