@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 08-hotel-detail-content-intelligence-and-review-ux
-Plan: 4 of 4 in current phase
+Phase: 07-canonical-data-wiring-and-observability-closure
+Plan: 3 of 3 in current phase
 Status: Complete
-Last activity: 2026-02-28 - Completed 08-04-PLAN.md
+Last activity: 2026-03-04 - Completed 07-03-PLAN.md
 
 Progress: [##########] 100%
 
@@ -62,6 +62,7 @@ Progress: [##########] 100%
 | Phase 08-hotel-detail-content-intelligence-and-review-ux P04 | 4 min | 3 tasks | 3 files |
 | Phase 07-canonical-data-wiring-and-observability-closure P01 | 1 min | 3 tasks | 10 files |
 | Phase 07 P02 | 5 min | 3 tasks | 10 files |
+| Phase 07 P03 | 4 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -127,12 +128,12 @@ Recent decisions affecting current work:
 - [Phase 08]: Hotel detail confidence validation is standardized around one command spanning content, AI grounding, and booking continuity tests.
 - [Phase 08]: Booking-card continuity tests were moved from .test.tsx to .test.ts to match Vitest include rules and avoid silent non-execution.
 - [Phase 08]: AI grounding assertions now cover synthesized/unavailable description contexts to guard against narrative drift.
-- [Phase 07-canonical-data-wiring-and-observability-closure]: Webhook reconciliation now writes payment_logs before booking status updates and propagates latest payment log linkage through booking metadata.
-- [Phase 07-canonical-data-wiring-and-observability-closure]: Commission tracking is lifecycle-authoritative in booking repository transitions for payment_authorized, confirmed, refunded, and failed states.
-- [Phase 07-canonical-data-wiring-and-observability-closure]: Review snippets now use canonical reviews_cache stale-aware read-through while retaining Redis as additive fast-path cache.
 - [Phase 07]: Enforced compact structured-event namespaces (booking/webhook/supplier/persistence) to prevent telemetry taxonomy drift.
 - [Phase 07]: Required correlation_id and route/module context on critical booking and webhook structured events while keeping logs additive.
 - [Phase 07]: Standardized ingress/success/replay/error telemetry branches across booking and webhook paths without changing API response contracts.
+- [Phase 07]: Redact payload/body-shaped telemetry metadata keys before centralized capture to prevent supplier blob leakage.
+- [Phase 07]: Use httpError.safeMessage at booking and webhook response boundaries while retaining detailed telemetry context.
+- [Phase 07]: Include webhook event and transaction identifiers in centralized catch-path capture metadata for faster triage.
 
 ### Pending Todos
 
@@ -144,6 +145,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04 11:56
-Stopped at: Completed 07-02-PLAN.md
+Last session: 2026-03-04 12:00
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None
