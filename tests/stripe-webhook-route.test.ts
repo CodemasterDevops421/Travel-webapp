@@ -217,6 +217,56 @@ describe('stripe webhook route', () => {
     }));
   });
 
+  it('preserves zero-decimal currency amounts for webhook payment logs', async () => {
+    const updateBookingStatusByTransactionId = vi.fn().mockResolvedValue(true);
+    const insertPaymentLog = vi.fn().mockResolvedValue('payment-log-jpy');
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/payments/stripe', () => ({
+      constructStripeEvent: vi.fn().mockReturnValue({
+        id: 'evt_jpy_success',
+        type: 'payment_intent.succeeded',
+        data: {
+          object: {
+            id: 'pi_jpy_123',
+            amount: 5000,
+            currency: 'jpy',
+            metadata: { transactionId: 'txn_jpy_123' },
+            customer: 'cus_jpy_123'
+          }
+        }
+      })
+    }));
+    vi.doMock('@/server/webhook-idempotency', () => ({
+      claimWebhookEvent: vi.fn().mockResolvedValue(true),
+      finalizeWebhookEvent: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      updateBookingStatusByTransactionId,
+      persistBooking: vi.fn().mockResolvedValue(null)
+    }));
+    vi.doMock('@/server/payment-logs-repository', () => ({
+      insertPaymentLog
+    }));
+
+    const { POST } = await import('@/app/api/webhooks/stripe/route');
+    const req = {
+      headers: new Headers({ 'stripe-signature': 'sig' }),
+      text: async () => '{"id":"evt_jpy_success"}'
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+
+    expect(res.status).toBe(200);
+    expect(insertPaymentLog).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 5000,
+      currency: 'JPY',
+      externalPaymentId: 'evt_jpy_success'
+    }));
+  });
+
   it('captures centralized error telemetry when webhook processing throws', async () => {
     const captureException = vi.fn();
 

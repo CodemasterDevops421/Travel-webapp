@@ -29,8 +29,34 @@ type ReconciliationUpdate = {
   metadata: Record<string, unknown>;
 };
 
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  'BIF',
+  'CLP',
+  'DJF',
+  'GNF',
+  'JPY',
+  'KMF',
+  'KRW',
+  'MGA',
+  'PYG',
+  'RWF',
+  'UGX',
+  'VND',
+  'VUV',
+  'XAF',
+  'XOF',
+  'XPF'
+]);
+
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function fromStripeMinorAmount(amount: number, currency: string | null): number {
+  if (!currency) {
+    return amount / 100;
+  }
+  return ZERO_DECIMAL_CURRENCIES.has(currency) ? amount : amount / 100;
 }
 
 function extractMetadataTransactionId(metadata: Stripe.Metadata | null | undefined): string | null {
@@ -110,22 +136,28 @@ function buildReconciliationUpdate(event: Stripe.Event): ReconciliationUpdate | 
 function readStripeAmountAndCurrency(event: Stripe.Event): { amount: number | null; currency: string | null } {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    const amount = typeof session.amount_total === 'number' ? session.amount_total / 100 : null;
     const currency = readString(session.currency)?.toUpperCase() ?? null;
+    const amount = typeof session.amount_total === 'number'
+      ? fromStripeMinorAmount(session.amount_total, currency)
+      : null;
     return { amount, currency };
   }
 
   if (event.type === 'payment_intent.succeeded' || event.type === 'payment_intent.payment_failed') {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
-    const amount = typeof paymentIntent.amount === 'number' ? paymentIntent.amount / 100 : null;
     const currency = readString(paymentIntent.currency)?.toUpperCase() ?? null;
+    const amount = typeof paymentIntent.amount === 'number'
+      ? fromStripeMinorAmount(paymentIntent.amount, currency)
+      : null;
     return { amount, currency };
   }
 
   if (event.type === 'charge.refunded') {
     const charge = event.data.object as Stripe.Charge;
-    const amount = typeof charge.amount_refunded === 'number' ? charge.amount_refunded / 100 : null;
     const currency = readString(charge.currency)?.toUpperCase() ?? null;
+    const amount = typeof charge.amount_refunded === 'number'
+      ? fromStripeMinorAmount(charge.amount_refunded, currency)
+      : null;
     return { amount, currency };
   }
 
