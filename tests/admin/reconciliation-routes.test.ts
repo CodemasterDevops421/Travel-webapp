@@ -285,9 +285,13 @@ describe('admin reconciliation routes', () => {
 
   it('resolves a reconciliation issue with note', async () => {
     const supabase = createSupabaseMock();
+    const invalidateAdminReportCache = vi.fn();
 
     vi.doMock('@/server/supabase/server', () => ({
       createServerSupabaseClient: vi.fn().mockResolvedValue(supabase)
+    }));
+    vi.doMock('@/server/admin/report-cache', () => ({
+      invalidateAdminReportCache
     }));
 
     const { POST } = await import('@/app/api/admin/reconciliation/[bookingId]/resolve/route');
@@ -307,5 +311,10 @@ describe('admin reconciliation routes', () => {
     expect(res.status).toBe(200);
     expect(json.ok).toBe(true);
     expect(json.bookingId).toBe('booking-1');
+    expect(invalidateAdminReportCache).toHaveBeenCalledWith([
+      'admin:reconciliation:admin-1:',
+      'admin:reconciliation-export:admin-1:',
+      'admin:readiness:admin-1:'
+    ]);
   });
 });

@@ -265,6 +265,7 @@ type RatesSearchPayload = {
   placeId?: string;
   cityName?: string;
   aiSearch?: string;
+  offset?: number;
 };
 
 function nextStayWindow(): { checkin: string; checkout: string } {
@@ -1703,6 +1704,7 @@ export async function searchPropertyPreviews(
     const aiSearchQuery = trimmedBrief ? `${query} ${trimmedBrief}` : query;
     const page = typeof filters?.page === 'number' ? Math.max(1, Math.floor(filters.page)) : 1;
     const limit = typeof filters?.limit === 'number' ? Math.max(1, Math.min(50, Math.floor(filters.limit))) : 8;
+    const offset = (page - 1) * limit;
     const timeoutSeconds = Math.max(1, Math.round(env.LITEAPI_TIMEOUT_MS / 1000));
     const normalizedMinStars = typeof filters?.minStars === 'number' ? Math.min(5, Math.max(0, filters.minStars)) : undefined;
     const normalizedMinRating = typeof filters?.minGuestRating === 'number'
@@ -1723,7 +1725,8 @@ export async function searchPropertyPreviews(
       roomMapping: true,
       includeHotelData: true,
       maxRatesPerHotel: 1,
-      limit: 12,
+      limit,
+      offset,
       timeout: timeoutSeconds,
       minRating: normalizedMinRating,
       starRating
@@ -1765,7 +1768,7 @@ export async function searchPropertyPreviews(
       }
       const filteredByAiSearch = applyFilters(byAiSearch.items);
       if (filteredByAiSearch.length > 0) {
-        return toResult(paginate(filteredByAiSearch), degradedReason === null ? null : 'partial');
+        return toResult(filteredByAiSearch.slice(0, limit), degradedReason === null ? null : 'partial');
       }
 
       const semanticMatches = await searchHotelsBySemanticQuery(aiSearchQuery, language, 8);
@@ -1807,7 +1810,7 @@ export async function searchPropertyPreviews(
       }
       const filtered = applyFilters(byAiSearch.items);
       if (filtered.length > 0) {
-        return toResult(paginate(filtered), degradedReason === null ? null : 'partial');
+        return toResult(filtered.slice(0, limit), degradedReason === null ? null : 'partial');
       }
     }
 
@@ -1825,7 +1828,7 @@ export async function searchPropertyPreviews(
       }
       const filtered = applyFilters(byPlace.items);
       if (filtered.length > 0) {
-        return toResult(paginate(filtered), degradedReason === null ? null : 'partial');
+        return toResult(filtered.slice(0, limit), degradedReason === null ? null : 'partial');
       }
     }
 
@@ -1842,7 +1845,7 @@ export async function searchPropertyPreviews(
     }
     const filteredByCity = applyFilters(byCity.items);
     if (filteredByCity.length > 0) {
-      return toResult(paginate(filteredByCity), degradedReason === null ? null : 'partial');
+      return toResult(filteredByCity.slice(0, limit), degradedReason === null ? null : 'partial');
     }
 
     const byAiSearch = await searchRates(
@@ -1858,7 +1861,7 @@ export async function searchPropertyPreviews(
     }
     const filteredByAiSearch = applyFilters(byAiSearch.items);
     if (filteredByAiSearch.length > 0) {
-      return toResult(paginate(filteredByAiSearch), degradedReason === null ? null : 'partial');
+      return toResult(filteredByAiSearch.slice(0, limit), degradedReason === null ? null : 'partial');
     }
 
     const semanticMatches = await searchHotelsBySemanticQuery(aiSearchQuery, language, 8);
@@ -1919,7 +1922,8 @@ export async function searchPropertyPreviews(
         timeout: timeoutSeconds,
         minRating: normalizedMinRating,
         starRating,
-        limit: 8
+        limit,
+        offset
       }),
       next: { revalidate: 300 }
     });

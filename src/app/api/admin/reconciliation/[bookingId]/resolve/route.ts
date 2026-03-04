@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createServerSupabaseClient } from '@/server/supabase/server';
 import { assertAdminAuthorized } from '@/server/authz';
 import { HttpError } from '@/server/errors';
+import { invalidateAdminReportCache } from '@/server/admin/report-cache';
 
 const requestSchema = z.object({
   resolutionNote: z.string().trim().min(3).max(500),
@@ -72,6 +73,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (updateResult.error) {
       return NextResponse.json({ error: 'Failed to persist resolution state' }, { status: 500 });
     }
+
+    invalidateAdminReportCache([
+      `admin:reconciliation:${user.id}:`,
+      `admin:reconciliation-export:${user.id}:`,
+      `admin:readiness:${user.id}:`
+    ]);
 
     return NextResponse.json({
       ok: true,
