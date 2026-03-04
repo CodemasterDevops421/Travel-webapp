@@ -1,7 +1,7 @@
 'use client';
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { ListFilter, Map as MapIcon } from 'lucide-react';
+import { CalendarDays, LayoutGrid, ListFilter, Map as MapIcon } from 'lucide-react';
 import type { Route } from 'next';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -257,21 +257,36 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-white p-3 shadow-sm dark:bg-card">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          {isFetching ? (
-            <>
-              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-              Getting the best deals...
-            </>
-          ) : (
-            <>
-              <span className="font-semibold text-foreground">{listings.length}</span> properties found
-            </>
-          )}
+      <div className="mb-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Search results</p>
+            <h1 className="text-xl font-heading font-bold text-foreground sm:text-2xl">{query}</h1>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-1">
+                <CalendarDays className="h-3.5 w-3.5" />
+                {checkin} to {checkout}
+              </span>
+              <span>{adults} guests</span>
+              <span>•</span>
+              <span>{rooms} room{rooms > 1 ? 's' : ''}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            {isFetching ? (
+              <>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                Getting the best deals...
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-foreground">{listings.length}</span> properties found
+              </>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button
             variant="outline"
             size="sm"
@@ -307,7 +322,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
             </select>
           </div>
 
-          <div className="flex rounded-lg border border-border/50 bg-slate-100 p-1 dark:bg-slate-800">
+          <div className="flex rounded-lg border border-border/50 bg-muted/50 p-1">
             <button
               onClick={() => {
                 updateUrlState((previous) => ({ ...previous, view: 'grid' }));
@@ -315,11 +330,11 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               className={cn(
                 'flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-all',
                 urlState.view === 'grid'
-                  ? 'bg-white text-primary shadow-sm dark:bg-card'
+                  ? 'bg-background text-primary shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <ListFilter className="h-3 w-3" />
+              <LayoutGrid className="h-3 w-3" />
               Grid
             </button>
             <button
@@ -329,7 +344,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               className={cn(
                 'flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-all',
                 urlState.view === 'map'
-                  ? 'bg-white text-primary shadow-sm dark:bg-card'
+                  ? 'bg-background text-primary shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -352,7 +367,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
 
       <div className="flex flex-wrap items-center gap-2">
         <button
-          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50"
+          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={() =>
             updateUrlState((previous) => ({
               ...previous,
@@ -364,7 +379,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           Guest rating 8+ (50+ reviews)
         </button>
         <button
-          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50"
+          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={() =>
             updateUrlState((previous) => ({
               ...previous,
@@ -377,7 +392,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           Budget stays under $200
         </button>
         <button
-          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50"
+          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={() =>
             updateUrlState((previous) => ({
               ...previous,

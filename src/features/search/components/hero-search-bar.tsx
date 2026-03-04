@@ -160,7 +160,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             )}
         >
             <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="relative w-full">
-                <div className="flex w-full flex-col md:flex-row md:items-stretch transition-all rounded-2xl md:rounded-full bg-white shadow-xl px-2 py-2">
+                <div className="flex w-full flex-col md:flex-row md:items-stretch transition-all rounded-2xl md:rounded-full border border-border/60 bg-card/95 shadow-xl px-2 py-2">
 
                     {/* Destination Input */}
                     <div className="relative z-50 flex-[1.5]">
@@ -188,7 +188,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                         {/* Autocomplete Dropdown */}
                         {isSuggestionsOpen && (
                             <div
-                                className="absolute left-0 right-0 top-full mt-2 rounded-xl border border-slate-200 bg-card p-2 shadow-2xl dark:border-slate-700"
+                                className="absolute left-0 right-0 top-full mt-2 rounded-xl border border-border bg-card p-2 shadow-2xl"
                                 style={{ zIndex: 9999 }}
                             >
                                 {isFetching ? (
@@ -287,7 +287,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                         <Button
                             type="submit"
                             disabled={!canSearch}
-                            className="mr-2 md:mr-0 h-12 w-12 shrink-0 rounded-full bg-purple-500 flex items-center justify-center p-0 text-white shadow-lg shadow-purple-500/25 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                            className="mr-2 md:mr-0 h-12 w-12 shrink-0 rounded-full bg-primary flex items-center justify-center p-0 text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:shadow-xl hover:shadow-primary/40 hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:shadow-none"
                         >
                             <Search className="h-5 w-5" strokeWidth={2.5} />
                         </Button>

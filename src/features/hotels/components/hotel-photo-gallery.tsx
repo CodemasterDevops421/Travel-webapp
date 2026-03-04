@@ -15,17 +15,22 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
 
   return (
     <>
-      <section className="grid h-[400px] gap-1 overflow-hidden md:h-[500px] md:grid-cols-[2fr,1fr]">
+      <section className="grid h-[320px] grid-cols-1 gap-1 overflow-hidden rounded-2xl border border-border/60 md:h-[500px] md:grid-cols-[2fr,1fr]">
         {photos[0] ? (
           <button type="button" className="group relative h-full w-full overflow-hidden bg-muted" onClick={() => onOpen(0)}>
             <Image src={photos[0]} alt={hotelName} fill sizes="(max-width: 768px) 100vw, 66vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />
+            {photos.length > 1 ? (
+              <span className="absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white md:hidden">
+                Show all {photos.length} photos
+              </span>
+            ) : null}
           </button>
         ) : (
           <article className="flex h-full w-full items-center justify-center bg-muted">
             <p className="text-sm text-muted-foreground">Photos unavailable</p>
           </article>
         )}
-        <div className="grid h-full grid-cols-2 grid-rows-2 gap-1">
+        <div className="hidden h-full grid-cols-2 grid-rows-2 gap-1 md:grid">
           {photos.slice(1, 5).map((photo, index) => {
             const isLastTile = index === 3;
             return (
@@ -56,7 +61,7 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
         <div className="mt-2 flex justify-end">
           <button
             type="button"
-            className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground"
+            className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground hover:bg-muted/50"
             onClick={() => onOpen(0)}
           >
             Show all {photos.length} photos

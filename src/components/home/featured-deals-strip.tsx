@@ -42,28 +42,31 @@ export function FeaturedDealsStrip() {
       </div>
       <div className="grid gap-5 md:grid-cols-3">
         {deals.map((deal) => (
-          <article
+          <PreferenceLink
             key={deal.city}
-            className="group flex h-full flex-col justify-between gap-4 rounded-2xl border border-border/60 bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 cursor-pointer"
+            href={`/search?q=${encodeURIComponent(deal.city)}`}
+            className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
-                  <BadgePercent className="h-3.5 w-3.5" />
-                  {deal.tag}
-                </span>
+            <article className="flex h-full flex-col justify-between gap-4 rounded-2xl border border-border/60 bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
+                    <BadgePercent className="h-3.5 w-3.5" />
+                    {deal.tag}
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold">{deal.city}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{deal.detail}</p>
               </div>
-              <h3 className="text-xl font-bold">{deal.city}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{deal.detail}</p>
-            </div>
-            <div className="flex items-center justify-between border-t border-border/40 pt-4 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPinned className="h-4 w-4 text-primary/70" />
-                {deal.dates}
+              <div className="flex items-center justify-between border-t border-border/40 pt-4 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <MapPinned className="h-4 w-4 text-primary/70" />
+                  {deal.dates}
+                </div>
+                <span className="text-lg font-bold text-foreground">{deal.price}</span>
               </div>
-              <span className="text-lg font-bold text-foreground">{deal.price}</span>
-            </div>
-          </article>
+            </article>
+          </PreferenceLink>
         ))}
       </div>
     </section>

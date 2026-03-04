@@ -25,20 +25,13 @@ type HotelDetailExperienceProps = {
 
 const SECTION_TABS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'amenities', label: 'Amenities' },
-  { id: 'policies', label: 'Policies' },
-  { id: 'location', label: 'Location' },
-  { id: 'area-info', label: 'Area info' },
-  { id: 'restaurants', label: 'Restaurants' },
-  { id: 'surroundings', label: 'Surroundings' },
   { id: 'rooms', label: 'Rooms' },
   { id: 'reviews', label: 'Reviews' },
-  { id: 'travelers-asking', label: 'Travelers asking' },
+  { id: 'amenities', label: 'Amenities' },
+  { id: 'location', label: 'Location' },
+  { id: 'policies', label: 'Policies' },
+  { id: 'travelers-asking', label: 'FAQs' },
   { id: 'pros-cons', label: 'Pros & Cons' },
-  { id: 'description', label: 'Description' },
-  { id: 'facilities-detail', label: 'Facilities' },
-  { id: 'languages', label: 'Languages' },
-  { id: 'house-rules', label: 'House rules' },
   { id: 'ask-ai', label: 'Ask AI (Beta)' }
 ];
 
@@ -240,6 +233,14 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
           <div>
             <h1 className="font-heading text-4xl font-bold md:text-5xl">{hotel?.name ?? 'Hotel'}</h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{address}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full border border-border/70 bg-background px-2.5 py-1">
+                {checkin} to {checkout}
+              </span>
+              <span>{adults} guests</span>
+              <span>•</span>
+              <span>{rooms} room{rooms > 1 ? 's' : ''}</span>
+            </div>
             {hotel?.reviewScore ? (
               <p className="mt-2 text-sm font-medium">
                 {hotel.reviewScore.toFixed(1)} / 10 guest rating
@@ -270,9 +271,9 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
                 {isHotelSaved ? 'Saved to wishlist' : 'Save stay'}
               </button>
               {authRequired ? (
-                <a href={loginHref} className="text-sm font-semibold text-amber-700 underline underline-offset-2">
+                <PreferenceLink href={loginHref} className="text-sm font-semibold text-amber-700 underline underline-offset-2">
                   Sign in to save
-                </a>
+                </PreferenceLink>
               ) : null}
             </div>
           </div>
@@ -294,7 +295,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
         }}
       />
 
-      <nav className="sticky top-0 z-20 -mx-4 border-b border-border bg-background/95 backdrop-blur md:mx-0 md:px-0">
+      <nav className="sticky top-16 z-20 -mx-4 border-b border-border bg-background/95 backdrop-blur md:top-20 md:mx-0 md:px-0">
         <div className="relative">
           <div className="flex w-full gap-8 overflow-x-auto px-4 md:px-0 scrollbar-none">
             {SECTION_TABS.map((tab) => (

@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { PreferenceLink } from '@/components/navigation/preference-link';
 import { withNextCache } from '@/server/cache';
 
 const destinations = [
@@ -26,19 +27,24 @@ export async function TrendingDestinations() {
       </div>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {data.map((item, idx) => (
-          <article
+          <PreferenceLink
             key={item.name}
-            className={`group animate-soft-rise cursor-pointer rounded-2xl border border-border/60 bg-gradient-to-br ${item.gradient} p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10`}
-            style={{ animationDelay: `${idx * 80}ms` }}
+            href={`/search?q=${encodeURIComponent(item.name)}`}
+            className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <span className="text-3xl">{item.emoji}</span>
-            <h3 className="mt-4 text-2xl font-heading font-bold">{item.name}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.blurb}</p>
-            <div className="mt-6 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-widest text-primary">Explore rates</p>
-              <span className="text-primary transition-transform duration-300 group-hover:translate-x-2">→</span>
-            </div>
-          </article>
+            <article
+              className={`animate-soft-rise rounded-2xl border border-border/60 bg-gradient-to-br ${item.gradient} p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10`}
+              style={{ animationDelay: `${idx * 80}ms` }}
+            >
+              <span className="text-3xl">{item.emoji}</span>
+              <h3 className="mt-4 text-2xl font-heading font-bold">{item.name}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.blurb}</p>
+              <div className="mt-6 flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">Explore rates</p>
+                <span className="text-primary transition-transform duration-300 group-hover:translate-x-2">→</span>
+              </div>
+            </article>
+          </PreferenceLink>
         ))}
       </div>
     </section>

@@ -14,13 +14,14 @@ type Message = {
 };
 
 export function AIChatbot() {
+    const isDemoMode = true;
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
             role: 'assistant',
-            content: 'Hi! I can help you find the perfect hotel or deal. What are you looking for today?'
+            content: 'Hi! This assistant is running in demo mode and returns sample responses only.'
         }
     ]);
     const [isTyping, setIsTyping] = useState(false);
@@ -50,7 +51,7 @@ export function AIChatbot() {
             const botMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: "I'm currently in demo mode, but I'm learning fast! Try searching for 'Tokyo' or 'Bali' in the main search bar to see our best rates."
+                content: "Demo response: try searching for 'Tokyo' or 'Bali' in the main search bar to see real rates."
             };
             setMessages((prev) => [...prev, botMsg]);
             setIsTyping(false);
@@ -74,8 +75,8 @@ export function AIChatbot() {
                                     <Sparkles className="h-4 w-4" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-sm">TravelApp AI</h3>
-                                    <p className="text-xs text-primary-foreground/80">Beta · Demo mode</p>
+                                    <h3 className="font-semibold text-sm">TravelApp Assistant</h3>
+                                    <p className="text-xs text-primary-foreground/80">{isDemoMode ? 'Demo mode · sample replies' : 'Live assistant'}</p>
                                 </div>
                             </div>
                             <Button
@@ -83,6 +84,7 @@ export function AIChatbot() {
                                 size="icon"
                                 className="h-8 w-8 rounded-full text-primary-foreground hover:bg-white/20"
                                 onClick={() => setIsOpen(false)}
+                                aria-label="Close assistant"
                             >
                                 <X className="h-4 w-4" />
                             </Button>
@@ -148,7 +150,7 @@ export function AIChatbot() {
                                 <Input
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder="Ask about hotels..."
+                                    placeholder={isDemoMode ? "Try: hotels in Tokyo" : "Ask about hotels..."}
                                     className="rounded-full border-muted bg-muted/50 focus-visible:ring-1 focus-visible:ring-primary"
                                 />
                                 <Button
@@ -170,6 +172,7 @@ export function AIChatbot() {
                 onClick={() => setIsOpen(!isOpen)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label={isDemoMode ? 'Open demo assistant' : 'Open assistant'}
                 className={cn(
                     "fixed bottom-6 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-colors hover:bg-primary/90 sm:bottom-8 sm:right-8",
                     isOpen && "hidden"

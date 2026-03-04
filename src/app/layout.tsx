@@ -1,18 +1,18 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { Inter, Roboto_Slab } from 'next/font/google';
+import { Fraunces, Manrope } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AppQueryProvider } from '@/components/providers/query-provider';
 import { Header } from '@/components/layout/header';
 
-const inter = Inter({
+const bodyFont = Manrope({
   subsets: ['latin'],
   variable: '--font-body',
   display: 'swap'
 });
 
-const headingFont = Roboto_Slab({
+const headingFont = Fraunces({
   subsets: ['latin'],
   variable: '--font-heading',
   display: 'swap'
@@ -50,7 +50,7 @@ import { AIChatbot } from '@/features/ai/components/ai-chatbot';
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${headingFont.variable} ${inter.variable}`}>
+      <body className={`${headingFont.variable} ${bodyFont.variable}`}>
         <ThemeProvider>
           <AppQueryProvider>
             <Suspense fallback={null}>
