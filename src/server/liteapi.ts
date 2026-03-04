@@ -941,12 +941,9 @@ function buildReviewHighlights(reviews: HotelGuestReview[]): HotelReviewHighligh
   };
 
   for (const review of reviews) {
-    const positiveText = [review.pros, review.comment]
-      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-      .join(' ');
-    const tradeoffText = [review.cons, review.comment]
-      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-      .join(' ');
+    // Use explicit polarity fields only; neutral comment text should not be counted as both positive and trade-off.
+    const positiveText = typeof review.pros === 'string' ? review.pros.trim() : '';
+    const tradeoffText = typeof review.cons === 'string' ? review.cons.trim() : '';
 
     for (const topic of REVIEW_TOPIC_PATTERNS) {
       if (positiveText && topic.pattern.test(positiveText)) {
