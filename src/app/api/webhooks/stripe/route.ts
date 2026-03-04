@@ -133,6 +133,9 @@ function readStripeAmountAndCurrency(event: Stripe.Event): { amount: number | nu
 }
 
 export async function POST(request: NextRequest) {
+  let stripeEventId: string | null = null;
+  let transactionId: string | null = null;
+
   try {
     assertProductionReadiness();
     await assertRateLimit(`webhook-stripe:${getClientIp(request)}`);
@@ -152,6 +155,7 @@ export async function POST(request: NextRequest) {
     let event: Stripe.Event;
     try {
       event = constructStripeEvent(rawBody, signature);
+      stripeEventId = event.id;
     } catch {
       return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 401 });
     }
@@ -178,6 +182,7 @@ export async function POST(request: NextRequest) {
       await finalizeWebhookEvent(event.id, 'stripe');
       return NextResponse.json({ received: true, ignored: true }, { status: 200 });
     }
+    transactionId = update.transactionId;
 
     const amountAndCurrency = readStripeAmountAndCurrency(event);
     const paymentLogId = await insertPaymentLog({
@@ -274,14 +279,20 @@ export async function POST(request: NextRequest) {
     emitStructuredEvent('error', 'webhook.stripe.failed', {
       correlation_id: correlationId,
       route: 'webhook-stripe',
-      module: 'webhook.stripe'
+      module: 'webhook.stripe',
+      event_id: stripeEventId,
+      transaction_id: transactionId
     });
     const httpError = toHttpError(error, {
       route: 'webhook-stripe',
       module: 'webhook.stripe',
       event: 'webhook.stripe.failed',
-      correlationId
+      correlationId,
+      metadata: {
+        stripeEventId,
+        transactionId
+      }
     });
-    return NextResponse.json({ error: httpError.message }, { status: httpError.status });
+    return NextResponse.json({ error: httpError.safeMessage }, { status: httpError.status });
   }
 }

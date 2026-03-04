@@ -169,6 +169,10 @@ function buildReconciliationUpdate(event: Record<string, unknown>): Reconciliati
 }
 
 export async function POST(request: NextRequest) {
+  let liteApiEventId: string | null = null;
+  let transactionId: string | null = null;
+  let liteApiBookingId: string | null = null;
+
   try {
     assertProductionReadiness();
     const clientIp = getClientIp(request);
@@ -195,6 +199,7 @@ export async function POST(request: NextRequest) {
     }
 
     const eventId = String(event.id ?? createHash('sha256').update(rawBody).digest('hex'));
+    liteApiEventId = eventId;
     const claimed = await claimWebhookEvent(eventId, 'liteapi', 60);
     if (!claimed) {
       logger.info({ correlationId, eventId }, 'Duplicate LiteAPI webhook ignored');
@@ -213,6 +218,8 @@ export async function POST(request: NextRequest) {
       logger.info({ correlationId, eventId, eventType: event.type ?? 'unknown' }, 'LiteAPI webhook ignored (unsupported status)');
       return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
     }
+    transactionId = update.transactionId;
+    liteApiBookingId = update.bookingId;
 
     const paymentLogId = await insertPaymentLog({
       bookingId: update.bookingId,
@@ -304,14 +311,22 @@ export async function POST(request: NextRequest) {
     emitStructuredEvent('error', 'webhook.liteapi.failed', {
       correlation_id: correlationId,
       route: 'webhook-liteapi',
-      module: 'webhook.liteapi'
+      module: 'webhook.liteapi',
+      event_id: liteApiEventId,
+      transaction_id: transactionId,
+      booking_id: liteApiBookingId
     });
     const httpError = toHttpError(error, {
       route: 'webhook-liteapi',
       module: 'webhook.liteapi',
       event: 'webhook.liteapi.failed',
-      correlationId
+      correlationId,
+      metadata: {
+        eventId: liteApiEventId,
+        transactionId,
+        bookingId: liteApiBookingId
+      }
     });
-    return NextResponse.json({ error: httpError.message }, { status: httpError.status });
+    return NextResponse.json({ error: httpError.safeMessage }, { status: httpError.status });
   }
 }

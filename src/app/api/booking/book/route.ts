@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
         transactionId: transactionIdForLock
       }
     });
-    return NextResponse.json({ error: httpError.message }, { status: httpError.status });
+    return NextResponse.json({ error: httpError.safeMessage }, { status: httpError.status });
   } finally {
     if (lockAcquired && transactionIdForLock) {
       try {

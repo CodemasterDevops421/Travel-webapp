@@ -247,7 +247,11 @@ describe('stripe webhook route', () => {
       event: 'webhook.stripe.failed',
       route: 'webhook-stripe'
     });
-    expect((scope.extra?.metadata as Record<string, unknown>).transactionId ?? null).toBeNull();
+    const metadata = (scope.extra?.metadata ?? {}) as Record<string, unknown>;
+    expect(metadata.transactionId ?? null).toBeNull();
+    expect(metadata.stripeEventId ?? null).toBeNull();
+    expect(metadata['stripe-signature']).toBeUndefined();
+    expect(metadata.authorization).toBeUndefined();
   });
 
   it('emits webhook.stripe.reconciled structured event on successful reconciliation', async () => {
