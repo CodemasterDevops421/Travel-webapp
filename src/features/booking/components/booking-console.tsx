@@ -80,6 +80,11 @@ type CheckoutSessionPayload = {
   }>;
 };
 
+type CheckoutDraft = Pick<
+  FormValues,
+  'hotelId' | 'roomId' | 'offerId' | 'amount' | 'currency' | 'adults' | 'rooms' | 'checkIn' | 'checkOut'
+>;
+
 const PAYMENT_SCRIPT_URL = 'https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v=a1';
 const PAYMENT_SCRIPT_ID = 'liteapi-payment-sdk';
 const CHECKOUT_DRAFT_STORAGE_KEY = 'booking:checkout:draft';
@@ -121,31 +126,39 @@ function parseStoredCheckoutPayload(raw: string): CheckoutSessionPayload | null 
 }
 
 function loadLatestCheckoutSession(): CheckoutSessionPayload | null {
-  let latest: CheckoutSessionPayload | null = null;
-  for (let idx = 0; idx < localStorage.length; idx += 1) {
-    const key = localStorage.key(idx);
-    if (!key || !key.startsWith('booking:checkout:')) {
-      continue;
+  const pickLatestFromStorage = (storage: Storage): CheckoutSessionPayload | null => {
+    let latest: CheckoutSessionPayload | null = null;
+    for (let idx = 0; idx < storage.length; idx += 1) {
+      const key = storage.key(idx);
+      if (!key || !key.startsWith('booking:checkout:')) {
+        continue;
+      }
+      const raw = storage.getItem(key);
+      if (!raw) {
+        continue;
+      }
+      const parsed = parseStoredCheckoutPayload(raw);
+      if (!parsed) {
+        continue;
+      }
+      if (!latest) {
+        latest = parsed;
+        continue;
+      }
+      const latestTime = Date.parse(latest.updatedAt);
+      const parsedTime = Date.parse(parsed.updatedAt);
+      if (Number.isNaN(latestTime) || parsedTime > latestTime) {
+        latest = parsed;
+      }
     }
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      continue;
-    }
-    const parsed = parseStoredCheckoutPayload(raw);
-    if (!parsed) {
-      continue;
-    }
-    if (!latest) {
-      latest = parsed;
-      continue;
-    }
-    const latestTime = Date.parse(latest.updatedAt);
-    const parsedTime = Date.parse(parsed.updatedAt);
-    if (Number.isNaN(latestTime) || parsedTime > latestTime) {
-      latest = parsed;
-    }
+    return latest;
+  };
+
+  const sessionRecord = pickLatestFromStorage(sessionStorage);
+  if (sessionRecord) {
+    return sessionRecord;
   }
-  return latest;
+  return pickLatestFromStorage(localStorage);
 }
 
 function loadCheckoutDraft(): Partial<FormValues> | null {
@@ -154,7 +167,7 @@ function loadCheckoutDraft(): Partial<FormValues> | null {
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as Partial<FormValues>;
+    const parsed = JSON.parse(raw) as Partial<CheckoutDraft>;
     if (!parsed || typeof parsed !== 'object') {
       return null;
     }
@@ -165,7 +178,18 @@ function loadCheckoutDraft(): Partial<FormValues> | null {
 }
 
 function persistCheckoutDraft(values: FormValues): void {
-  saveToStorage(localStorage, CHECKOUT_DRAFT_STORAGE_KEY, JSON.stringify(values));
+  const draft: CheckoutDraft = {
+    hotelId: values.hotelId,
+    roomId: values.roomId,
+    offerId: values.offerId,
+    amount: values.amount,
+    currency: values.currency,
+    adults: values.adults,
+    rooms: values.rooms,
+    checkIn: values.checkIn,
+    checkOut: values.checkOut
+  };
+  saveToStorage(localStorage, CHECKOUT_DRAFT_STORAGE_KEY, JSON.stringify(draft));
 }
 
 function buildPrebookGuests(adults: number, rooms: number): Array<{ adults: number }> {
@@ -190,9 +214,26 @@ function saveToStorage(storage: Storage, key: string, value: string): void {
 
 function saveCheckoutSession(transactionId: string, payload: CheckoutSessionPayload): void {
   const key = checkoutStorageKey(transactionId);
-  const encoded = JSON.stringify(payload);
-  saveToStorage(sessionStorage, key, encoded);
-  saveToStorage(localStorage, key, encoded);
+  const encodedSession = JSON.stringify(payload);
+  saveToStorage(sessionStorage, key, encodedSession);
+
+  // Local storage keeps a redacted record for recovery without persisting personal details.
+  const localPayload: CheckoutSessionPayload = {
+    ...payload,
+    holder: {
+      firstName: '',
+      lastName: '',
+      email: ''
+    },
+    guests: [],
+    formValues: {
+      ...payload.formValues,
+      firstName: '',
+      lastName: '',
+      email: ''
+    }
+  };
+  saveToStorage(localStorage, key, JSON.stringify(localPayload));
 }
 
 async function ensurePaymentScriptLoaded(): Promise<void> {
@@ -236,6 +277,7 @@ async function ensurePaymentScriptLoaded(): Promise<void> {
 }
 
 export function BookingConsole({ initialValues, preferredLanguage, preferredCurrency }: BookingConsoleProps) {
+  const isDevEnvironment = process.env.NODE_ENV !== 'production';
   const [prebook, setPrebook] = useState<PrebookResult | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
@@ -665,7 +707,20 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
         <p className="text-sm text-red-600">Please correct invalid fields.</p>
       )}
 
-      {prebook && (
+      <section className={`rounded-2xl border border-border bg-background p-4 ${prebook ? '' : 'hidden'}`}>
+        <h2 className="mb-2 text-sm font-semibold">Payment</h2>
+        <p className="mb-2 text-xs text-muted-foreground">
+          {isDevEnvironment
+            ? 'Sandbox test card: `4242 4242 4242 4242` with any valid future date/CVV.'
+            : 'Secure payment form is loaded below.'}
+        </p>
+        <div id="liteapi-payment-target" />
+      </section>
+
+      {prebookMutation.error && <p className="text-sm text-red-600">{errorMessage(prebookMutation.error)}</p>}
+      {paymentError && <p className="text-sm text-red-600">{paymentError}</p>}
+
+      {prebook && isDevEnvironment ? (
         <div className="rounded-2xl border border-border bg-background/70 p-4 text-sm">
           <p className="font-semibold">Prebook created successfully</p>
           <p className="mt-1 text-muted-foreground">Prebook ID: {prebook.prebookId}</p>
@@ -673,16 +728,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
           <p className="mt-2 font-semibold text-primary">Quote total: {prebook.quote.currency} {prebook.quote.totalAmount}</p>
           <p className="text-xs text-muted-foreground">Quote signature: {prebook.quote.signature.slice(0, 12)}...</p>
         </div>
-      )}
-
-      <section className={`rounded-2xl border border-border bg-background p-4 ${prebook ? '' : 'hidden'}`}>
-        <h2 className="mb-2 text-sm font-semibold">Payment</h2>
-        <p className="mb-2 text-xs text-muted-foreground">Sandbox test card: `4242 4242 4242 4242` with any valid future date/CVV.</p>
-        <div id="liteapi-payment-target" />
-      </section>
-
-      {prebookMutation.error && <p className="text-sm text-red-600">{errorMessage(prebookMutation.error)}</p>}
-      {paymentError && <p className="text-sm text-red-600">{paymentError}</p>}
+      ) : null}
     </section>
   );
 }

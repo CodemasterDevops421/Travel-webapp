@@ -1,12 +1,13 @@
 import { cache } from 'react';
+import { Building2, Landmark, Mountain, Palmtree } from 'lucide-react';
 import { PreferenceLink } from '@/components/navigation/preference-link';
 import { withNextCache } from '@/server/cache';
 
 const destinations = [
-  { name: 'Dubai', blurb: 'Skyline luxury and beach escapes', emoji: '🏙️', gradient: 'from-amber-500/20 to-orange-500/10' },
-  { name: 'Bali', blurb: 'Wellness villas and rainforest retreats', emoji: '🌴', gradient: 'from-emerald-500/20 to-green-500/10' },
-  { name: 'Zurich', blurb: 'Lake views, boutiques, alpine access', emoji: '🏔️', gradient: 'from-sky-500/20 to-blue-500/10' },
-  { name: 'Kyoto', blurb: 'Heritage stays and culinary routes', emoji: '⛩️', gradient: 'from-rose-500/20 to-pink-500/10' }
+  { name: 'Dubai', blurb: 'Skyline luxury and beach escapes', icon: Building2, gradient: 'from-amber-500/20 to-orange-500/10' },
+  { name: 'Bali', blurb: 'Wellness villas and rainforest retreats', icon: Palmtree, gradient: 'from-emerald-500/20 to-green-500/10' },
+  { name: 'Zurich', blurb: 'Lake views, boutiques, alpine access', icon: Mountain, gradient: 'from-sky-500/20 to-blue-500/10' },
+  { name: 'Kyoto', blurb: 'Heritage stays and culinary routes', icon: Landmark, gradient: 'from-rose-500/20 to-pink-500/10' }
 ];
 
 const getTrendingDestinations = cache(
@@ -36,7 +37,9 @@ export async function TrendingDestinations() {
               className={`animate-soft-rise rounded-2xl border border-border/60 bg-gradient-to-br ${item.gradient} p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10`}
               style={{ animationDelay: `${idx * 80}ms` }}
             >
-              <span className="text-3xl">{item.emoji}</span>
+              <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-background/80 text-primary shadow-sm">
+                <item.icon className="h-5 w-5" />
+              </div>
               <h3 className="mt-4 text-2xl font-heading font-bold">{item.name}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.blurb}</p>
               <div className="mt-6 flex items-center justify-between">
