@@ -6,7 +6,6 @@ import { HttpError } from '@/server/errors';
 type AdminPrincipal = {
   id: string;
   app_metadata?: Record<string, unknown>;
-  user_metadata?: Record<string, unknown>;
 };
 
 const ADMIN_ROLES = new Set(['admin', 'owner']);
@@ -26,8 +25,7 @@ function normalizeRole(value: unknown): string {
 
 function hasAdminClaim(user: AdminPrincipal): boolean {
   const appRole = normalizeRole(user.app_metadata?.role);
-  const userRole = normalizeRole(user.user_metadata?.role);
-  return ADMIN_ROLES.has(appRole) || ADMIN_ROLES.has(userRole);
+  return ADMIN_ROLES.has(appRole);
 }
 
 function pruneAdminAuthzCache(now: number): void {

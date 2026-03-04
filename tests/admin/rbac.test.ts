@@ -97,6 +97,32 @@ describe('admin RBAC enforcement', () => {
     expect(maybeSingle).toHaveBeenCalledTimes(1);
   });
 
+  it('does not grant admin from user_metadata role alone', async () => {
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { user_id: 'meta-admin', role: 'viewer', is_active: true }, error: null });
+    const supabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({ maybeSingle })
+        })
+      })
+    } as any;
+
+    const { assertAdminAuthorized, __unsafeResetAdminAuthzCacheForTests } = await import('@/server/authz');
+    __unsafeResetAdminAuthzCacheForTests();
+
+    await expect(
+      assertAdminAuthorized(supabase, {
+        id: 'meta-admin',
+        app_metadata: {},
+        user_metadata: { role: 'admin' }
+      } as any)
+    ).rejects.toThrow('Forbidden');
+
+    expect(maybeSingle).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 403 from admin stats route for authenticated non-admin users', async () => {
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
 
