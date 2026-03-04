@@ -396,10 +396,10 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     setPaymentError(null);
 
     const guestDistribution = buildPrebookGuests(values.adults, values.rooms);
-    const guestsPayload = guestDistribution.map((guest, index) => ({
-      occupancyNumber: guest.adults,
-      firstName: index === 0 ? values.firstName : '',
-      lastName: index === 0 ? values.lastName : ''
+    const guestsPayload = guestDistribution.map((_, index) => ({
+      occupancyNumber: index + 1,
+      firstName: values.firstName,
+      lastName: values.lastName
     }));
 
     const checkoutSession: CheckoutSessionPayload = {
