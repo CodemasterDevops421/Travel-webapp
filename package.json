@@ -11,6 +11,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "perf:proof": "node scripts/perf-proof.js",
+    "perf:admin:k6": "k6 run load/admin-reports.k6.js",
+    "perf:admin:artillery": "artillery run load/admin-reports.artillery.yml",
+    "perf:admin:staged": "node scripts/run-admin-load-phases.js",
+    "perf:admin:report": "node scripts/generate-admin-capacity-report.js",
     "verify:live:webhook": "node scripts/verify-live-webhook.js",
     "verify:live:webhook:liteapi": "node scripts/verify-live-liteapi-webhook.js",
     "verify:live:email": "node scripts/verify-live-email.js"

@@ -1,4 +1,5 @@
 import 'server-only';
+import { HttpError } from '@/server/errors';
 
 export type SupportCaseRow = {
   bookingId: string;
@@ -69,6 +70,9 @@ export async function buildSupportSlaReport(
     .select('id, status, metadata, created_at')
     .gte('created_at', periodStart.toISOString())
     .order('created_at', { ascending: false });
+  if (bookingsResult.error) {
+    throw new HttpError(503, 'Failed to load bookings for support SLA report');
+  }
 
   const bookings: BookingSupportRow[] = (bookingsResult.data as BookingSupportRow[] | null) ?? [];
   const now = Date.now();

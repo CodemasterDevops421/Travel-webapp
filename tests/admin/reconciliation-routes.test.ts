@@ -5,6 +5,8 @@ describe('admin reconciliation routes', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.unmock('@/server/admin/reconciliation-report');
+    vi.unmock('@/server/ratelimit');
   });
 
   function createSupabaseMock() {
@@ -67,7 +69,9 @@ describe('admin reconciliation routes', () => {
             select: vi.fn().mockImplementation(() => ({
               gte: vi.fn().mockImplementation(() => ({
                 in: vi.fn().mockImplementation(() => ({
-                  order: vi.fn().mockResolvedValue({ data: bookings })
+                  order: vi.fn().mockImplementation(() => ({
+                    range: vi.fn().mockResolvedValue({ data: bookings })
+                  }))
                 }))
               })),
               eq: vi.fn().mockImplementation(() => ({
@@ -145,6 +149,13 @@ describe('admin reconciliation routes', () => {
     expect(res.status).toBe(200);
     expect(json.summary.coveragePercent).toBeGreaterThanOrEqual(0);
     expect(Array.isArray(json.issues)).toBe(true);
+    expect(json.processing).toEqual(
+      expect.objectContaining({
+        truncated: expect.any(Boolean),
+        scannedBookings: expect.any(Number),
+        commissionQueryBatches: expect.any(Number)
+      })
+    );
   });
 
   it('exports reconciliation issues as csv', async () => {
@@ -164,7 +175,7 @@ describe('admin reconciliation routes', () => {
     expect(csv).toContain('booking_id,issue_type,detail');
   });
 
-  it('returns 503 when bookings query fails', async () => {
+  it('defaults export period to 30 days when query param is absent', async () => {
     const supabase = {
       auth: {
         getUser: vi.fn().mockResolvedValue({
@@ -182,21 +193,6 @@ describe('admin reconciliation routes', () => {
           };
         }
 
-        if (table === 'bookings') {
-          return {
-            select: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                in: vi.fn().mockImplementation(() => ({
-                  order: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: { message: 'temporary database failure' }
-                  })
-                }))
-              }))
-            }))
-          };
-        }
-
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -207,8 +203,54 @@ describe('admin reconciliation routes', () => {
       })
     };
 
+    const buildReconciliationReport = vi.fn().mockResolvedValue({
+      periodDays: 30,
+      summary: {
+        confirmedCount: 0,
+        reconciledCount: 0,
+        pendingCount: 0,
+        mismatchCount: 0,
+        openIssueCount: 0,
+        resolvedIssueCount: 0,
+        grossConfirmedAmount: 0,
+        expectedCommissionAmount: 0,
+        recordedCommissionAmount: 0,
+        varianceAmount: 0,
+        coveragePercent: 100
+      },
+      issues: []
+    });
+
     vi.doMock('@/server/supabase/server', () => ({
       createServerSupabaseClient: vi.fn().mockResolvedValue(supabase)
+    }));
+    vi.doMock('@/server/admin/reconciliation-report', () => ({
+      buildReconciliationReport
+    }));
+
+    const { GET } = await import('@/app/api/admin/reconciliation/export/route');
+    const req = new NextRequest('http://localhost/api/admin/reconciliation/export');
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    expect(buildReconciliationReport).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ periodDays: 30 })
+    );
+  });
+
+  it('returns 503 when bookings query fails', async () => {
+    const { HttpError } = await import('@/server/errors');
+    const supabase = createSupabaseMock();
+    const buildReconciliationReport = vi.fn().mockRejectedValue(
+      new HttpError(503, 'Failed to load bookings for reconciliation report')
+    );
+
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue(supabase)
+    }));
+    vi.doMock('@/server/admin/reconciliation-report', () => ({
+      buildReconciliationReport
     }));
 
     const { GET } = await import('@/app/api/admin/reconciliation/route');
@@ -218,6 +260,27 @@ describe('admin reconciliation routes', () => {
 
     expect(res.status).toBe(503);
     expect(json.error).toContain('Failed to load bookings');
+  });
+
+  it('returns 429 when reconciliation route is rate limited', async () => {
+    const { RateLimitError } = await import('@/server/errors');
+    const supabase = createSupabaseMock();
+
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue(supabase)
+    }));
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockRejectedValue(new RateLimitError()),
+      createRateLimitKey: vi.fn().mockReturnValue('mutation:test:admin-reconciliation-get')
+    }));
+
+    const { GET } = await import('@/app/api/admin/reconciliation/route');
+    const req = new NextRequest('http://localhost/api/admin/reconciliation?days=30');
+    const res = await GET(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(json.error).toContain('Too many requests');
   });
 
   it('resolves a reconciliation issue with note', async () => {

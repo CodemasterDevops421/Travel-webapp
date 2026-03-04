@@ -5,6 +5,7 @@ describe('admin support operations routes', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.unmock('@/server/ratelimit');
   });
 
   function createSupabaseMock() {
@@ -42,7 +43,9 @@ describe('admin support operations routes', () => {
           return {
             select: vi.fn().mockReturnValue({
               gte: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({ data: bookings })
+                order: vi.fn().mockReturnValue({
+                  range: vi.fn().mockResolvedValue({ data: bookings })
+                })
               })
             })
           };
@@ -71,6 +74,12 @@ describe('admin support operations routes', () => {
     expect(res.status).toBe(200);
     expect(json.summary.totalCases).toBeGreaterThanOrEqual(1);
     expect(Array.isArray(json.cases)).toBe(true);
+    expect(json.processing).toEqual(
+      expect.objectContaining({
+        truncated: expect.any(Boolean),
+        scannedBookings: expect.any(Number)
+      })
+    );
   });
 
   it('defaults breachHours to 24 when query param is absent', async () => {
@@ -132,5 +141,24 @@ describe('admin support operations routes', () => {
         supportResolutionNote: expect.anything()
       })
     );
+  });
+
+  it('returns 429 when support operations route is rate limited', async () => {
+    const { RateLimitError } = await import('@/server/errors');
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue(createSupabaseMock())
+    }));
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockRejectedValue(new RateLimitError()),
+      createRateLimitKey: vi.fn().mockReturnValue('mutation:test:admin-support-operations-get')
+    }));
+
+    const { GET } = await import('@/app/api/admin/support/operations/route');
+    const req = new NextRequest('http://localhost/api/admin/support/operations?days=30&breachHours=24');
+    const res = await GET(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(json.error).toContain('Too many requests');
   });
 });

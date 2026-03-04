@@ -1,4 +1,5 @@
 import 'server-only';
+import { HttpError } from '@/server/errors';
 
 type BookingLedgerRow = {
   id: string;
@@ -103,25 +104,36 @@ export async function buildSettlementLedgerReport(
     .gte('created_at', periodStart.toISOString())
     .in('status', ['confirmed', 'payment_authorized', 'refunded'])
     .order('created_at', { ascending: false });
+  if (bookingsResult.error) {
+    throw new HttpError(503, 'Failed to load bookings for settlement ledger report');
+  }
 
   const bookings: BookingLedgerRow[] = (bookingsResult.data as BookingLedgerRow[] | null) ?? [];
   const bookingIds = bookings.map((b) => b.id);
 
-  const commissionRows: CommissionLedgerRow[] = bookingIds.length > 0
-    ? (((await supabase
+  const commissionResult = bookingIds.length > 0
+    ? (await supabase
       .from('commission_tracking')
       .select('booking_id, gross_booking_value, commission_amount, currency, updated_at')
       .in('booking_id', bookingIds)
-      .order('updated_at', { ascending: false })).data as CommissionLedgerRow[] | null) ?? [])
-    : [];
+      .order('updated_at', { ascending: false }))
+    : { data: [] as CommissionLedgerRow[], error: null as unknown };
+  if (commissionResult.error) {
+    throw new HttpError(503, 'Failed to load commission tracking for settlement ledger report');
+  }
+  const commissionRows: CommissionLedgerRow[] = (commissionResult.data as CommissionLedgerRow[] | null) ?? [];
 
-  const paymentRows: PaymentLedgerRow[] = bookingIds.length > 0
-    ? (((await supabase
+  const paymentResult = bookingIds.length > 0
+    ? (await supabase
       .from('payment_logs')
       .select('booking_id, provider, event_type, status, amount, currency, created_at')
       .in('booking_id', bookingIds)
-      .order('created_at', { ascending: false })).data as PaymentLedgerRow[] | null) ?? [])
-    : [];
+      .order('created_at', { ascending: false }))
+    : { data: [] as PaymentLedgerRow[], error: null as unknown };
+  if (paymentResult.error) {
+    throw new HttpError(503, 'Failed to load payment logs for settlement ledger report');
+  }
+  const paymentRows: PaymentLedgerRow[] = (paymentResult.data as PaymentLedgerRow[] | null) ?? [];
 
   const commissionByBooking = new Map<string, CommissionLedgerRow>();
   for (const row of commissionRows) {
