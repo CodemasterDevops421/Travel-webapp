@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
-import { Heart, Moon, Sun, UserCircle, LogOut, Menu, X, Bookmark, LayoutDashboard } from 'lucide-react';
+import { Heart, Moon, Sun, UserCircle, LogOut, Menu, X, Bookmark, LayoutDashboard, Newspaper } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { LanguageCurrencyChooser } from '@/components/home/language-currency-chooser';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,12 @@ export function Header() {
 
         {/* Desktop Actions */}
         <div className="hidden items-center gap-2 md:flex">
+          <Link href={'/blog' as Route}>
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+              <Newspaper className="h-4 w-4" />
+              Blog
+            </Button>
+          </Link>
           <LanguageCurrencyChooser />
           <Button
             variant="ghost"
@@ -183,6 +189,13 @@ export function Header() {
               className="block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
             >
               Explore
+            </Link>
+            <Link
+              href={'/blog' as Route}
+              onClick={() => setMobileMenuOpen(false)}
+              className="block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
+            >
+              Blog
             </Link>
 
             {user ? (

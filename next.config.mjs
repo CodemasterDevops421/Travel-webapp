@@ -36,7 +36,10 @@ const nextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: configDir,
   images: {
-    remotePatterns: [{ protocol: 'https', hostname: '**' }]
+    remotePatterns: [
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'source.unsplash.com' }
+    ]
   },
   async headers() {
     return [
