@@ -1,5 +1,17 @@
 node_modules
 .env
+.env.local
 .DS_Store
 coverage
 npm-debug.log*
+
+# Local workspace/tooling artifacts
+%OUT%
+.agents/
+.codex/
+.next/
+.planning/phases/
+.planning/research/
+_bmad/
+_bmad-output/
+setup-bmad.sh

@@ -18,7 +18,7 @@ export type ListingQueryParams = {
   currency: string;
 };
 
-export type ListingSort = 'popularity' | 'price' | 'rating';
+export type ListingSort = 'popularity' | 'price' | 'rating' | 'distance';
 export type ListingView = 'grid' | 'map';
 
 export type ListingFilters = {
@@ -26,6 +26,7 @@ export type ListingFilters = {
   minPrice: number;
   maxPrice: number;
   minGuestRating: number;
+  minReviewCount: number;
   minStars: number;
   amenities: string[];
   propertyTypes: string[];
@@ -42,7 +43,7 @@ export type ListingUiState = {
 const DEFAULT_MAX_PRICE = 1000;
 const DEFAULT_MAX_DISTANCE_KM = 30;
 
-const VALID_SORTS: ListingSort[] = ['popularity', 'price', 'rating'];
+const VALID_SORTS: ListingSort[] = ['popularity', 'price', 'rating', 'distance'];
 const VALID_VIEWS: ListingView[] = ['grid', 'map'];
 
 const SERIALIZE_ORDER = [
@@ -61,6 +62,7 @@ const SERIALIZE_ORDER = [
   'minPrice',
   'maxPrice',
   'minGuestRating',
+  'minReviewCount',
   'minStars',
   'maxDistanceKm',
   'amenities',
@@ -74,6 +76,7 @@ export const DEFAULT_LISTING_FILTERS: ListingFilters = {
   minPrice: 0,
   maxPrice: DEFAULT_MAX_PRICE,
   minGuestRating: 0,
+  minReviewCount: 0,
   minStars: 0,
   amenities: [],
   propertyTypes: [],
@@ -147,6 +150,7 @@ export function parseListingUiState(params: ListingUiInput): ListingUiState {
       minPrice: normalizedMinPrice,
       maxPrice,
       minGuestRating: parseBoundedNumber(readParamValue(params.minGuestRating), 0, 0, 10),
+      minReviewCount: parseBoundedInteger(readParamValue(params.minReviewCount), 0, 0, 5000),
       minStars: parseBoundedNumber(readParamValue(params.minStars), 0, 0, 5),
       amenities,
       propertyTypes,
@@ -186,6 +190,9 @@ export function serializeListingSearchParams({ query, ui }: SerializeListingInpu
   }
   if (ui.filters.minGuestRating > 0) {
     entries.set('minGuestRating', String(ui.filters.minGuestRating));
+  }
+  if (ui.filters.minReviewCount > 0) {
+    entries.set('minReviewCount', String(ui.filters.minReviewCount));
   }
   if (ui.filters.minStars > 0) {
     entries.set('minStars', String(ui.filters.minStars));

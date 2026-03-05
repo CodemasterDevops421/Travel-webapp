@@ -1,14 +1,15 @@
 'use client';
 
+import { Gem, Heart, Music2, Trees, Users, Waves } from 'lucide-react';
 import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
 
 const moods = [
-  { label: 'Romantic', emoji: '💕' },
-  { label: 'Quiet', emoji: '🧘' },
-  { label: 'Near nightlife', emoji: '🎶' },
-  { label: 'Family-friendly', emoji: '👨‍👩‍👧‍👦' },
-  { label: 'Boutique', emoji: '✨' },
-  { label: 'Scenic', emoji: '🌅' }
+  { label: 'Romantic', icon: Heart },
+  { label: 'Quiet', icon: Waves },
+  { label: 'Near nightlife', icon: Music2 },
+  { label: 'Family-friendly', icon: Users },
+  { label: 'Boutique', icon: Gem },
+  { label: 'Scenic', icon: Trees }
 ];
 
 export function MoodDiscovery() {
@@ -33,7 +34,7 @@ export function MoodDiscovery() {
                 : 'border border-border/60 bg-card hover:bg-primary/5 hover:border-primary/30'
               }`}
           >
-            <span className="mr-1.5">{mood.emoji}</span>
+            <mood.icon className="mr-1.5 inline-block h-4 w-4 align-[-2px]" />
             {mood.label}
           </button>
         ))}

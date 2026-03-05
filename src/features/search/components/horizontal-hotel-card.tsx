@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { Heart, Star } from 'lucide-react';
+import { PreferenceLink } from '@/components/navigation/preference-link';
 import { cn } from '@/shared/lib/utils';
 import { PropertyPreview } from '@/features/search/hooks/use-property-preview';
 
@@ -92,16 +93,16 @@ export function HorizontalHotelCard({
     const amenityHighlights = (hotel.amenities ?? []).slice(0, 4);
 
     return (
-        <article className="group flex flex-col gap-4 rounded-xl border border-border bg-white p-4 transition-all hover:border-primary/20 hover:shadow-lg md:flex-row">
+        <article className="group flex flex-col gap-4 rounded-2xl border border-border/70 bg-card p-4 transition-all hover:border-primary/25 hover:shadow-lg md:flex-row md:p-5">
             {/* Image Section */}
-            <div className="relative h-48 w-full shrink-0 overflow-hidden md:h-auto md:w-72">
-                <a href={hotelHref}>
+            <div className="relative h-52 w-full shrink-0 overflow-hidden rounded-xl md:h-auto md:w-72">
+                <PreferenceLink href={hotelHref} aria-label={`View details for ${hotel.name}`}>
                     {hotel.imageUrl ? (
                         <Image src={hotel.imageUrl} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, 288px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
-                        <div className="h-full w-full bg-slate-100" />
+                        <div className="h-full w-full bg-muted" />
                     )}
-                </a>
+                </PreferenceLink>
                 <button
                     type="button"
                     onClick={() => {
@@ -114,7 +115,7 @@ export function HorizontalHotelCard({
                         });
                     }}
                     className={cn(
-                        'absolute right-3 top-3 rounded-full bg-white/90 p-2 text-muted-foreground shadow-sm transition-all hover:scale-110',
+                        'absolute right-3 top-3 rounded-full bg-background/95 p-2 text-muted-foreground shadow-sm transition-all hover:scale-110',
                         saved ? 'text-rose-500' : 'hover:text-rose-500'
                     )}
                     aria-label={saved ? 'Remove from wishlist' : 'Save to wishlist'}
@@ -132,14 +133,14 @@ export function HorizontalHotelCard({
                                 <Star key={i} className="h-3 w-3 fill-orange-400 text-orange-400" />
                             ))}
                         </div>
-                        <a href={hotelHref}>
+                        <PreferenceLink href={hotelHref} className="focus-visible:outline-none">
                             <h3 className="mt-1 text-xl font-bold text-foreground transition-colors group-hover:text-primary">{hotel.name}</h3>
-                        </a>
-                        <a href={hotelHref} className="mt-1 flex items-center gap-2 text-sm text-foreground underline underline-offset-2">
+                        </PreferenceLink>
+                        <PreferenceLink href={hotelHref} className="mt-1 flex items-center gap-2 text-sm text-foreground underline underline-offset-2">
                             <span className="line-clamp-1">{hotel.city}, {hotel.countryCode}</span>
                             <span className="text-muted-foreground no-underline">•</span>
                             <span className="text-muted-foreground no-underline">Map view</span>
-                        </a>
+                        </PreferenceLink>
 
                         {/* Trust Badges */}
                         <div className="mt-3 flex flex-wrap gap-1.5 items-center">
@@ -148,9 +149,6 @@ export function HorizontalHotelCard({
                             </span>
                             <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
                                 Reserve now, pay later
-                            </span>
-                            <span className="rounded bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700 border border-red-200 flex items-center gap-1">
-                                🔥 Limited supply for your dates
                             </span>
                         </div>
                         {amenityHighlights.length > 0 ? (
@@ -179,7 +177,7 @@ export function HorizontalHotelCard({
                 </div>
 
                 <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
-                    <div className="text-xs text-muted-foreground max-w-[60%]">
+                    <div className="text-xs text-muted-foreground w-full max-w-full sm:max-w-[62%]">
                         <p className="font-semibold text-foreground">Top highlight:</p>
                         {reviewSnippet ? (
                             <>
@@ -195,22 +193,19 @@ export function HorizontalHotelCard({
                     </div>
 
                     <div className="flex flex-col items-end gap-0 w-full sm:w-auto">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white shadow-sm">Early Booker Deal</span>
-                        </div>
                         <div className="text-right">
                             <div className="flex items-baseline justify-end gap-1.5">
                                 <span className="text-sm text-muted-foreground line-through decoration-red-500/50">{formatMoney(hotel.currency, (hotel.price ?? 0) * 1.08)}</span>
                                 <span className="text-2xl font-bold text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{nights} night{nights > 1 ? 's' : ''} · Includes taxes and charges</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">per night · Includes taxes and charges</p>
                             {typeof hotel.price === 'number' ? (
                                 <p className="text-xs font-semibold text-foreground">Total {formatMoney(hotel.currency, hotel.price * nights)}</p>
                             ) : null}
                         </div>
-                        <a href={hotelHref} className="mt-3 inline-flex h-10 w-full items-center justify-center rounded bg-primary px-8 font-bold text-primary-foreground shadow-none transition-all hover:bg-primary/90 hover:shadow-md sm:w-auto">
+                        <PreferenceLink href={hotelHref} className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-8 font-bold text-primary-foreground shadow-none transition-all hover:bg-primary/90 hover:shadow-md sm:w-auto">
                             See availability
-                        </a>
+                        </PreferenceLink>
                     </div>
                 </div>
                 {showAuthPrompt ? (

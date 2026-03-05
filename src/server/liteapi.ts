@@ -265,6 +265,7 @@ type RatesSearchPayload = {
   placeId?: string;
   cityName?: string;
   aiSearch?: string;
+  offset?: number;
 };
 
 function nextStayWindow(): { checkin: string; checkout: string } {
@@ -941,12 +942,9 @@ function buildReviewHighlights(reviews: HotelGuestReview[]): HotelReviewHighligh
   };
 
   for (const review of reviews) {
-    const positiveText = [review.pros, review.comment]
-      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-      .join(' ');
-    const tradeoffText = [review.cons, review.comment]
-      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-      .join(' ');
+    // Use explicit polarity fields only; neutral comment text should not be counted as both positive and trade-off.
+    const positiveText = typeof review.pros === 'string' ? review.pros.trim() : '';
+    const tradeoffText = typeof review.cons === 'string' ? review.cons.trim() : '';
 
     for (const topic of REVIEW_TOPIC_PATTERNS) {
       if (positiveText && topic.pattern.test(positiveText)) {
@@ -1657,9 +1655,12 @@ export async function searchPropertyPreviews(
   filters?: {
     searchMode?: 'destination' | 'vibe';
     brief?: string;
+    minPrice?: number;
     minStars?: number;
     minGuestRating?: number;
     maxPrice?: number;
+    page?: number;
+    limit?: number;
   }
 ): Promise<PropertyPreviewSearchResult> {
   const runtime = await resolveLiteApiRuntimeConfig();
@@ -1701,6 +1702,9 @@ export async function searchPropertyPreviews(
     const trimmedBrief = filters?.brief?.trim();
     const searchMode = filters?.searchMode ?? 'destination';
     const aiSearchQuery = trimmedBrief ? `${query} ${trimmedBrief}` : query;
+    const page = typeof filters?.page === 'number' ? Math.max(1, Math.floor(filters.page)) : 1;
+    const limit = typeof filters?.limit === 'number' ? Math.max(1, Math.min(50, Math.floor(filters.limit))) : 8;
+    const supplierLimit = Math.min(200, page * limit);
     const timeoutSeconds = Math.max(1, Math.round(env.LITEAPI_TIMEOUT_MS / 1000));
     const normalizedMinStars = typeof filters?.minStars === 'number' ? Math.min(5, Math.max(0, filters.minStars)) : undefined;
     const normalizedMinRating = typeof filters?.minGuestRating === 'number'
@@ -1721,23 +1725,30 @@ export async function searchPropertyPreviews(
       roomMapping: true,
       includeHotelData: true,
       maxRatesPerHotel: 1,
-      limit: 12,
+      limit: supplierLimit,
       timeout: timeoutSeconds,
       minRating: normalizedMinRating,
       starRating
     };
 
     const applyFilters = (items: PropertyPreview[]) => {
+      const minPrice = typeof filters?.minPrice === 'number' ? filters.minPrice : undefined;
       const minStars = typeof filters?.minStars === 'number' ? filters.minStars : undefined;
       const minGuestRating = typeof filters?.minGuestRating === 'number' ? filters.minGuestRating : undefined;
       const maxPrice = typeof filters?.maxPrice === 'number' ? filters.maxPrice : undefined;
 
       return items.filter((hotel) => {
+        if (typeof minPrice === 'number' && (hotel.price ?? 0) < minPrice) return false;
         if (typeof minStars === 'number' && (hotel.starRating ?? 0) < minStars) return false;
         if (typeof minGuestRating === 'number' && (hotel.reviewScore ?? 0) < minGuestRating) return false;
         if (typeof maxPrice === 'number' && (hotel.price ?? Number.MAX_SAFE_INTEGER) > maxPrice) return false;
         return true;
       });
+    };
+
+    const paginate = (items: PropertyPreview[]) => {
+      const offset = (page - 1) * limit;
+      return items.slice(offset, offset + limit);
     };
 
     let degradedReason: SupplierDegradedReason | null = null;
@@ -1756,7 +1767,7 @@ export async function searchPropertyPreviews(
       }
       const filteredByAiSearch = applyFilters(byAiSearch.items);
       if (filteredByAiSearch.length > 0) {
-        return toResult(filteredByAiSearch.slice(0, 8), degradedReason === null ? null : 'partial');
+        return toResult(paginate(filteredByAiSearch), degradedReason === null ? null : 'partial');
       }
 
       const semanticMatches = await searchHotelsBySemanticQuery(aiSearchQuery, language, 8);
@@ -1777,11 +1788,11 @@ export async function searchPropertyPreviews(
           }))
         );
         if (semanticMapped.length > 0) {
-          return toResult(semanticMapped.slice(0, 8), degradedReason === null ? null : 'partial');
+          return toResult(paginate(semanticMapped), degradedReason === null ? null : 'partial');
         }
       }
 
-      return toResult(fallbackProperties, degradedReason ?? 'unavailable');
+      return toResult(paginate(fallbackProperties), degradedReason ?? 'unavailable');
     }
 
     if (trimmedBrief) {
@@ -1798,7 +1809,7 @@ export async function searchPropertyPreviews(
       }
       const filtered = applyFilters(byAiSearch.items);
       if (filtered.length > 0) {
-        return toResult(filtered.slice(0, 8), degradedReason === null ? null : 'partial');
+        return toResult(paginate(filtered), degradedReason === null ? null : 'partial');
       }
     }
 
@@ -1816,7 +1827,7 @@ export async function searchPropertyPreviews(
       }
       const filtered = applyFilters(byPlace.items);
       if (filtered.length > 0) {
-        return toResult(filtered.slice(0, 8), degradedReason === null ? null : 'partial');
+        return toResult(paginate(filtered), degradedReason === null ? null : 'partial');
       }
     }
 
@@ -1833,7 +1844,7 @@ export async function searchPropertyPreviews(
     }
     const filteredByCity = applyFilters(byCity.items);
     if (filteredByCity.length > 0) {
-      return toResult(filteredByCity.slice(0, 8), degradedReason === null ? null : 'partial');
+      return toResult(paginate(filteredByCity), degradedReason === null ? null : 'partial');
     }
 
     const byAiSearch = await searchRates(
@@ -1849,7 +1860,7 @@ export async function searchPropertyPreviews(
     }
     const filteredByAiSearch = applyFilters(byAiSearch.items);
     if (filteredByAiSearch.length > 0) {
-      return toResult(filteredByAiSearch.slice(0, 8), degradedReason === null ? null : 'partial');
+      return toResult(paginate(filteredByAiSearch), degradedReason === null ? null : 'partial');
     }
 
     const semanticMatches = await searchHotelsBySemanticQuery(aiSearchQuery, language, 8);
@@ -1870,7 +1881,7 @@ export async function searchPropertyPreviews(
         }))
       );
       if (semanticMapped.length > 0) {
-        return toResult(semanticMapped.slice(0, 8), degradedReason === null ? null : 'partial');
+        return toResult(paginate(semanticMapped), degradedReason === null ? null : 'partial');
       }
     }
 
@@ -1890,7 +1901,7 @@ export async function searchPropertyPreviews(
     const fallbackPlaceResponse = (await placeRes.json()) as { data?: Array<{ id?: string }> };
     const fallbackPlaceId = fallbackPlaceResponse?.data?.[0]?.id;
     if (!fallbackPlaceId) {
-      return toResult(fallbackProperties, degradedReason ?? 'unavailable');
+      return toResult(paginate(fallbackProperties), degradedReason ?? 'unavailable');
     }
 
     const ratesRes = await fetch(`${runtime.baseUrl}/hotels/rates`, {
@@ -1910,7 +1921,7 @@ export async function searchPropertyPreviews(
         timeout: timeoutSeconds,
         minRating: normalizedMinRating,
         starRating,
-        limit: 8
+        limit: supplierLimit
       }),
       next: { revalidate: 300 }
     });
@@ -1918,13 +1929,13 @@ export async function searchPropertyPreviews(
       throw new Error(`LiteAPI rates request failed: ${ratesRes.status}`);
     }
     const ratesResponse = (await ratesRes.json()) as LiteApiResponse<Array<Record<string, unknown>>>;
-    const mapped = applyFilters(mapRatesResponse(ratesResponse, query)).slice(0, 8);
+    const mapped = applyFilters(mapRatesResponse(ratesResponse, query));
 
     if (mapped.length > 0) {
-      return toResult(mapped, degradedReason === null ? null : 'partial');
+      return toResult(paginate(mapped), degradedReason === null ? null : 'partial');
     }
 
-    return toResult(fallbackProperties, degradedReason ?? 'unavailable');
+    return toResult(paginate(fallbackProperties), degradedReason ?? 'unavailable');
   } catch (error) {
     logger.warn({ error }, 'LiteAPI property preview search failed');
     return toResult(fallbackProperties, isTimeoutLikeError(error) ? 'timeout' : 'unavailable');

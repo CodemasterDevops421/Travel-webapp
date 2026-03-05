@@ -28,7 +28,7 @@ export function SearchResultsMap({ hotels }: SearchResultsMapProps) {
   const center: [number, number] = [markers[0].latitude!, markers[0].longitude!];
 
   return (
-    <MapContainer center={center} zoom={12} className="h-[320px] w-full" scrollWheelZoom>
+    <MapContainer center={center} zoom={12} className="h-[320px] w-full lg:h-full" scrollWheelZoom>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

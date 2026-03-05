@@ -33,7 +33,7 @@ export function HotelBookingSidebar({
 }: HotelBookingSidebarProps) {
   return (
     <aside className="lg:sticky lg:top-24 lg:self-start">
-      <div className="border border-border bg-card p-6 shadow-editorial-md">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-editorial-md">
         <div className="mb-6 flex items-start gap-3 rounded border border-red-100 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
           <span className="mt-0.5 flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-500"></span>
           <div>
@@ -42,8 +42,9 @@ export function HotelBookingSidebar({
           </div>
         </div>
 
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Price per night</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Best available rate</p>
         <p className="mt-2 text-4xl font-bold text-foreground">{formatMoney(selectedRate?.currency ?? currency, selectedRate?.amount ?? lowestRate, true)}</p>
+        <p className="mt-1 text-xs text-muted-foreground">per night, taxes and charges included</p>
 
         {selectedRate ? (
           <div className="mt-4 rounded-xl border border-border bg-background/70 p-3">
@@ -75,11 +76,11 @@ export function HotelBookingSidebar({
         </div>
 
         {selectedBookingHref ? (
-          <PreferenceLink href={selectedBookingHref} className="mt-8 flex w-full items-center justify-center rounded-none bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
+          <PreferenceLink href={selectedBookingHref} className="mt-8 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
             Reserve selected room
           </PreferenceLink>
         ) : (
-          <a href="#rooms" className="mt-8 flex w-full items-center justify-center rounded-none bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
+          <a href="#rooms" className="mt-8 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
             See availability
           </a>
         )}
