@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createServerSupabaseClient } from '@/server/supabase/server';
 import { assertAdminAuthorized } from '@/server/authz';
 import { HttpError } from '@/server/errors';
-import { getBookingById, updateBookingStatusById } from '@/server/booking/repository';
+import { getBookingById, updateBookingMetadataById } from '@/server/booking/repository';
 import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
 import { getClientIp } from '@/server/request';
 import { invalidateAdminReportCache } from '@/server/admin/report-cache';
@@ -68,7 +68,7 @@ export async function PATCH(
       supportMetadata.supportResolutionNote = payload.resolutionNote;
     }
 
-    const persisted = await updateBookingStatusById(booking.id, booking.status, supportMetadata);
+    const persisted = await updateBookingMetadataById(booking.id, supportMetadata);
 
     if (!persisted) {
       responseStatus = 409;

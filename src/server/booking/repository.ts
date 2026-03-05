@@ -697,6 +697,57 @@ export async function updateBookingStatusById(
   return true;
 }
 
+export async function updateBookingMetadataById(
+  bookingId: string,
+  metadata: Record<string, unknown>
+): Promise<boolean> {
+  if (supabaseSchemaUnavailable) {
+    const booking = fallbackBookings.get(bookingId);
+    if (!booking) {
+      return false;
+    }
+
+    const mergedMetadata = mergeMetadata(booking.metadata, metadata);
+    fallbackBookings.set(bookingId, {
+      ...booking,
+      metadata: mergedMetadata
+    });
+    return true;
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, metadata')
+    .eq('id', bookingId)
+    .single();
+
+  if (error || !data?.id) {
+    if (isSchemaMissingError(error)) {
+      supabaseSchemaUnavailable = true;
+      logger.warn({ error, bookingId }, 'Supabase booking schema missing during booking metadata update lookup.');
+    } else {
+      logger.warn({ error, bookingId }, 'Booking lookup for metadata update failed');
+    }
+    return false;
+  }
+
+  const mergedMetadata = mergeMetadata(data.metadata as Record<string, unknown> | null | undefined, metadata);
+  const { error: updateError } = await supabase
+    .from('bookings')
+    .update({
+      metadata: mergedMetadata
+    })
+    .eq('id', data.id);
+
+  if (updateError) {
+    logger.error({ updateError, bookingId }, 'Failed to update booking metadata');
+    return false;
+  }
+
+  return true;
+}
+
 export async function getBookingByTransactionId(transactionId: string): Promise<BookingRecord | null> {
   for (const booking of fallbackBookings.values()) {
     const existingTransactionId = typeof booking.metadata?.transactionId === 'string'

@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquare, Send, X, Sparkles, Bot, User } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/shared/lib/utils';
@@ -15,7 +14,6 @@ type Message = {
 };
 
 export function AIChatbot() {
-    const searchParams = useSearchParams();
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [assistantMode, setAssistantMode] = useState<'live' | 'fallback'>('live');
@@ -50,6 +48,7 @@ export function AIChatbot() {
         setIsTyping(true);
 
         try {
+            const searchParams = new URLSearchParams(window.location.search);
             const response = await fetch('/api/concierge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

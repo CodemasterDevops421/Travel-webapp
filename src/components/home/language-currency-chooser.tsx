@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useRef } from 'react';
 import { Coins, Globe2 } from 'lucide-react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSearchUIStore } from '@/features/search/stores/search-ui-store';
 import {
   CURRENCY_OPTIONS,
@@ -17,7 +17,6 @@ import {
 export function LanguageCurrencyChooser() {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const language = useSearchUIStore((state) => state.language);
   const currency = useSearchUIStore((state) => state.currency);
   const setLanguage = useSearchUIStore((state) => state.setLanguage);
@@ -25,6 +24,7 @@ export function LanguageCurrencyChooser() {
   const hydratedRef = useRef(false);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
     const queryLanguage = normalizeLanguage(searchParams.get('language'));
     const queryCurrency = normalizeCurrency(searchParams.get('currency'));
     const savedLanguage = normalizeLanguage(window.localStorage.getItem('travelapp:language'));
@@ -39,7 +39,7 @@ export function LanguageCurrencyChooser() {
       setCurrency(nextCurrency);
     }
     hydratedRef.current = true;
-  }, [currency, language, searchParams, setCurrency, setLanguage]);
+  }, [currency, language, setCurrency, setLanguage]);
 
   useEffect(() => {
     if (!hydratedRef.current) return;
@@ -48,16 +48,17 @@ export function LanguageCurrencyChooser() {
     window.localStorage.setItem('travelapp:language', normalizedLanguage);
     window.localStorage.setItem('travelapp:currency', normalizedCurrency);
 
-    const nextParams = upsertPreferenceParams(new URLSearchParams(searchParams.toString()), {
+    const currentParams = new URLSearchParams(window.location.search);
+    const nextParams = upsertPreferenceParams(new URLSearchParams(currentParams.toString()), {
       language: normalizedLanguage,
       currency: normalizedCurrency
     });
-    const current = searchParams.toString();
+    const current = currentParams.toString();
     const next = nextParams.toString();
     if (current !== next) {
       router.replace((next ? `${pathname}?${next}` : pathname) as never, { scroll: false });
     }
-  }, [currency, language, pathname, router, searchParams]);
+  }, [currency, language, pathname, router]);
 
   return (
     <div className="flex items-center gap-2">

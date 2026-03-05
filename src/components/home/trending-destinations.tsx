@@ -1,7 +1,5 @@
-import { cache } from 'react';
 import { Building2, Landmark, Mountain, Palmtree } from 'lucide-react';
 import { PreferenceLink } from '@/components/navigation/preference-link';
-import { withNextCache } from '@/server/cache';
 
 const destinations = [
   { name: 'Dubai', blurb: 'Skyline luxury and beach escapes', icon: Building2, gradient: 'from-amber-500/20 to-orange-500/10' },
@@ -10,13 +8,7 @@ const destinations = [
   { name: 'Kyoto', blurb: 'Heritage stays and culinary routes', icon: Landmark, gradient: 'from-rose-500/20 to-pink-500/10' }
 ];
 
-const getTrendingDestinations = cache(
-  withNextCache(['home-trending-destinations'], { revalidate: 3600 }, async () => destinations)
-);
-
-export async function TrendingDestinations() {
-  const data = await getTrendingDestinations();
-
+export function TrendingDestinations() {
   return (
     <section className="space-y-6">
       <div className="flex items-end justify-between">
@@ -27,7 +19,7 @@ export async function TrendingDestinations() {
         <p className="text-xs uppercase tracking-widest text-muted-foreground">Updated hourly</p>
       </div>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {data.map((item, idx) => (
+        {destinations.map((item, idx) => (
           <PreferenceLink
             key={item.name}
             href={`/search?q=${encodeURIComponent(item.name)}`}

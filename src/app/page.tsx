@@ -20,10 +20,8 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <main className="pb-24">
-      {/* ── Hero with rounded card look ── */}
       <section className="relative px-4 pt-4 md:px-8 md:pt-6">
         <div className="relative mx-auto max-w-7xl overflow-hidden rounded-3xl">
-          {/* Background image + overlay */}
           <div
             className="flex flex-col items-center justify-center px-6 py-20 text-center md:py-32 lg:py-40"
             style={{
@@ -39,8 +37,6 @@ export default function HomePage() {
             <p className="mt-4 max-w-2xl text-sm sm:text-base font-medium text-white/90 md:text-lg animate-fade-in stagger-2 relative z-20">
               2 Million Hotels Worldwide.
             </p>
-
-            {/* ── Search bar inside the hero ── */}
             <div className="relative z-30 mt-10 md:mt-12 w-full max-w-4xl px-2 md:px-0 animate-fade-in stagger-3">
               <Suspense fallback={<SearchSkeleton />}>
                 <HeroSearchBar className="" />
@@ -50,7 +46,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Trust Badges ── */}
       <section className="mx-auto mt-16 grid max-w-6xl gap-0 border-y border-border/60 px-4 md:grid-cols-3 md:mt-20">
         <div className="flex flex-col items-center p-10 text-center transition-colors hover:bg-primary/[0.03] border-b md:border-b-0 md:border-r border-border/60">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary">
@@ -75,7 +70,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Content Sections ── */}
       <div className="mx-auto max-w-7xl space-y-24 px-4 pt-20">
         <FeaturedDealsStrip />
         <TrendingDestinations />
