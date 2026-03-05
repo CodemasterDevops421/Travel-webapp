@@ -45,7 +45,7 @@ export async function getOrSetAdminReportCache<T>(
       const value = await loader();
       cacheStore.set(key, {
         value,
-        expiresAt: now + (Math.max(1, Math.floor(ttlSeconds)) * 1000)
+        expiresAt: Date.now() + (Math.max(1, Math.floor(ttlSeconds)) * 1000)
       });
       pruneExpired(Date.now());
       return value;

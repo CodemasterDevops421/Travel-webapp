@@ -59,7 +59,19 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         .limit(1)
     ]);
 
-    if (bookingResult.status !== 'fulfilled' || bookingResult.value.error || !bookingResult.value.data) {
+    if (bookingResult.status !== 'fulfilled') {
+      return NextResponse.json({ error: 'Failed to load booking details' }, { status: 503 });
+    }
+
+    if (bookingResult.value.error) {
+      const code = (bookingResult.value.error as { code?: string } | null | undefined)?.code;
+      if (code === 'PGRST116') {
+        return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+      }
+      return NextResponse.json({ error: 'Failed to load booking details' }, { status: 503 });
+    }
+
+    if (!bookingResult.value.data) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
