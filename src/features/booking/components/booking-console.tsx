@@ -217,14 +217,9 @@ function saveCheckoutSession(transactionId: string, payload: CheckoutSessionPayl
   const encodedSession = JSON.stringify(payload);
   saveToStorage(sessionStorage, key, encodedSession);
 
-  // Local storage keeps a redacted record for recovery without persisting personal details.
+  // Local storage keeps a minimally redacted recovery record.
   const localPayload: CheckoutSessionPayload = {
     ...payload,
-    holder: {
-      firstName: '',
-      lastName: '',
-      email: ''
-    },
     guests: payload.guests,
     formValues: {
       ...payload.formValues,

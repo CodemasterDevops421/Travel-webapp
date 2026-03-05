@@ -13,4 +13,8 @@ describe('booking checkout session persistence', () => {
     expect(bookingConsoleSource).toContain('guests: payload.guests');
     expect(bookingConsoleSource).not.toContain('guests: []');
   });
+
+  it('preserves holder identity for booking return finalization payload', () => {
+    expect(bookingConsoleSource).not.toContain("holder: {\n      firstName: '',\n      lastName: '',\n      email: ''\n    }");
+  });
 });
