@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-03-05T11:06:04.877Z",
+  "staleThresholdDays": 120,
+  "queueLength": 6,
+  "queue": [
+    {
+      "slug": "choosing-neighborhoods-like-a-local",
+      "title": "Choosing the Right Neighborhood Before You Book",
+      "updatedAt": "2025-12-18T00:00:00.000Z",
+      "ageDays": 77,
+      "words": 89,
+      "score": 25,
+      "reasons": [
+        "thin_content_89w"
+      ]
+    },
+    {
+      "slug": "packing-light-for-multi-city-trips",
+      "title": "Packing Light for Multi-City Trips Without Missing Essentials",
+      "updatedAt": "2025-12-30T00:00:00.000Z",
+      "ageDays": 65,
+      "words": 81,
+      "score": 25,
+      "reasons": [
+        "thin_content_81w"
+      ]
+    },
+    {
+      "slug": "remote-work-friendly-hostels",
+      "title": "How to Find Remote-Work Friendly Hostels",
+      "updatedAt": "2026-01-14T00:00:00.000Z",
+      "ageDays": 50,
+      "words": 75,
+      "score": 25,
+      "reasons": [
+        "thin_content_75w"
+      ]
+    },
+    {
+      "slug": "weekend-itinerary-goa",
+      "title": "A 3-Day Goa Itinerary for Beach, Cafes, and Slow Mornings",
+      "updatedAt": "2026-01-29T00:00:00.000Z",
+      "ageDays": 35,
+      "words": 83,
+      "score": 25,
+      "reasons": [
+        "thin_content_83w"
+      ]
+    },
+    {
+      "slug": "solo-travel-safety-checklist",
+      "title": "Solo Travel Safety Checklist for First-Time Backpackers",
+      "updatedAt": "2026-02-11T00:00:00.000Z",
+      "ageDays": 22,
+      "words": 95,
+      "score": 25,
+      "reasons": [
+        "thin_content_95w"
+      ]
+    },
+    {
+      "slug": "best-time-to-book-hostels",
+      "title": "Best Time to Book Hostels and Save More",
+      "updatedAt": "2026-02-20T00:00:00.000Z",
+      "ageDays": 13,
+      "words": 117,
+      "score": 25,
+      "reasons": [
+        "thin_content_117w"
+      ]
+    }
+  ]
+}

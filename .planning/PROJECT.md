@@ -53,5 +53,48 @@ The codebase already includes a complete web booking surface built with Next.js 
 | Prioritize launch blockers (security, data integrity, resilience) before feature expansion | Reduces business and operational risk fastest | — Pending |
 | Keep planning/execution in auto-advance YOLO mode with research/check/verifier enabled | Maintain speed while retaining quality gates for production-critical work | — Pending |
 
+## Initiative: World-Class Travel Blog Program (Phase 09-14)
+
+### Objective Priority
+1. Organic traffic growth and discoverability
+2. Conversion efficiency from content into booking surfaces
+3. Personalization and global maturity
+
+### Dependency Chain
+`09 -> 10 -> 11 -> 12 -> 13 -> 14`
+
+### Shared KPI Glossary
+- **Indexed URLs**: Count of blog detail URLs included in sitemap and discoverable by crawlers.
+- **Top Landing Slugs**: Highest traffic entry slugs over a reporting window.
+- **Blog -> Search CTR**: Ratio of blog sessions that click into search experiences.
+- **Assisted Conversion Clicks**: Blog-attributed clicks into hotel/search/checkout journeys.
+- **Pages per Session**: Average pages viewed in sessions entering through blog pages.
+- **Related-Click Rate**: Ratio of article sessions with at least one related article click.
+
+### Shared Analytics Event Contract
+- Event names:
+  - `blog_list_view`
+  - `blog_post_view`
+  - `blog_search`
+  - `blog_related_click`
+  - `blog_cta_click`
+- Required properties:
+  - `slug`
+  - `category`
+  - `tag`
+  - `position`
+  - `referrerPath`
+
+### Shared Quality Gates
+- `npm run blog:validate` passes.
+- SEO contract checks pass (canonical/schema/title-description/sitemap coverage).
+- Blog-focused automated tests pass.
+- Build passes with no blocking errors.
+- Phase gate mapping:
+  - Gate A after Phase 09
+  - Gate B after Phase 10
+  - Gate C after Phase 12
+  - Gate D after Phase 14
+
 ---
-*Last updated: 2026-02-23 after initialization*
+*Last updated: 2026-03-05 for Top-tier Blog Program*

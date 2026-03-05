@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-03-05T10:55:09.333Z",
+  "window": "7d",
+  "summary": {
+    "totalPosts": 6,
+    "totalWords": 540,
+    "averageWordsPerPost": 90,
+    "categories": 6,
+    "uniqueTags": 18,
+    "publishedThisMonth": 0,
+    "indexedUrls": 6,
+    "topLandingSlugs": [
+      "best-time-to-book-hostels",
+      "solo-travel-safety-checklist",
+      "choosing-neighborhoods-like-a-local",
+      "weekend-itinerary-goa",
+      "packing-light-for-multi-city-trips"
+    ]
+  },
+  "kpis": {
+    "indexedUrls": 6,
+    "topLandingSlugs": [
+      "best-time-to-book-hostels",
+      "solo-travel-safety-checklist",
+      "choosing-neighborhoods-like-a-local",
+      "weekend-itinerary-goa",
+      "packing-light-for-multi-city-trips"
+    ],
+    "blogToSearchCtr": null,
+    "assistedConversionClicks": 0,
+    "pagesPerSession": null,
+    "relatedClickRate": null
+  },
+  "degraded": true,
+  "degradedReason": "supabase_credentials_unavailable"
+}

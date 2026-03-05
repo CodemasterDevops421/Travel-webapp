@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-03-05T11:13:30.596Z",
+  "window": "7d",
+  "totals": {
+    "blogPostViews": 0,
+    "ctaClicks": 0,
+    "relatedClicks": 0,
+    "blogToSearchCtr": null,
+    "assistedConversionClicks": 0
+  },
+  "attribution": {
+    "bySlug": [],
+    "byCategory": [],
+    "byTag": [],
+    "byPosition": [],
+    "byVariant": []
+  },
+  "degraded": true,
+  "degradedReason": "supabase_credentials_unavailable"
+}

@@ -18,7 +18,8 @@ describe('blog seo surfaces', () => {
     });
 
     expect(metadata.title).toContain('Best Time to Book Hostels');
-    expect(metadata.openGraph?.type).toBe('article');
+    const openGraph = metadata.openGraph as { type?: string } | undefined;
+    expect(openGraph?.type).toBe('article');
     expect(metadata.alternates?.canonical).toBe('/blog/best-time-to-book-hostels');
   });
 
@@ -33,4 +34,3 @@ describe('blog seo surfaces', () => {
     expect(body).toContain('/blog/best-time-to-book-hostels');
   });
 });
-

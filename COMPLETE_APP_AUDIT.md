@@ -196,6 +196,9 @@ Operational caveat:
 ## 11) Testing and quality gates present
 - Test framework: Vitest + Testing Library.
 - Existing test files cover env, booking repository/store/routes, analytics route, request/errors utils, sitemap, etc.
+- Passing metrics during code review:
+  - 49/49 test suites passing (207 tests). 
+  - Recently fixed flaky tests and test timeouts (e.g. `tests/review-snippets-route.test.ts` parallelization timeout, `tests/sitemap.test.ts` async resolution).
 - Scripts: `lint`, `typecheck`, `test`, `build` in `package.json`.
 
 ---

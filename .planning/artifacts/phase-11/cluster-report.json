@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-03-05T11:05:56.717Z",
+  "clusterCount": 6,
+  "clusters": [
+    {
+      "category": "Booking Tips",
+      "hubSlug": "best-time-to-book-hostels",
+      "supportingSlugs": [],
+      "totalPosts": 1
+    },
+    {
+      "category": "Planning",
+      "hubSlug": "choosing-neighborhoods-like-a-local",
+      "supportingSlugs": [],
+      "totalPosts": 1
+    },
+    {
+      "category": "Travel Gear",
+      "hubSlug": "packing-light-for-multi-city-trips",
+      "supportingSlugs": [],
+      "totalPosts": 1
+    },
+    {
+      "category": "Digital Nomad",
+      "hubSlug": "remote-work-friendly-hostels",
+      "supportingSlugs": [],
+      "totalPosts": 1
+    },
+    {
+      "category": "Safety",
+      "hubSlug": "solo-travel-safety-checklist",
+      "supportingSlugs": [],
+      "totalPosts": 1
+    },
+    {
+      "category": "Itineraries",
+      "hubSlug": "weekend-itinerary-goa",
+      "supportingSlugs": [],
+      "totalPosts": 1
+    }
+  ]
+}

@@ -13,7 +13,9 @@ type BlogTrackLinkProps = {
   category?: string;
   tag?: string;
   position?: number;
-  referrerPath?: string;
+  referrerPath: string;
+  ctaVariant?: 'control' | 'variant_a' | 'variant_b';
+  ctaIntent?: 'book_now' | 'explore_hotels' | 'discover_destination';
   onClick?: () => void;
 };
 
@@ -24,6 +26,8 @@ export function BlogTrackLink({
   tag,
   position,
   referrerPath,
+  ctaVariant,
+  ctaIntent,
   onClick,
   className,
   children,
@@ -38,13 +42,15 @@ export function BlogTrackLink({
           name: eventName,
           properties: {
             slug,
-            category: category ?? null,
-            tag: tag ?? null,
-            position: position ?? null,
-            referrerPath: referrerPath ?? null,
-            targetPath: props.href
-          }
-        });
+                category: category ?? null,
+                tag: tag ?? null,
+                position: position ?? null,
+                referrerPath,
+                ctaVariant: ctaVariant ?? null,
+                ctaIntent: ctaIntent ?? null,
+                targetPath: props.href
+              }
+            });
         onClick?.();
       }}
     >

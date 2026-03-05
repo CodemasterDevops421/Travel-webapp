@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-03-05T11:06:01.777Z",
+  "checkedPosts": 6,
+  "invalidMarkdownLinkCount": 0,
+  "invalidMarkdownLinks": [],
+  "recommendationSummary": [
+    {
+      "slug": "best-time-to-book-hostels",
+      "recommendedSlugs": [],
+      "recommendationCount": 0
+    },
+    {
+      "slug": "choosing-neighborhoods-like-a-local",
+      "recommendedSlugs": [],
+      "recommendationCount": 0
+    },
+    {
+      "slug": "packing-light-for-multi-city-trips",
+      "recommendedSlugs": [],
+      "recommendationCount": 0
+    },
+    {
+      "slug": "remote-work-friendly-hostels",
+      "recommendedSlugs": [],
+      "recommendationCount": 0
+    },
+    {
+      "slug": "solo-travel-safety-checklist",
+      "recommendedSlugs": [],
+      "recommendationCount": 0
+    },
+    {
+      "slug": "weekend-itinerary-goa",
+      "recommendedSlugs": [],
+      "recommendationCount": 0
+    }
+  ]
+}

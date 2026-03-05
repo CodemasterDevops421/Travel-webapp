@@ -24,9 +24,21 @@ export type BlogEventName =
   | 'blog_related_click'
   | 'blog_cta_click';
 
+export type BlogEventProperties = {
+  slug: string | null;
+  category: string | null;
+  tag: string | null;
+  position: number | null;
+  referrerPath: string;
+  ctaVariant?: 'control' | 'variant_a' | 'variant_b' | null;
+  ctaIntent?: 'book_now' | 'explore_hotels' | 'discover_destination' | null;
+  query?: string | null;
+  targetPath?: string | null;
+};
+
 export type BlogEvent = {
   name: BlogEventName;
-  properties?: Record<string, AnalyticsPrimitive>;
+  properties: BlogEventProperties;
 };
 
 function sendAnalyticsPayload(url: string, payload: Record<string, unknown>): void {

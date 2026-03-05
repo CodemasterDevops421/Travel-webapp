@@ -41,9 +41,12 @@ export default async function BlogPage({ searchParams }: PageProps) {
       <BlogEventTracker
         name="blog_list_view"
         properties={{
+          slug: null,
+          category: null,
+          tag: null,
+          position: postsForPage.length,
           referrerPath: '/blog',
-          query: query || null,
-          position: postsForPage.length
+          query: query || null
         }}
       />
 

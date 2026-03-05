@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Milestone complete - all planned phases executed
+**Current focus:** Phase 13 planning/execution readiness after Phase 12 completion
 
 ## Current Position
 
-Phase: 07-canonical-data-wiring-and-observability-closure
-Plan: 3 of 3 in current phase
-Status: Complete
-Last activity: 2026-03-04 - Completed 07-03-PLAN.md
+Phase: 13-personalization-and-recommendation
+Plan: 0 of 1 in current phase
+Status: Ready for Phase 13 planning/execution
+Last activity: 2026-03-05 - Phase 12 completed (conversion optimization)
 
 Progress: [##########] 100%
 
@@ -134,6 +134,26 @@ Recent decisions affecting current work:
 - [Phase 07]: Redact payload/body-shaped telemetry metadata keys before centralized capture to prevent supplier blob leakage.
 - [Phase 07]: Use httpError.safeMessage at booking and webhook response boundaries while retaining detailed telemetry context.
 - [Phase 07]: Include webhook event and transaction identifiers in centralized catch-path capture metadata for faster triage.
+- [Phase 09]: Adopt KPI glossary as shared contract (indexed URLs, landing slugs, blog CTR, assisted conversion, pages/session, related-click rate).
+- [Phase 10]: Preserve content DTO and URL contracts using adapter strategy during CMS source migration.
+- [Phase 09-14]: Operational gates locked as A/B/C/D checkpoints mapped to phases 09/10/12/14.
+
+### Gate Board
+
+| Gate | Trigger Phase | Status | Exit Condition |
+|------|---------------|--------|----------------|
+| Gate A | After Phase 09 | Passed (2026-03-05) | Trusted measurement + SEO CI quality gates operational |
+| Gate B | After Phase 10 | Passed (2026-03-05) | CMS workflow stable with URL/content contract preservation |
+| Gate C | After Phase 12 | Passed (2026-03-05) | Conversion attribution and experiment lift validated |
+| Gate D | After Phase 14 | Pending | Global SEO + SLO + governance maturity validated |
+
+### Definition of Done Template (Phase Reuse)
+
+1. Planned deliverables are complete and linked in phase artifacts.
+2. UAT checks pass with recorded evidence paths.
+3. Verification verdict is `PASS` or explicitly waived with owner and date.
+4. No unresolved P0/P1 risk remains open for the phase boundary.
+5. Rollback and contingency ownership is documented.
 
 ### Pending Todos
 
@@ -145,6 +165,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04 12:00
-Stopped at: Completed 07-03-PLAN.md
-Resume file: None
+Last session: 2026-03-05 16:50
+Stopped at: Completed 12-01-SUMMARY.md
+Resume file: .planning/phases/13-personalization-and-recommendation/13-01-PLAN.md

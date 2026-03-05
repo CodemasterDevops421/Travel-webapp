@@ -6,6 +6,7 @@ import { BlogEventTracker } from '@/features/blog/components/blog-event-tracker'
 import { BlogMarkdown } from '@/features/blog/components/blog-markdown';
 import { BlogTrackLink } from '@/features/blog/components/blog-track-link';
 import { getAuthorById } from '@/features/blog/lib/authors';
+import { resolveCtaPolicy } from '@/features/blog/lib/cta-policy';
 import {
   getAllPosts,
   getPostBySlug,
@@ -18,6 +19,7 @@ export const revalidate = 3600;
 
 type PageProps = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ preview?: string; previewToken?: string }>;
 };
 
 function formatPublishedDate(value: string): string {
@@ -69,9 +71,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function BlogPostPage({ params }: PageProps) {
+export default async function BlogPostPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const previewEnabled = resolvedSearchParams.preview === '1'
+    && !!process.env.BLOG_PREVIEW_TOKEN
+    && resolvedSearchParams.previewToken === process.env.BLOG_PREVIEW_TOKEN;
+  const post = await getPostBySlug(slug, { includeUnpublished: previewEnabled });
 
   if (!post) {
     const redirectedSlug = await getRedirectForSlug(slug);
@@ -114,6 +120,8 @@ export default async function BlogPostPage({ params }: PageProps) {
       { '@type': 'ListItem', position: 3, name: post.title, item: `/blog/${post.slug}` }
     ]
   };
+  const primaryCta = resolveCtaPolicy({ slug: post.slug, category: post.category, position: 1 });
+  const secondaryCta = resolveCtaPolicy({ slug: post.slug, category: post.category, position: 2 });
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-20 pt-8 md:px-8 md:pt-12">
@@ -122,6 +130,8 @@ export default async function BlogPostPage({ params }: PageProps) {
         properties={{
           slug: post.slug,
           category: post.category,
+          tag: post.tags[0] ?? null,
+          position: null,
           referrerPath: `/blog/${post.slug}`
         }}
       />
@@ -201,21 +211,25 @@ export default async function BlogPostPage({ params }: PageProps) {
             <p className="mt-3 text-sm text-muted-foreground">Apply this guide to a real booking flow with live rates and flexible filters.</p>
             <div className="mt-4 flex flex-col gap-2">
               <BlogTrackLink
-                href="/search?query=trending"
+                href={primaryCta.targetPath}
                 eventName="blog_cta_click"
                 slug={post.slug}
                 category={post.category}
                 referrerPath={`/blog/${post.slug}`}
+                ctaVariant={primaryCta.variant}
+                ctaIntent={primaryCta.intent}
                 className="rounded-full bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground transition hover:opacity-90"
               >
                 Explore stays
               </BlogTrackLink>
               <BlogTrackLink
-                href="/hotels"
+                href={secondaryCta.targetPath}
                 eventName="blog_cta_click"
                 slug={post.slug}
                 category={post.category}
                 referrerPath={`/blog/${post.slug}`}
+                ctaVariant={secondaryCta.variant}
+                ctaIntent={secondaryCta.intent}
                 className="rounded-full border border-border/60 px-4 py-2 text-center text-sm font-semibold transition hover:border-primary/40 hover:text-primary"
               >
                 View hotels

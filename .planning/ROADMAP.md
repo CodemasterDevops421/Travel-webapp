@@ -20,6 +20,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 6: Auth and Booking Security Gap Closure** - Close milestone-blocking auth-linking and booking security regression gaps from audit.
 - [ ] **Phase 7: Canonical Data Wiring and Observability Closure** - Close canonical runtime wiring and structured observability integration gaps from audit.
 - [x] **Phase 8: Hotel Detail Content Intelligence and Review UX** - Upgrade smart highlights, review synthesis, and description quality for hotel detail conversion. (completed 2026-02-28)
+- [x] **Phase 9: Measurement and SEO Ops** - Establish trusted blog analytics, KPI reporting, and CI-enforced SEO quality gates. (completed 2026-03-05)
+- [x] **Phase 10: Editorial System Upgrade** - Add CMS-backed editorial workflow with draft/review/schedule while preserving current URL contracts. (completed 2026-03-05)
+- [x] **Phase 11: Content Scale Engine** - Scale content clusters, internal linking, and freshness operations for organic growth. (completed 2026-03-05)
+- [x] **Phase 12: Conversion Optimization** - Improve blog-to-commerce conversion with intent-driven CTAs and experimentation. (completed 2026-03-05)
+- [ ] **Phase 13: Personalization and Recommendation** - Introduce session-aware recommendations and engagement uplift loops.
+- [ ] **Phase 14: Global Enterprise Maturity** - Harden international SEO, governance, and operational SLO readiness.
 
 ## Phase Details
 
@@ -155,6 +161,95 @@ Plans:
 - [ ] 08-03-PLAN.md - Introduce structured description narratives with truthful fallback hierarchy
 - [ ] 08-04-PLAN.md - Add regression guardrails for highlight quality and no-hallucination copy constraints
 
+### Phase 9: Measurement and SEO Ops
+**Goal**: Blog performance and discoverability are measured with trusted analytics and enforceable quality gates.
+**Depends on**: Phase 8
+**Effort**: 6-8 PW
+**Elapsed Estimate**: 2-3 weeks
+**Gate**: Gate A
+**Success Criteria** (what must be TRUE):
+  1. Blog analytics events are persisted and queryable for reporting.
+  2. Weekly KPI report is generated reliably from pipeline scripts.
+  3. CI fails on SEO contract regressions.
+**Plans**: 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md - Implement measurement contracts, KPI reporting, and SEO CI guardrails
+
+### Phase 10: Editorial System Upgrade
+**Goal**: Non-dev editors can create, review, schedule, and publish without changing route contracts.
+**Depends on**: Phase 9
+**Effort**: 10-14 PW
+**Elapsed Estimate**: 3-5 weeks
+**Gate**: Gate B
+**Success Criteria** (what must be TRUE):
+  1. CMS workflow supports draft/review/schedule/publish.
+  2. URL and content DTO contracts remain compatible.
+  3. Source switch is controlled and reversible.
+**Plans**: 1 plan
+
+Plans:
+- [ ] 10-01-PLAN.md - Introduce CMS adapter and editorial operations workflow
+
+### Phase 11: Content Scale Engine
+**Goal**: Content production scales with repeatable templates and robust internal linking.
+**Depends on**: Phase 9
+**Overlap Rule**: Can overlap late with Phase 10
+**Effort**: 12-18 PW
+**Elapsed Estimate**: 4-6 weeks
+**Success Criteria** (what must be TRUE):
+  1. Cluster strategy produces scalable, non-duplicate pages.
+  2. Link graph integrity is maintained across all blog routes.
+  3. Freshness workflow generates actionable refresh queue.
+**Plans**: 1 plan
+
+Plans:
+- [ ] 11-01-PLAN.md - Build topic cluster engine, templates, and freshness operations
+
+### Phase 12: Conversion Optimization
+**Goal**: Blog traffic converts more effectively into search/hotel/booking journeys.
+**Depends on**: Phase 11 baseline traffic signals
+**Effort**: 8-12 PW
+**Elapsed Estimate**: 3-4 weeks
+**Gate**: Gate C
+**Success Criteria** (what must be TRUE):
+  1. CTA and related-module experiments produce measurable lift.
+  2. Attribution is available by slug/category/tag/position.
+  3. Experiment governance prevents noisy decisions.
+**Plans**: 1 plan
+
+Plans:
+- [ ] 12-01-PLAN.md - Deliver conversion attribution, CTA policy, and experimentation framework
+
+### Phase 13: Personalization and Recommendation
+**Goal**: Personalized ranking improves engagement and repeat behavior.
+**Depends on**: Phase 12
+**Effort**: 12-16 PW
+**Elapsed Estimate**: 4-6 weeks
+**Success Criteria** (what must be TRUE):
+  1. Recommendation system improves related click-through and session depth.
+  2. Cold-start behavior is deterministic and safe.
+  3. Performance budget remains within target latency.
+**Plans**: 1 plan
+
+Plans:
+- [ ] 13-01-PLAN.md - Implement recommendation service and personalization surfaces
+
+### Phase 14: Global Enterprise Maturity
+**Goal**: Blog platform is ready for global indexing, governance, and enterprise reliability.
+**Depends on**: Phase 10, Phase 11, Phase 12
+**Effort**: 16-24 PW
+**Elapsed Estimate**: 6-8 weeks
+**Gate**: Gate D
+**Success Criteria** (what must be TRUE):
+  1. International SEO and hreflang routing are validated.
+  2. CWV and publishing SLOs are met.
+  3. Governance and rollback procedures are operationalized.
+**Plans**: 1 plan
+
+Plans:
+- [ ] 14-01-PLAN.md - Complete global SEO maturity, governance, and operational hardening
+
 ## Progress
 
 **Execution Order:**
@@ -170,3 +265,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 6. Auth and Booking Security Gap Closure | 0/2 | Not started | - |
 | 7. Canonical Data Wiring and Observability Closure | 0/3 | Not started | - |
 | 8. Hotel Detail Content Intelligence and Review UX | 4/4 | Complete | 2026-02-28 |
+| 9. Measurement and SEO Ops | 1/1 | Complete | 2026-03-05 |
+| 10. Editorial System Upgrade | 1/1 | Complete | 2026-03-05 |
+| 11. Content Scale Engine | 1/1 | Complete | 2026-03-05 |
+| 12. Conversion Optimization | 1/1 | Complete | 2026-03-05 |
+| 13. Personalization and Recommendation | 0/1 | Not started | - |
+| 14. Global Enterprise Maturity | 0/1 | Not started | - |

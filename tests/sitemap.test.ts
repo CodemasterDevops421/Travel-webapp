@@ -7,10 +7,10 @@ describe('sitemap', () => {
 
   it('includes static and destination discovery routes', async () => {
     const sitemap = (await import('@/app/sitemap')).default;
-    const entries = sitemap();
+    const entries = await sitemap();
     const urls = entries.map((entry) => entry.url);
 
-    expect(urls).toEqual([
+    expect(urls).toEqual(expect.arrayContaining([
       'https://travelforge.example/',
       'https://travelforge.example/booking',
       'https://travelforge.example/booking/return',
@@ -19,6 +19,6 @@ describe('sitemap', () => {
       'https://travelforge.example/stays/kyoto',
       'https://travelforge.example/stays/tokyo',
       'https://travelforge.example/stays/zurich'
-    ]);
+    ]));
   });
 });

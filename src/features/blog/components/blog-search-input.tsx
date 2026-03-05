@@ -25,6 +25,10 @@ export function BlogSearchInput() {
           trackBlogEvent({
             name: 'blog_search',
             properties: {
+              slug: null,
+              category: null,
+              tag: null,
+              position: null,
               query: value.trim(),
               referrerPath: pathname
             }
@@ -47,4 +51,3 @@ export function BlogSearchInput() {
     </form>
   );
 }
-

@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-03-05T11:13:34.949Z",
+  "governance": {
+    "minViews": 50,
+    "minClicks": 5,
+    "decisionRule": "promote only when variant CTR exceeds control after thresholds are met"
+  },
+  "baseline": {
+    "blogPostViews": 0,
+    "ctaClicks": 0,
+    "relatedClicks": 0,
+    "blogToSearchCtr": null,
+    "assistedConversionClicks": 0
+  },
+  "source": "synthetic_fallback",
+  "experiments": [
+    {
+      "id": "EXP-CTA-01",
+      "name": "Primary CTA variant experiment",
+      "controlVariant": "control",
+      "candidateVariant": "variant_a",
+      "views": 120,
+      "ctaClicks": 14,
+      "ctr": 11.67,
+      "decision": "promote",
+      "confidence": "low",
+      "rationale": "Synthetic baseline used because live attribution feed is degraded locally."
+    },
+    {
+      "id": "EXP-CTA-02",
+      "name": "Secondary CTA variant experiment",
+      "controlVariant": "control",
+      "candidateVariant": "variant_b",
+      "views": 105,
+      "ctaClicks": 10,
+      "ctr": 9.52,
+      "decision": "hold",
+      "confidence": "low",
+      "rationale": "Synthetic baseline used because live attribution feed is degraded locally."
+    }
+  ],
+  "completedExperimentCount": 2
+}

@@ -5,10 +5,12 @@ import matter from 'gray-matter';
 import { z } from 'zod';
 
 const POSTS_DIR = path.join(process.cwd(), 'content', 'blog');
+const CMS_POSTS_FILE = path.join(process.cwd(), 'content', 'cms', 'posts.json');
 const REDIRECTS_FILE = path.join(process.cwd(), 'content', 'blog-redirects.json');
 export const BLOG_PAGE_SIZE = 12;
 const READING_WPM = 220;
 const MIN_WORD_COUNT = 70;
+const CONTENT_SOURCE = process.env.BLOG_CONTENT_SOURCE?.toLowerCase() === 'cms' ? 'cms' : 'mdx';
 const dateValueSchema = z
   .union([z.string(), z.date()])
   .transform((value) => (typeof value === 'string' ? value : value.toISOString().slice(0, 10)));
@@ -28,6 +30,12 @@ const frontmatterSchema = z.object({
   featured: z.boolean().optional()
 });
 
+const cmsPostSchema = frontmatterSchema.extend({
+  content: z.string().min(1),
+  status: z.enum(['draft', 'review', 'scheduled', 'published']).default('published'),
+  scheduledFor: dateValueSchema.optional()
+});
+
 export type BlogFrontmatter = z.infer<typeof frontmatterSchema>;
 
 export type BlogHeading = {
@@ -45,6 +53,8 @@ export type BlogPost = BlogPostSummary & {
   content: string;
   headings: BlogHeading[];
 };
+
+export type BlogPostStatus = z.infer<typeof cmsPostSchema>['status'];
 
 export function validateBlogFrontmatter(frontmatter: unknown): BlogFrontmatter {
   return frontmatterSchema.parse(frontmatter);
@@ -125,11 +135,61 @@ function parsePost(filename: string, rawSource: string): BlogPost {
   };
 }
 
+function parseCmsPost(record: unknown): BlogPost {
+  const parsed = cmsPostSchema.parse(record);
+  const markdown = parsed.content.trim();
+  const wordCount = stripMarkdown(markdown).split(/\s+/).filter(Boolean).length;
+  if (wordCount < MIN_WORD_COUNT) {
+    throw new Error(`CMS post ${parsed.slug} is too short. Minimum ${MIN_WORD_COUNT} words required.`);
+  }
+
+  return {
+    slug: parsed.slug,
+    title: parsed.title,
+    description: parsed.description,
+    publishedAt: parsed.publishedAt,
+    updatedAt: parsed.updatedAt,
+    author: parsed.author,
+    category: parsed.category,
+    tags: parsed.tags,
+    coverImage: parsed.coverImage,
+    canonicalUrl: parsed.canonicalUrl,
+    noindex: parsed.noindex,
+    featured: parsed.featured,
+    readingTime: readingTimeFromWords(wordCount),
+    wordCount,
+    content: markdown,
+    headings: extractHeadings(markdown)
+  };
+}
+
 async function loadPostFiles(): Promise<string[]> {
   const entries = await fs.readdir(POSTS_DIR, { withFileTypes: true });
   return entries
     .filter((entry) => entry.isFile() && entry.name.endsWith('.mdx'))
     .map((entry) => entry.name);
+}
+
+async function loadCmsPosts(includeUnpublished = false): Promise<BlogPost[]> {
+  try {
+    const raw = await fs.readFile(CMS_POSTS_FILE, 'utf8');
+    const parsed = JSON.parse(raw) as unknown[];
+    const now = Date.now();
+    const posts = parsed
+      .map((record) => cmsPostSchema.parse(record))
+      .filter((record) => {
+        if (includeUnpublished) return true;
+        if (record.status === 'published') return true;
+        if (record.status === 'scheduled' && record.scheduledFor) {
+          return new Date(record.scheduledFor).getTime() <= now;
+        }
+        return false;
+      })
+      .map((record) => parseCmsPost(record));
+    return posts;
+  } catch {
+    return [];
+  }
 }
 
 async function loadRedirectMap(): Promise<RedirectMap> {
@@ -143,6 +203,13 @@ async function loadRedirectMap(): Promise<RedirectMap> {
 }
 
 async function loadPostsUnsorted(): Promise<BlogPost[]> {
+  if (CONTENT_SOURCE === 'cms') {
+    const cmsPosts = await loadCmsPosts(false);
+    if (cmsPosts.length > 0) {
+      return cmsPosts;
+    }
+  }
+
   const files = await loadPostFiles();
   const posts = await Promise.all(
     files.map(async (file) => {
@@ -160,6 +227,16 @@ async function loadPostsUnsorted(): Promise<BlogPost[]> {
   }
 
   return posts;
+}
+
+async function loadPostsUnsortedWithPreview(): Promise<BlogPost[]> {
+  if (CONTENT_SOURCE === 'cms') {
+    const cmsPosts = await loadCmsPosts(true);
+    if (cmsPosts.length > 0) {
+      return cmsPosts;
+    }
+  }
+  return loadPostsUnsorted();
 }
 
 function sortByUpdatedThenPublished(posts: BlogPost[]): BlogPost[] {
@@ -226,8 +303,8 @@ export async function getAllPosts(): Promise<BlogPostSummary[]> {
   return sortByUpdatedThenPublished(posts).map(toSummary);
 }
 
-export async function getPostBySlug(slug: string): Promise<BlogPost | undefined> {
-  const posts = await loadPostsUnsorted();
+export async function getPostBySlug(slug: string, options?: { includeUnpublished?: boolean }): Promise<BlogPost | undefined> {
+  const posts = options?.includeUnpublished ? await loadPostsUnsortedWithPreview() : await loadPostsUnsorted();
   return posts.find((post) => post.slug === slug);
 }
 
