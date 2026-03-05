@@ -294,17 +294,6 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     </div>
                 </div>
 
-                {!canSearch ? (
-                    <div className="absolute left-0 right-0 -bottom-8 flex justify-center pointer-events-none">
-                        <p className={cn(
-                            'text-[12px] font-medium drop-shadow-md',
-                            variant === 'default' ? 'text-white/90' : 'text-muted-foreground'
-                        )}>
-                            Select destination, check-in, and check-out to enable search.
-                        </p>
-                    </div>
-                ) : null}
-
             </form>
         </motion.div>
     );
