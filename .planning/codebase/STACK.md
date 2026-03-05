@@ -1,41 +1,52 @@
-# Stack
+# Codebase Stack Map
 
-## Runtime and Language
-- Primary runtime: Node.js via Next.js App Router (`package.json`).
-- Language: TypeScript across app/server/test layers (`src/**/*.ts`, `tests/**/*.test.ts`).
-- React runtime: React 19 with Next.js 15 (`package.json`).
+## Runtime and Platform
+- Framework: Next.js 15 (App Router) in `package.json`.
+- Language: TypeScript (strict mode) in `tsconfig.json`.
+- Runtime target: modern Node/ES (`ES2022`, `moduleResolution: bundler`).
+- React: `react@19` and `react-dom@19`.
+- Deployment shape: Vercel-style Next app with optional Docker (`Dockerfile`, `docker-compose.yml`).
 
-## Core Frameworks
-- Web framework: Next.js 15 (`next`, `src/app/layout.tsx`, `src/app/api/**/route.ts`).
-- UI: React components with Tailwind CSS (`tailwind.config.ts`, `src/components/**`).
-- Motion and UI libs: `framer-motion`, Radix primitives (`package.json`).
+## Frontend Stack
+- UI layer built under `src/app`, `src/components`, and `src/features`.
+- Styling: Tailwind CSS via `tailwind.config.ts` + `postcss.config.js`.
+- Motion: `framer-motion`.
+- Forms and validation: `react-hook-form`, `@hookform/resolvers`, `zod`.
+- Client state:
+  - server/cache state: `@tanstack/react-query`
+  - local UI state: `zustand`
+- Maps and geospatial UI: `leaflet`, `react-leaflet`.
 
-## Data and Persistence
-- Primary data store: Supabase/Postgres (`src/server/supabase/admin.ts`, `supabase/migrations/*.sql`).
-- Cache and ephemeral state: Upstash Redis (`src/server/cache.ts`, `src/server/booking-store.ts`, `src/server/webhook-idempotency.ts`).
-- Fallback behavior: in-memory maps when Redis/Supabase unavailable in non-production (`src/server/booking/repository.ts`).
+## Backend and API Stack
+- API routes implemented with Next route handlers in `src/app/api/**/route.ts`.
+- Domain/server logic in `src/server/**`.
+- Validation and contracts: `zod`.
+- Logging: `pino` with wrappers in `src/server/logger.ts`.
+- Server-only protections visible via `import 'server-only'` in server modules.
 
-## API and Integrations Libraries
-- Supplier API: LiteAPI SDK (`liteapi-node-sdk`, `src/server/liteapi.ts`).
-- Payments: Stripe SDK (`stripe`, `src/server/payments/stripe.ts`).
-- Monitoring: Sentry Next.js package (`@sentry/nextjs`, optional via env).
-- Validation: Zod for request and env parsing (`src/server/env.ts`, route schemas).
+## Data and Infrastructure
+- Primary data/auth provider: Supabase (`@supabase/supabase-js`, `@supabase/ssr`).
+- Optional direct DB access path documented via `DATABASE_URL` and `supabase/migrations/`.
+- Cache and rate limiting: Upstash Redis (`@upstash/redis`, `@upstash/ratelimit`).
+- Payments:
+  - LiteAPI mode (`liteapi-node-sdk`)
+  - Stripe mode (`stripe`)
+  - Hybrid mode controlled by `PAYMENT_PROVIDER`.
 
-## State and Data Fetching
-- Client/server query caching: React Query (`@tanstack/react-query`).
-- Local UI state: Zustand stores (`package.json`, feature state modules).
+## Observability and Ops
+- Error monitoring: Sentry (`@sentry/nextjs`, `sentry.*.config.ts`).
+- Health/readiness endpoints exist (`src/app/api/healthz/route.ts`, `src/app/api/readyz/route.ts`).
+- Load/perf tooling scripts under `load/` and `scripts/`.
 
-## Security and Platform Configuration
-- CSP + security headers in Next config (`next.config.mjs`).
-- Middleware-based auth/access guards (`src/middleware.ts`).
-- CSRF and request sanitization utilities (`src/server/csrf.ts`, `src/server/request.ts`).
+## Build, Quality, and Tooling
+- Lint: `next lint` (`.eslintrc.json` extends `next/core-web-vitals`).
+- Typecheck: `next typegen && tsc --noEmit`.
+- Tests: Vitest + Testing Library (`vitest.config.ts`, `tests/**`).
+- Lockfile and package manager: npm (`package-lock.json`).
 
-## Testing and Tooling
-- Test runner: Vitest (`vitest.config.ts`, `npm run test`).
-- Test style: module-level mocks with `vi.doMock` and API handler testing (`tests/**/*.test.ts`).
-- Lint/typecheck scripts: `next lint`, `tsc --noEmit` (`package.json`).
-
-## Build and Deployment
-- Local dev/build scripts in `package.json` (`dev`, `build`, `start`).
-- Docker artifacts exist (`Dockerfile`, `docker-compose.yml`).
-- Vercel deployment target indicated (`vercel.json`, README deployment note).
+## Key Configuration Files
+- `package.json`
+- `tsconfig.json`
+- `next.config.mjs`
+- `vitest.config.ts`
+- `.env.example`

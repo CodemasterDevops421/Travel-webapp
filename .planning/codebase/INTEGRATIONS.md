@@ -1,42 +1,70 @@
-# Integrations
+# External Integrations Map
 
-## Supabase (Auth + Database)
-- Admin client for privileged server writes in `src/server/supabase/admin.ts`.
-- Server auth client used in API routes like `src/app/api/admin/stats/route.ts`.
-- Canonical schema managed through SQL migrations in `supabase/migrations/`.
-- Key tables used by runtime paths include `bookings`, `payment_logs`, `commission_tracking`, and `reviews_cache` (`supabase/migrations/006_phase1_foundation.sql`).
+## Booking and Hotel Supply
+- LiteAPI is the hotel inventory and booking provider.
+- Core integration points:
+  - `src/server/liteapi.ts`
+  - `src/app/api/search/rooms/route.ts`
+  - `src/app/api/hotels/[hotelId]/route.ts`
+  - `src/app/api/booking/prebook/route.ts`
+  - `src/app/api/booking/book/route.ts`
+- LiteAPI webhook receiver:
+  - `src/app/api/webhooks/liteapi/route.ts`
 
-## LiteAPI (Supplier Content + Booking)
-- Supplier calls centralized in `src/server/liteapi.ts`.
-- Used by search/rates/reviews and booking-adjacent flows (`src/app/api/hotels/rates/route.ts`, `src/app/api/review-snippets/route.ts`).
-- Incoming supplier webhook endpoint: `src/app/api/webhooks/liteapi/route.ts`.
-- Signature verification and timestamp skew checks implemented in route handler.
+## Payments
+- Stripe SDK is present for Stripe-only or hybrid checkout modes.
+- Core Stripe integration points:
+  - `src/server/payments/stripe.ts`
+  - `src/app/api/webhooks/stripe/route.ts`
+  - `src/app/api/checkout/session/route.ts`
+- Runtime switch:
+  - `PAYMENT_PROVIDER` in `.env.example`
+  - logic in `src/server/env.ts`.
 
-## Stripe (Payments)
-- Checkout session creation: `src/app/api/checkout/session/route.ts` via `src/server/payments/stripe.ts`.
-- Stripe webhook ingestion: `src/app/api/webhooks/stripe/route.ts`.
-- Payment events reconciled into booking lifecycle and canonical payment logs.
+## Auth and Identity
+- Supabase Auth for session/user identity.
+- Server and client entry points:
+  - `src/server/supabase/server.ts`
+  - `src/server/supabase/client.ts`
+  - `src/server/supabase/admin.ts`
+  - `src/shared/auth/client-auth.ts`
+- Middleware route protection:
+  - `src/middleware.ts`.
 
-## Upstash Redis (Cache + Rate Limit + Idempotency)
-- Generic cache read-through helper: `src/server/cache.ts`.
-- Route rate limiting: `src/server/ratelimit.ts`.
-- Webhook dedup and two-phase event processing: `src/server/webhook-idempotency.ts`.
-- Checkout/prebook session persistence: `src/server/booking-store.ts`.
+## Data Storage and Persistence
+- Supabase/Postgres-backed repositories:
+  - `src/server/booking/repository.ts`
+  - `src/server/settings/repository.ts`
+  - `src/server/analytics-repository.ts`
+- Database migration assets:
+  - `supabase/migrations/`.
 
-## OpenAI (Optional Concierge)
-- Optional AI-backed concierge flow exposed through `src/app/api/concierge/route.ts`.
-- Server-side concierge utility in `src/server/concierge.ts`.
-- Controlled by `OPENAI_API_KEY` and related env fields in `src/server/env.ts`.
+## Caching and Rate Limiting
+- Upstash Redis integration:
+  - `src/server/cache.ts`
+  - `src/server/ratelimit.ts`
+- Used for TTL caches, idempotency support, and abuse controls.
 
-## Sentry (Optional Error Monitoring)
-- Sentry config files present: `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`.
-- Errors are normalized through shared error mapping (`src/server/errors.ts`) before route responses.
+## Observability and Error Monitoring
+- Sentry for browser/edge/server telemetry:
+  - `sentry.client.config.ts`
+  - `sentry.edge.config.ts`
+  - `sentry.server.config.ts`
+- Structured logging support in `src/server/logger.ts`.
 
-## Auth/OAuth
-- Supabase Auth powers email/password and OAuth callback flows (`src/app/auth/callback/route.ts`, `src/app/auth/login/page.tsx`).
-- Middleware gating for protected and admin routes in `src/middleware.ts`.
+## Optional AI/Assistant
+- Concierge/AI functionality appears in:
+  - `src/server/concierge.ts`
+  - `src/server/hotel-ai-context.ts`
+  - `src/app/api/concierge/route.ts`
+  - `src/app/api/hotel-ai/route.ts`
+- Optional key surfaced via `OPENAI_API_KEY` in `.env.example`.
 
-## Integration Reliability Patterns
-- Fail-closed mode toggled by `STRICT_PERSISTENCE_MODE` for production-critical persistence (`src/server/env.ts`).
-- Non-production fallback storage in memory for degraded local/test operation (`src/server/booking/repository.ts`).
-- Correlation IDs propagated through request helpers (`src/server/request.ts`) and structured logs (`src/server/logger.ts`).
+## Ops and External Tooling
+- Load tests:
+  - `load/admin-reports.k6.js`
+  - `load/admin-reports.artillery.yml`
+- Validation/report scripts:
+  - `scripts/verify-live-webhook.js`
+  - `scripts/verify-live-email.js`
+  - `scripts/perf-proof.js`

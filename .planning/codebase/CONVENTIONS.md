@@ -1,44 +1,49 @@
-# Conventions
+# Code Conventions Map
 
-## TypeScript and Imports
-- Codebase is TypeScript-first; route and server modules are typed.
-- Path alias `@/` is standard for imports (`vitest.config.ts`, many `src/*` files).
-- `server-only` marker is used for server modules (`src/server/booking/repository.ts`, `src/server/env.ts`).
+## TypeScript and Module Conventions
+- Strict TypeScript is enabled (`"strict": true` in `tsconfig.json`).
+- Path alias `@/*` maps to `src/*`.
+- Server-only modules explicitly declare `import 'server-only'` where applicable.
+- ESM-style imports are standard across app/server files.
 
-## Route Handler Conventions
-- API handlers export HTTP verb functions (`export async function GET/POST`).
-- Request validation usually uses Zod schemas at top-of-file.
-- Shared helpers for request metadata and body parsing are reused (`src/server/request.ts`).
-- Responses return JSON with explicit status codes and safe error messages.
+## Validation and Contract Style
+- Request/input validation is schema-driven with `zod`.
+- Route handlers parse and validate payloads early.
+- Domain functions accept typed objects rather than loose dictionaries.
+- Sanitization helpers are used before persistence/logging (see `src/server/request.ts` usage).
 
 ## Error Handling Pattern
-- Domain and validation errors map through `toHttpError` (`src/server/errors.ts`).
-- Route handlers commonly follow `try/catch` + `toHttpError` + `NextResponse.json`.
-- `HttpError` carries `status`, `code`, and safe messaging fields.
+- Centralized HTTP error conversion via `HttpError` / `toHttpError` (`src/server/errors.ts`).
+- Handlers consistently:
+  - wrap logic in `try/catch`
+  - log context
+  - return safe client-facing errors.
+- Fallback and guard patterns are explicit for transient service failures.
 
-## Logging and Traceability
-- Structured logging with Pino (`src/server/logger.ts`).
-- Correlation IDs derived from request headers or generated (`src/server/request.ts`).
-- Log payloads frequently include route/module identifiers and event metadata.
+## Security and Access Control Conventions
+- Middleware-based route gating for protected routes (`src/middleware.ts`).
+- Same-origin enforcement for mutating routes (`src/server/csrf.ts`).
+- Rate limiting with route-specific buckets (`src/server/ratelimit.ts`).
+- Security headers applied both via middleware and Next config.
 
-## Security Conventions
-- Rate limiting is expected on mutation-like and webhook endpoints (`src/server/ratelimit.ts`).
-- Same-origin checks are applied to sensitive mutation routes (`src/server/csrf.ts`).
-- Secret-like supplier fields are stripped at response boundaries (`src/server/request.ts`).
-- Middleware gates protected routes (`src/middleware.ts`).
+## Naming and File Patterns
+- Route files: `route.ts`.
+- Domain naming by bounded context:
+  - `booking-*`, `*-repository.ts`, `*-idempotency.ts`.
+- Feature code grouped by intent:
+  - `components/`, `hooks/`, `stores/`, `lib/`.
 
-## Data Persistence Style
-- Repository wrappers isolate Supabase I/O from route handlers.
-- Fail-closed behavior is controlled by `STRICT_PERSISTENCE_MODE` in production (`src/server/env.ts`).
-- Non-prod fallback maps are accepted for resilience and tests (`src/server/booking/repository.ts`).
-- Additive/idempotent migration strategy reflected in SQL (`supabase/migrations/*.sql`).
+## Logging and Observability Style
+- Structured logging with consistent context objects.
+- Event-style helper logging appears in booking flows.
+- Correlation/request IDs are propagated when present.
 
-## Naming Style
-- Files are generally kebab-case (`booking-store.ts`, `webhook-idempotency.ts`).
-- Types and interfaces are PascalCase; helper funcs camelCase.
-- Domain terminology is consistent: transactionId, prebookId, correlationId, paymentStatus.
+## Lint and Formatting Baseline
+- ESLint inherits `next/core-web-vitals` (`.eslintrc.json`).
+- No custom local lint rule set observed beyond Next defaults.
+- Style consistency comes mainly from TypeScript + code review practices.
 
-## Test-Driven Conventions in Practice
-- Tests isolate modules with `vi.doMock` and `vi.resetModules`.
-- Environment is explicitly stubbed in tests (`vi.stubEnv`, process env assignments).
-- Assertions emphasize externally observable behavior over internals.
+## Configuration Conventions
+- Environment variables are validated and normalized in `src/server/env.ts`.
+- Production readiness assertions enforce required secrets and provider-specific keys.
+- Runtime mode switching (liteapi/hybrid/stripe) is centralized in env helpers.
