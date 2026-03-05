@@ -225,7 +225,7 @@ function saveCheckoutSession(transactionId: string, payload: CheckoutSessionPayl
       lastName: '',
       email: ''
     },
-    guests: [],
+    guests: payload.guests,
     formValues: {
       ...payload.formValues,
       firstName: '',
