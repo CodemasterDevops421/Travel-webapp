@@ -106,7 +106,7 @@ describe('admin support operations routes', () => {
   });
 
   it('updates support case state via patch route', async () => {
-    const updateBookingMetadataById = vi.fn().mockResolvedValue(true);
+    const updateBookingMetadataById = vi.fn().mockResolvedValue({ ok: true, reason: 'updated' });
     vi.doMock('@/server/supabase/server', () => ({
       createServerSupabaseClient: vi.fn().mockResolvedValue(createSupabaseMock())
     }));
@@ -140,6 +140,35 @@ describe('admin support operations routes', () => {
         supportResolutionNote: expect.anything()
       })
     );
+  });
+
+  it('returns 500 when metadata persistence fails server-side', async () => {
+    const updateBookingMetadataById = vi.fn().mockResolvedValue({ ok: false, reason: 'db_error' });
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue(createSupabaseMock())
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      getBookingById: vi.fn().mockResolvedValue({
+        id: 'booking-1',
+        status: 'confirmed',
+        metadata: {}
+      }),
+      updateBookingMetadataById
+    }));
+
+    const { PATCH } = await import('@/app/api/admin/support/operations/[bookingId]/route');
+    const req = new NextRequest('http://localhost/api/admin/support/operations/booking-1', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        state: 'in_progress',
+        priority: 'high'
+      })
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ bookingId: 'booking-1' }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toContain('could not be persisted');
   });
 
   it('returns 429 when support operations route is rate limited', async () => {

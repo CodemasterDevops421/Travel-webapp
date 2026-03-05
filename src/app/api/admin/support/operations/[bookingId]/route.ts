@@ -70,9 +70,18 @@ export async function PATCH(
 
     const persisted = await updateBookingMetadataById(booking.id, supportMetadata);
 
-    if (!persisted) {
-      responseStatus = 409;
-      return NextResponse.json({ error: 'Support case update could not be persisted' }, { status: 409 });
+    if (!persisted.ok) {
+      if (persisted.reason === 'not_found') {
+        responseStatus = 404;
+        return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+      }
+      if (persisted.reason === 'conflict') {
+        responseStatus = 409;
+        return NextResponse.json({ error: 'Support case update conflicted. Please retry.' }, { status: 409 });
+      }
+
+      responseStatus = 500;
+      return NextResponse.json({ error: 'Support case update could not be persisted' }, { status: 500 });
     }
 
     invalidateAdminReportCache([
