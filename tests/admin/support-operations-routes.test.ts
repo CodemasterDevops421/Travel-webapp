@@ -106,7 +106,7 @@ describe('admin support operations routes', () => {
   });
 
   it('updates support case state via patch route', async () => {
-    const updateBookingStatusById = vi.fn().mockResolvedValue(true);
+    const updateBookingMetadataById = vi.fn().mockResolvedValue(true);
     vi.doMock('@/server/supabase/server', () => ({
       createServerSupabaseClient: vi.fn().mockResolvedValue(createSupabaseMock())
     }));
@@ -116,7 +116,7 @@ describe('admin support operations routes', () => {
         status: 'confirmed',
         metadata: { supportAssignedTo: 'Existing Assignee', supportResolutionNote: 'Existing note' }
       }),
-      updateBookingStatusById
+      updateBookingMetadataById
     }));
 
     const { PATCH } = await import('@/app/api/admin/support/operations/[bookingId]/route');
@@ -133,9 +133,8 @@ describe('admin support operations routes', () => {
     expect(res.status).toBe(200);
     expect(json.ok).toBe(true);
     expect(json.state).toBe('in_progress');
-    expect(updateBookingStatusById).toHaveBeenCalledWith(
+    expect(updateBookingMetadataById).toHaveBeenCalledWith(
       'booking-1',
-      'confirmed',
       expect.not.objectContaining({
         supportAssignedTo: expect.anything(),
         supportResolutionNote: expect.anything()
