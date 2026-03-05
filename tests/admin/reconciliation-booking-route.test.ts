@@ -146,4 +146,41 @@ describe('admin reconciliation booking detail route', () => {
     expect(res.status).toBe(503);
     expect(json.error).toContain('Failed to load booking details');
   });
+
+  it('returns 503 when dependent commission query fails', async () => {
+    const supabase = createBaseSupabase();
+    supabase.from = vi.fn().mockImplementation((table: string) => {
+      if (table === 'admin_users') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'admin' }, error: null })
+            })
+          })
+        };
+      }
+      if (table === 'commission_tracking') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST500' } })
+            })
+          })
+        };
+      }
+      return createBaseSupabase().from(table);
+    });
+
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue(supabase)
+    }));
+
+    const { GET } = await import('@/app/api/admin/reconciliation/[bookingId]/route');
+    const req = new NextRequest('http://localhost/api/admin/reconciliation/booking-1');
+    const res = await GET(req, { params: Promise.resolve({ bookingId: 'booking-1' }) });
+    const json = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(json.error).toContain('Failed to load booking details');
+  });
 });

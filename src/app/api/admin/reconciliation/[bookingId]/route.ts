@@ -75,15 +75,17 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
+    if (commissionResult.status !== 'fulfilled' || commissionResult.value.error) {
+      return NextResponse.json({ error: 'Failed to load booking details' }, { status: 503 });
+    }
+
+    if (paymentResult.status !== 'fulfilled' || paymentResult.value.error) {
+      return NextResponse.json({ error: 'Failed to load booking details' }, { status: 503 });
+    }
+
     const booking = bookingResult.value.data;
-    const commission =
-      commissionResult.status === 'fulfilled' && !commissionResult.value.error
-        ? commissionResult.value.data
-        : null;
-    const payment =
-      paymentResult.status === 'fulfilled' && !paymentResult.value.error
-        ? (paymentResult.value.data?.[0] ?? null)
-        : null;
+    const commission = commissionResult.value.data;
+    const payment = paymentResult.value.data?.[0] ?? null;
 
     const bookingTotal =
       typeof booking.total_amount === 'number'
