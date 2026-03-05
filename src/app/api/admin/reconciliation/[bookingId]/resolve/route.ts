@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@/server/supabase/server';
 import { assertAdminAuthorized } from '@/server/authz';
 import { HttpError } from '@/server/errors';
 import { invalidateAdminReportCache } from '@/server/admin/report-cache';
+import { getBookingById, updateBookingMetadataById } from '@/server/booking/repository';
 
 const requestSchema = z.object({
   resolutionNote: z.string().trim().min(3).max(500),
@@ -35,24 +36,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Invalid booking id' }, { status: 400 });
     }
 
-    const bookingResult = await supabase
-      .from('bookings')
-      .select('id, metadata')
-      .eq('id', bookingId)
-      .single();
-
-    if (bookingResult.error || !bookingResult.data) {
+    const booking = await getBookingById(bookingId);
+    if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    const metadata = (bookingResult.data.metadata as Record<string, unknown> | null) ?? {};
+    const metadata = (booking.metadata as Record<string, unknown> | null) ?? {};
     const previousReconciliation =
       typeof metadata.reconciliation === 'object' && metadata.reconciliation !== null
         ? (metadata.reconciliation as Record<string, unknown>)
         : {};
 
-    const nextMetadata: Record<string, unknown> = {
-      ...metadata,
+    const reconciliationMetadata = {
       reconciliation: {
         ...previousReconciliation,
         resolved: true,
@@ -61,16 +56,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
         resolutionNote: payload.resolutionNote,
         issueType: payload.issueType ?? previousReconciliation.issueType ?? null
       }
-    };
+    } satisfies Record<string, unknown>;
 
-    const updateResult = await supabase
-      .from('bookings')
-      .update({
-        metadata: nextMetadata
-      })
-      .eq('id', bookingId);
-
-    if (updateResult.error) {
+    const persisted = await updateBookingMetadataById(bookingId, reconciliationMetadata);
+    if (!persisted.ok) {
+      if (persisted.reason === 'not_found') {
+        return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+      }
+      if (persisted.reason === 'conflict') {
+        return NextResponse.json({ error: 'Resolution state conflicted. Please retry.' }, { status: 409 });
+      }
       return NextResponse.json({ error: 'Failed to persist resolution state' }, { status: 500 });
     }
 
@@ -83,7 +78,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({
       ok: true,
       bookingId,
-      reconciliation: nextMetadata.reconciliation
+      reconciliation: reconciliationMetadata.reconciliation
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

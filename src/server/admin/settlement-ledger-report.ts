@@ -72,8 +72,8 @@ function pickSettlementStatus(
   if (!tracking) {
     return { status: 'awaiting_tracking', issue: 'Missing commission tracking row' };
   }
-  if (!payment && booking.status === 'confirmed') {
-    return { status: 'awaiting_payment', issue: 'Missing payment log for confirmed booking' };
+  if (!payment && (booking.status === 'confirmed' || booking.status === 'payment_authorized')) {
+    return { status: 'awaiting_payment', issue: `Missing payment log for ${booking.status} booking` };
   }
   if (booking.currency && tracking.currency && booking.currency !== tracking.currency) {
     return { status: 'exception', issue: `Currency mismatch ${booking.currency}/${tracking.currency}` };
@@ -103,7 +103,8 @@ export async function buildSettlementLedgerReport(
     .select('id, status, total_amount, commission_amount, currency, payment_status, liteapi_booking_id, created_at')
     .gte('created_at', periodStart.toISOString())
     .in('status', ['confirmed', 'payment_authorized', 'refunded'])
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(limit);
   if (bookingsResult.error) {
     throw new HttpError(503, 'Failed to load bookings for settlement ledger report');
   }
@@ -190,6 +191,6 @@ export async function buildSettlementLedgerReport(
       awaitingPaymentRows,
       exceptionRows
     },
-    ledger: ledger.slice(0, limit)
+    ledger
   };
 }

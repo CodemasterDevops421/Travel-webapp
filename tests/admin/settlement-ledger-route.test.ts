@@ -65,7 +65,9 @@ describe('admin settlement ledger route', () => {
             select: vi.fn().mockReturnValue({
               gte: vi.fn().mockReturnValue({
                 in: vi.fn().mockReturnValue({
-                  order: vi.fn().mockResolvedValue({ data: bookings })
+                  order: vi.fn().mockReturnValue({
+                    limit: vi.fn().mockResolvedValue({ data: bookings })
+                  })
                 })
               })
             })
@@ -109,7 +111,6 @@ describe('admin settlement ledger route', () => {
     const req = new NextRequest('http://localhost/api/admin/settlement/ledger?days=30');
     const res = await GET(req);
     const json = await res.json();
-
     expect(res.status).toBe(200);
     expect(json.summary.totalRows).toBeGreaterThanOrEqual(1);
     expect(Array.isArray(json.ledger)).toBe(true);
@@ -195,4 +196,5 @@ describe('admin settlement ledger route', () => {
     expect(res.status).toBe(503);
     expect(json.error).toContain('Failed to load bookings');
   });
+
 });

@@ -286,12 +286,21 @@ describe('admin reconciliation routes', () => {
   it('resolves a reconciliation issue with note', async () => {
     const supabase = createSupabaseMock();
     const invalidateAdminReportCache = vi.fn();
+    const getBookingById = vi.fn().mockResolvedValue({
+      id: 'booking-1',
+      metadata: { reconciliation: { issueType: 'amount_mismatch' } }
+    });
+    const updateBookingMetadataById = vi.fn().mockResolvedValue({ ok: true, reason: 'updated' });
 
     vi.doMock('@/server/supabase/server', () => ({
       createServerSupabaseClient: vi.fn().mockResolvedValue(supabase)
     }));
     vi.doMock('@/server/admin/report-cache', () => ({
       invalidateAdminReportCache
+    }));
+    vi.doMock('@/server/booking/repository', () => ({
+      getBookingById,
+      updateBookingMetadataById
     }));
 
     const { POST } = await import('@/app/api/admin/reconciliation/[bookingId]/resolve/route');
@@ -311,6 +320,17 @@ describe('admin reconciliation routes', () => {
     expect(res.status).toBe(200);
     expect(json.ok).toBe(true);
     expect(json.bookingId).toBe('booking-1');
+    expect(getBookingById).toHaveBeenCalledWith('booking-1');
+    expect(updateBookingMetadataById).toHaveBeenCalledWith(
+      'booking-1',
+      expect.objectContaining({
+        reconciliation: expect.objectContaining({
+          resolved: true,
+          resolutionNote: 'Verified with supplier and adjusted local metadata.',
+          issueType: 'amount_mismatch'
+        })
+      })
+    );
     expect(invalidateAdminReportCache).toHaveBeenCalledWith([
       'admin:reconciliation:admin-1:',
       'admin:reconciliation-export:admin-1:',
