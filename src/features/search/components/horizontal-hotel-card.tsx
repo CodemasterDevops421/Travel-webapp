@@ -142,15 +142,6 @@ export function HorizontalHotelCard({
                             <span className="text-muted-foreground no-underline">Map view</span>
                         </PreferenceLink>
 
-                        {/* Trust Badges */}
-                        <div className="mt-3 flex flex-wrap gap-1.5 items-center">
-                            <span className="rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700 border border-green-200">
-                                Free cancellation
-                            </span>
-                            <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
-                                Reserve now, pay later
-                            </span>
-                        </div>
                         {amenityHighlights.length > 0 ? (
                             <div className="mt-3 flex flex-wrap gap-1.5">
                                 {amenityHighlights.map((amenity) => (
@@ -194,8 +185,8 @@ export function HorizontalHotelCard({
 
                     <div className="flex flex-col items-end gap-0 w-full sm:w-auto">
                         <div className="text-right">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Actual price</p>
                             <div className="flex items-baseline justify-end gap-1.5">
-                                <span className="text-sm text-muted-foreground line-through decoration-red-500/50">{formatMoney(hotel.currency, (hotel.price ?? 0) * 1.08)}</span>
                                 <span className="text-2xl font-bold text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
                             </div>
                             <p className="text-[11px] text-muted-foreground mt-0.5">per night · Includes taxes and charges</p>

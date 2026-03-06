@@ -52,6 +52,16 @@ function buildRateKey(rate: Pick<HotelRateOption, 'offerId' | 'roomId'>): string
   return `${rate.offerId}:${rate.roomId}`;
 }
 
+function pickRecommendedRate<T extends Pick<HotelRateOption, 'offerId' | 'roomId' | 'amount'>>(rates: T[]): T | null {
+  if (!rates.length) return null;
+  return [...rates].sort((left, right) => {
+    if (left.amount !== right.amount) {
+      return left.amount - right.amount;
+    }
+    return buildRateKey(left).localeCompare(buildRateKey(right));
+  })[0] ?? null;
+}
+
 function buildBookingQuery(
   rate: HotelRateWithCancellationContext,
   context: { hotelId: string; checkin: string; checkout: string; adults: number; rooms: number }
@@ -113,7 +123,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   const [askAnswer, setAskAnswer] = useState('');
   const [askLoading, setAskLoading] = useState(false);
   const [selectedRateKey, setSelectedRateKey] = useState<string | null>(
-    initialRates[0] ? buildRateKey(initialRates[0]) : null
+    pickRecommendedRate(initialRates) ? buildRateKey(pickRecommendedRate(initialRates)!) : null
   );
   const { isSaved, toggleSave, authRequired, clearAuthRequired } = useWishlist();
 
@@ -138,11 +148,13 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
       return;
     }
 
+    const recommendedRate = pickRecommendedRate(rates);
+
     setSelectedRateKey((current) => {
       if (current && rates.some((rate) => buildRateKey(rate) === current)) {
         return current;
       }
-      return buildRateKey(rates[0]);
+      return recommendedRate ? buildRateKey(recommendedRate) : buildRateKey(rates[0]);
     });
   }, [rates]);
 
@@ -160,6 +172,10 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     () => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? rates[0] ?? null,
     [rates, selectedRateKey]
   );
+  const recommendedRateKey = useMemo(() => {
+    const recommendedRate = pickRecommendedRate(rates);
+    return recommendedRate ? buildRateKey(recommendedRate) : null;
+  }, [rates]);
   const selectedCancellation = useMemo(
     () => (selectedRate ? getCancellationCopy(selectedRate) : null),
     [selectedRate]
@@ -335,6 +351,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
           adults={adults}
           rooms={rooms}
           selectedRate={selectedRate}
+          recommendedRateKey={recommendedRateKey}
           setSelectedRateKey={setSelectedRateKey}
           buildRateKey={buildRateKey}
           getCancellationCopy={getCancellationCopy}

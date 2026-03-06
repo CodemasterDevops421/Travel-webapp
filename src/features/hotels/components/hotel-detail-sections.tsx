@@ -26,6 +26,7 @@ type HotelDetailSectionsProps = {
   adults: number;
   rooms: number;
   selectedRate: HotelRateWithCancellationContext | null;
+  recommendedRateKey: string | null;
   setSelectedRateKey: (key: string) => void;
   buildRateKey: (rate: Pick<HotelRateWithCancellationContext, 'offerId' | 'roomId'>) => string;
   getCancellationCopy: (rate: HotelRateWithCancellationContext) => CancellationCopy;
@@ -55,6 +56,7 @@ export function HotelDetailSections({
   adults,
   rooms,
   selectedRate,
+  recommendedRateKey,
   setSelectedRateKey,
   buildRateKey,
   getCancellationCopy,
@@ -165,8 +167,26 @@ export function HotelDetailSections({
       });
     }
 
-    return Array.from(groups.values());
-  }, [rates]);
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        offers: [...group.offers].sort((left, right) => {
+          const leftIsRecommended = buildRateKey(left) === recommendedRateKey;
+          const rightIsRecommended = buildRateKey(right) === recommendedRateKey;
+          if (leftIsRecommended && !rightIsRecommended) return -1;
+          if (rightIsRecommended && !leftIsRecommended) return 1;
+          if (left.amount !== right.amount) return left.amount - right.amount;
+          return buildRateKey(left).localeCompare(buildRateKey(right));
+        })
+      }))
+      .sort((left, right) => {
+        const leftHasRecommended = left.offers.some((rate) => buildRateKey(rate) === recommendedRateKey);
+        const rightHasRecommended = right.offers.some((rate) => buildRateKey(rate) === recommendedRateKey);
+        if (leftHasRecommended && !rightHasRecommended) return -1;
+        if (rightHasRecommended && !leftHasRecommended) return 1;
+        return Math.min(...left.offers.map((rate) => rate.amount)) - Math.min(...right.offers.map((rate) => rate.amount));
+      });
+  }, [buildRateKey, rates, recommendedRateKey]);
   const popularFacilityHighlights = amenities.slice(0, 12);
   const surroundings = locationContext?.nearbyLandmarks?.length
     ? locationContext.nearbyLandmarks
@@ -359,7 +379,7 @@ export function HotelDetailSections({
         <article className="rounded-xl border border-border bg-card/70 p-4">
           <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Availability snapshot</p>
           <p className="mt-2 text-sm text-foreground">{rates.length} room options found for your selected dates.</p>
-          <p className="mt-1 text-sm text-muted-foreground">Final cancellation and payment terms depend on the selected room and fare conditions.</p>
+          <p className="mt-1 text-sm text-muted-foreground">We recommend the lowest-priced selectable offer first, but every available room option remains visible below.</p>
         </article>
         {groupedRates.length === 0 ? (
           <p className="rounded-xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
@@ -388,6 +408,7 @@ export function HotelDetailSections({
                 <div className="space-y-3">
                   {group.offers.map((rate) => {
                     const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
+                    const isRecommended = recommendedRateKey === buildRateKey(rate);
                     const cancellationCopy = getCancellationCopy(rate);
 
                     return (
@@ -395,11 +416,17 @@ export function HotelDetailSections({
                         key={`${rate.offerId}-${rate.roomId}`}
                         className={cn(
                           'flex flex-col justify-between gap-4 border p-4 transition-colors md:flex-row md:items-center',
-                          isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/20'
+                          isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/20',
+                          isRecommended && !isSelected ? 'border-emerald-300 bg-emerald-50/60' : ''
                         )}
                       >
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
+                            {isRecommended ? (
+                              <span className="inline-flex w-fit items-center gap-1 border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+                                Recommended value
+                              </span>
+                            ) : null}
                             <span className="inline-flex w-fit items-center gap-1 border border-green-200 bg-green-50 px-2 py-1 text-xs font-bold text-green-700">
                               ✓ {rate.refundableTag}
                             </span>
@@ -426,7 +453,7 @@ export function HotelDetailSections({
                                 : 'border border-border bg-background text-foreground hover:bg-muted'
                             )}
                           >
-                            {isSelected ? 'Selected offer' : 'Select offer'}
+                            {isSelected ? 'Selected offer' : isRecommended ? 'Choose recommended offer' : 'Select offer'}
                           </button>
                         </div>
                       </div>

@@ -1,160 +1,116 @@
-# 🏨 Hostel Stays — Hotel Booking Platform
+# Hostel Stays
 
-> **Same Stays. Better Prices.** — A modern hotel booking website where travelers search 2M+ hotels worldwide, compare rates, and book securely.
+LiteAPI-first hotel booking platform built with Next.js 15, React 19, Supabase, and Upstash Redis.
 
----
+This codebase lets travelers:
+- search hotels by destination or vibe,
+- inspect hotel details, rooms, reviews, and policies,
+- prebook and pay through the LiteAPI payment SDK,
+- receive confirmation, cancellation, and refund-status updates,
+- manage bookings through secure booking links,
+- and lets operators inspect admin, reconciliation, and launch-readiness surfaces.
 
-## 📖 Documentation
+## Start Here
 
-| Document | Who It's For | What It Covers |
-|----------|-------------|----------------|
-| **[Product Overview](docs/PRODUCT_OVERVIEW.md)** | Everyone | What the product is, key features, how it works, current status |
-| **[What's Built](docs/WHATS_BUILT.md)** | Everyone | Detailed inventory of every feature and system, in plain English |
-| **[Next Phase Roadmap](docs/NEXT_PHASE_ROADMAP.md)** | Everyone | What's coming next, timeline estimates, future vision |
-| **[DB Runbook](docs/DB_RUNBOOK.md)** | Developers | Database setup, migrations, and health checks |
-| **[Production Readiness Audit](PRODUCTION_READINESS_AUDIT.md)** | Developers | Security and reliability assessment |
-| **[Implementation Guide](IMPLEMENTATION.md)** | Developers | Tech stack, verification commands, CI/CD setup |
+If you are a developer or an AI agent, read these in order:
 
----
+1. [docs/README.md](C:/Users/Lenovo/Downloads/travelapp/Travel-webapp/docs/README.md)
+2. [docs/PLATFORM_STATUS.md](C:/Users/Lenovo/Downloads/travelapp/Travel-webapp/docs/PLATFORM_STATUS.md)
+3. [.planning/ROADMAP.md](C:/Users/Lenovo/Downloads/travelapp/Travel-webapp/.planning/ROADMAP.md)
+4. [.planning/REQUIREMENTS.md](C:/Users/Lenovo/Downloads/travelapp/Travel-webapp/.planning/REQUIREMENTS.md)
 
-## ✨ Features at a Glance
+Operational docs:
+- [docs/GO_LIVE_CHECKLIST.md](C:/Users/Lenovo/Downloads/travelapp/Travel-webapp/docs/GO_LIVE_CHECKLIST.md)
+- [docs/DB_RUNBOOK.md](C:/Users/Lenovo/Downloads/travelapp/Travel-webapp/docs/DB_RUNBOOK.md)
+- [docs/perf/README.md](C:/Users/Lenovo/Downloads/travelapp/Travel-webapp/docs/perf/README.md)
 
-- 🔍 **Search** — Destination autocomplete, date range, guest selection, filter & sort
-- 🏨 **Hotel Details** — Photo gallery, amenities, room rates, reviews, interactive map
-- 🤖 **AI Assistant** — Chatbot concierge + hotel-specific Q&A
-- 💳 **Secure Checkout** — 3-step flow with LiteAPI payment SDK and signed price quotes
-- 🔐 **Auth** — Email/password + Google OAuth with protected routes
-- 📊 **Admin Panel** — Commission controls, sandbox/production mode toggle
-- 📧 **Notifications** — Automated booking confirmation and cancellation emails
-- 📱 **Responsive** — Works on desktop, tablet, and mobile
+## Current Runtime Shape
 
----
+- Primary booking and payment path: `LiteAPI`
+- Optional fallback mode: `Stripe` only when `PAYMENT_PROVIDER` is `stripe` or `hybrid`
+- Auth: `Supabase Auth`
+- Persistence: `Supabase` + optional `Upstash Redis`
+- Monitoring: `Sentry` optional
+- AI features: `OpenAI` optional
 
-## 🚀 Quick Start (For Developers)
+Canonical booking lifecycle states:
+- `pending`
+- `payment_authorized`
+- `confirmed`
+- `failed`
+- `refunded`
 
-### Prerequisites
+## Core Flows
+
+- Search: homepage/search -> `/api/property-preview` -> search and listing UI
+- Hotel detail: `/hotels/[hotelId]` -> hotel details + rates + room selection
+- Booking: prebook -> LiteAPI payment SDK -> return -> finalize booking
+- Booking management: secure booking view -> cancel/support actions
+- Ops: admin reconciliation, settlement, readiness, and support operations routes
+
+## Quick Start
+
+Prerequisites:
 - Node.js 20+
 - npm
 
-### Setup
+Setup:
+
 ```bash
-# 1. Clone and install
 git clone <repo-url>
 cd Travel-webapp
 cp .env.example .env.local
 npm ci
-
-# 2. Start development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open `http://localhost:3000`.
 
-### Key Commands
+## Commands
 
-| Command | What It Does |
-|---------|-------------|
-| `npm run dev` | Start the development server |
-| `npm run build` | Build for production |
-| `npm run start` | Start the production server |
-| `npm run lint` | Check code quality |
-| `npm run typecheck` | Check for type errors |
-| `npm run test` | Run automated tests |
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start local development server |
+| `npm run build` | Production build |
+| `npm run start` | Run built app |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | Type generation + TypeScript validation |
+| `npm run test` | Full Vitest suite |
+| `npm run verify:live:webhook:liteapi` | Post-deploy LiteAPI webhook proof |
+| `npm run verify:live:email` | Post-deploy email proof |
 
----
+## Environment
 
-## 🔧 Tech Stack
+Important variables:
+- `PAYMENT_PROVIDER`
+- `LITEAPI_API_KEY`
+- `LITEAPI_ENV`
+- `LITEAPI_WEBHOOK_SECRET`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `STRICT_PERSISTENCE_MODE`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
 
-| Layer | Technology |
-|-------|-----------|
-| **Framework** | Next.js 15 (App Router) |
-| **Frontend** | React 19, Tailwind CSS, Framer Motion |
-| **State** | Zustand, React Query |
-| **Database** | Supabase (PostgreSQL) |
-| **Auth** | Supabase Auth (email + Google OAuth) |
-| **Payments** | LiteAPI Payment SDK (`liteapi` mode), optional Stripe fallback in non-launch modes |
-| **Hotels API** | LiteAPI (2M+ hotels) |
-| **Caching** | Upstash Redis |
-| **Monitoring** | Sentry (optional) |
-| **AI** | OpenAI (optional concierge) |
-| **Testing** | Vitest + Testing Library |
-| **Deployment** | Vercel |
+See [.env.example](C:/Users/Lenovo/Downloads/travelapp/Travel-webapp/.env.example) for the complete list.
 
----
+## Repository Shape
 
-## 🔐 Environment Variables
-
-Copy `.env.example` to `.env.local` and fill in your keys:
-
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `PAYMENT_PROVIDER` | Yes | Payment mode: `liteapi`, `hybrid`, or `stripe` |
-| `LITEAPI_API_KEY` | Yes | Hotel data provider API key |
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase admin key (server only) |
-| `STRIPE_SECRET_KEY` | Conditional | Required when `PAYMENT_PROVIDER` is `stripe` or `hybrid` |
-| `STRIPE_WEBHOOK_SECRET` | Conditional | Required when `PAYMENT_PROVIDER` is `stripe` or `hybrid` |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Conditional | Required when `PAYMENT_PROVIDER` is `stripe` or `hybrid` |
-| `QUOTE_SIGNING_SECRET` | Yes | Price quote tamper protection |
-| `LITEAPI_WEBHOOK_SECRET` | Yes (prod) | LiteAPI webhook signature verification |
-| `LITEAPI_SUPPORT_AUTO_FORWARD` | Optional | Auto-forward support packets to LiteAPI support bridge |
-| `LITEAPI_SUPPORT_FORWARD_URL` | Conditional | Required when auto-forward is enabled |
-| `LITEAPI_SUPPORT_FORWARD_TOKEN` | Optional | Bearer token for support bridge endpoint |
-| `UPSTASH_REDIS_REST_URL` | Recommended | Caching & rate limiting |
-| `OPENAI_API_KEY` | Optional | AI concierge feature |
-| `SENTRY_DSN` | Optional | Error monitoring |
-
-See [`.env.example`](.env.example) for the complete list with descriptions.
-
-### Payment Provider Modes
-
-- `liteapi` (default): primary booking and payment flow via LiteAPI SDK.
-- `hybrid`: LiteAPI flow active, Stripe fallback/webhook support available.
-- `stripe`: Stripe-only payment path.
-
-### Windows Git PATH Fix
-
-If your terminal shows `'git' is not recognized`, use one of these:
-
-- Quick workaround: run Git with full path:
-  - `"C:\Program Files\Git\cmd\git.exe" checkout -b <branch-name>`
-  - `"C:\Program Files\Git\cmd\git.exe" status --short --branch`
-- Permanent fix: add `C:\Program Files\Git\cmd` to your user PATH and restart terminal.
-
----
-
-## 📁 Project Structure
-
-```
+```text
 src/
-├── app/           → Pages & API routes
-├── components/    → Reusable UI components
-├── features/      → Feature modules (search, booking, hotels, AI)
-├── server/        → Backend logic (LiteAPI, payments, booking, auth)
-├── shared/        → Shared utilities & types
-└── middleware.ts   → Security headers & route protection
+  app/        Next.js routes and API endpoints
+  components/ reusable UI primitives and home sections
+  features/   feature modules: search, hotels, booking, ai, wishlist
+  server/     supplier, booking, auth, ops, logging, persistence logic
+tests/        Vitest coverage
+supabase/     migrations
+docs/         canonical docs and operational runbooks
+.planning/    roadmap, requirements, and phase history
 ```
 
----
+## Documentation Policy
 
-## 📅 Project Status
-
-| Phase | Status |
-|-------|--------|
-| ✅ Phase 1 — Platform Foundation & Security | Complete |
-| ✅ Phase 2 — Search & Discovery | Complete |
-| ✅ Phase 3 — Hotel Details & User Workspace | Complete |
-| ✅ Phase 4 — Checkout & Booking Lifecycle | Complete |
-| 🔜 Phase 5 — Admin, Monetization & Launch | Up Next |
-
-**See [Next Phase Roadmap](docs/NEXT_PHASE_ROADMAP.md)** for full details on what's coming.
-
----
-
-## 📝 Additional Resources
-
-- **Planning docs:** `.planning/ROADMAP.md`, `.planning/REQUIREMENTS.md`
-- **API collection:** `lite_api.postman_collection.json` (import into Postman)
-- **Database migrations:** `supabase/migrations/`
-- **Docker:** `Dockerfile` and `docker-compose.yml` available for containerized deployment
+- `README.md` and `docs/README.md` are the human/AI onboarding entrypoints.
+- `.planning/*` is the source of truth for roadmap and requirements.
+- Historical review or one-off planning docs should not remain in the main docs surface once superseded by current code and current runbooks.

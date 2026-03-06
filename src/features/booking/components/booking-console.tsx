@@ -21,6 +21,8 @@ const formSchema = z.object({
   rooms: z.coerce.number().int().positive(),
   checkIn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkOut: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+  cancellationNote: z.string().trim().optional().or(z.literal('')),
+  isRefundable: z.enum(['true', 'false', 'unknown']).optional(),
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),
   email: z.string().trim().email()
@@ -82,7 +84,7 @@ type CheckoutSessionPayload = {
 
 type CheckoutDraft = Pick<
   FormValues,
-  'hotelId' | 'roomId' | 'offerId' | 'amount' | 'currency' | 'adults' | 'rooms' | 'checkIn' | 'checkOut'
+  'hotelId' | 'roomId' | 'offerId' | 'amount' | 'currency' | 'adults' | 'rooms' | 'checkIn' | 'checkOut' | 'cancellationNote' | 'isRefundable'
 >;
 
 const PAYMENT_SCRIPT_URL = 'https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v=a1';
@@ -291,6 +293,10 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     rooms: initialValues?.rooms ?? 1,
     checkIn: initialValues?.checkIn ?? '',
     checkOut: initialValues?.checkOut ?? '',
+    cancellationNote: initialValues?.cancellationNote ?? '',
+    isRefundable: initialValues?.isRefundable === 'true' || initialValues?.isRefundable === 'false' || initialValues?.isRefundable === 'unknown'
+      ? initialValues.isRefundable
+      : 'unknown',
     firstName: initialValues?.firstName ?? '',
     lastName: initialValues?.lastName ?? '',
     email: initialValues?.email ?? ''
@@ -319,7 +325,9 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
         roomId: initialValues?.roomId ?? draft.roomId ?? '',
         offerId: initialValues?.offerId ?? draft.offerId ?? '',
         checkIn: initialValues?.checkIn ?? draft.checkIn ?? '',
-        checkOut: initialValues?.checkOut ?? draft.checkOut ?? ''
+        checkOut: initialValues?.checkOut ?? draft.checkOut ?? '',
+        cancellationNote: initialValues?.cancellationNote ?? draft.cancellationNote ?? '',
+        isRefundable: initialValues?.isRefundable ?? draft.isRefundable ?? 'unknown'
       });
     }
 
@@ -332,7 +340,16 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       ...latestSession.formValues
     });
     setCheckoutStep('confirmation');
-  }, [form, initialValues?.checkIn, initialValues?.checkOut, initialValues?.hotelId, initialValues?.offerId, initialValues?.roomId]);
+  }, [
+    form,
+    initialValues?.cancellationNote,
+    initialValues?.checkIn,
+    initialValues?.checkOut,
+    initialValues?.hotelId,
+    initialValues?.isRefundable,
+    initialValues?.offerId,
+    initialValues?.roomId
+  ]);
 
   const prebookFingerprint = useMemo(
     () => [
@@ -391,6 +408,13 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const currency = (liveValues.currency || 'USD').toUpperCase();
   const totalAmount = prebook?.quote.totalAmount ?? baseAmount;
   const markupAmount = Math.max(totalAmount - baseAmount, 0);
+  const cancellationSummary = liveValues.isRefundable === 'false'
+    ? 'This selected rate is non-refundable.'
+    : liveValues.cancellationNote?.trim()
+      ? liveValues.cancellationNote.trim()
+      : liveValues.isRefundable === 'true'
+        ? 'This selected rate includes supplier-provided cancellation flexibility.'
+        : 'Cancellation policy will be confirmed from the selected rate before final payment.';
   const nights = (() => {
     if (!liveValues.checkIn || !liveValues.checkOut) return null;
     const start = new Date(liveValues.checkIn);
@@ -512,21 +536,21 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       <div className="space-y-4 border-b border-border pb-6">
         <p className="text-xs font-bold uppercase tracking-widest text-primary">Secure Checkout</p>
         <h1 className="font-heading text-4xl font-light">Finalize your stay</h1>
-        <p className="text-sm text-muted-foreground">Complete your booking in three simple steps.</p>
+        <p className="text-sm text-muted-foreground">We keep the booking flow explicit, but compress the page so your selected stay, trust signals, and payment decision are easier to scan.</p>
       </div>
 
-      <div className="grid gap-0 border border-border bg-background text-sm font-medium md:grid-cols-3">
-        <div className={`flex items-center gap-3 border-b border-border p-4 md:border-b-0 md:border-r ${checkoutStep === 'guest_details' ? 'bg-primary/5' : ''}`}>
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-background/70 p-2 text-sm font-medium">
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${checkoutStep === 'guest_details' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">1</span>
-          <span>Your details {hasGuestDetails ? 'done' : ''}</span>
+          <span>Guest details</span>
         </div>
-        <div className={`flex items-center gap-3 border-b border-border p-4 md:border-b-0 md:border-r ${checkoutStep === 'payment' ? 'bg-primary/5' : ''}`}>
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${checkoutStep === 'payment' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">2</span>
-          <span>Payment {prebook ? 'ready' : ''}</span>
+          <span>Payment</span>
         </div>
-        <div className={`flex items-center gap-3 p-4 ${checkoutStep === 'confirmation' ? 'bg-primary/5' : ''}`}>
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${checkoutStep === 'confirmation' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">3</span>
-          <span>Confirmation {checkoutStep === 'confirmation' ? 'awaiting' : ''}</span>
+          <span>Confirmation</span>
         </div>
       </div>
 
@@ -573,6 +597,8 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
               <input type="hidden" {...form.register('rooms')} />
               <input type="hidden" {...form.register('checkIn')} />
               <input type="hidden" {...form.register('checkOut')} />
+              <input type="hidden" {...form.register('cancellationNote')} />
+              <input type="hidden" {...form.register('isRefundable')} />
             </>
           )}
 
@@ -613,6 +639,11 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
             <p className="text-xs text-muted-foreground mt-2">
               Prices are inclusive of all taxes and fees. No hidden charges.
             </p>
+          </div>
+
+          <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-800">Cancellation summary</p>
+            <p className="mt-2 text-sm font-medium text-foreground">{cancellationSummary}</p>
           </div>
 
           {/* Promo Code Section */}
@@ -692,6 +723,10 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
               <li className="flex items-start gap-2">
                 <span className="text-green-600">✓</span>
                 <span><strong>Instant Confirmation</strong> - You will receive your booking details immediately.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600">✓</span>
+                <span><strong>Selected rate locked</strong> - Payment proceeds against the exact room and quote prepared for this booking.</span>
               </li>
             </ul>
           </div>

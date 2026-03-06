@@ -10,7 +10,7 @@ This checklist is strict and evidence-driven. Do not mark an item complete witho
 - [x] `npm run build`
 
 Latest local evidence:
-- Test suite: 36 files, 150 tests passed
+- Test suite: 50 files, 207 tests passed
 - Build: success with non-blocking OpenTelemetry dynamic dependency warning
 
 ## 2) Pre-Deploy Runtime Gate

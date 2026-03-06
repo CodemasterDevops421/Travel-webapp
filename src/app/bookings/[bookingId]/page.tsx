@@ -138,9 +138,13 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
   return (
     <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
       <section className="rounded-3xl border border-border/80 bg-card/85 p-6 shadow-sm">
-        <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Booking Confirmed</p>
-        <h1 className="mt-2 text-3xl font-bold">Your stay is secured</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Keep this page for itinerary details, payment references, and support requests.</p>
+        <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{cancellation.refundPending ? 'Booking update' : 'Booking confirmed'}</p>
+        <h1 className="mt-2 text-3xl font-bold">{cancellation.refundPending ? 'Your booking status is being updated' : 'Your stay is secured'}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {cancellation.refundPending
+            ? 'Keep this page open for the latest refund and cancellation status, plus the booking references support may request.'
+            : 'Keep this page for itinerary details, payment references, and the next steps for your stay.'}
+        </p>
         {cancellation.refundPending ? (
           <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
             <p className="font-semibold">Cancellation in progress</p>
@@ -155,6 +159,19 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
         <article className="rounded-2xl border border-border bg-card/85 p-5">
+          <div className="mb-5 rounded-xl border border-border bg-background/60 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Next step</p>
+            <p className="mt-2 text-sm font-semibold text-foreground">
+              {cancellation.refundPending
+                ? 'Watch this page for the final refund outcome, then contact support if the status does not change after reconciliation.'
+                : 'Save your booking reference now. You can return to this page any time with the secure view link.'}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {cancellation.refundPending
+                ? 'Use the booking ID, transaction ID, and prebook ID below if you need help from support.'
+                : 'Use the support actions below if you need cancellation help or a supplier support handoff.'}
+            </p>
+          </div>
           {bookingHotel ? (
             <div className="mb-5 space-y-3 rounded-xl border border-border bg-background/60 p-4">
               {bookingHotel.mainPhoto ? (
@@ -227,8 +244,8 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
           </article>
 
           <article className="rounded-2xl border border-border bg-card/85 p-5">
-            <p className="text-sm font-semibold">Support</p>
-            <p className="mt-2 text-sm text-muted-foreground">Need to cancel? Use the in-app action below. For other changes, include booking, transaction, and prebook references.</p>
+            <p className="text-sm font-semibold">Support and actions</p>
+            <p className="mt-2 text-sm text-muted-foreground">Use the in-app cancellation action for eligible bookings. For other changes, include booking, transaction, and prebook references.</p>
             <p className="mt-2 text-sm text-muted-foreground">Email: support@hostelstays.com</p>
             <BookingCancelAction
               bookingId={booking.id}

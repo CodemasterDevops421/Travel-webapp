@@ -17,6 +17,7 @@ describe('hotel booking card selected-rate contract', () => {
   it('verifies state contract matches selected props in parent', () => {
     const parentSource = readFileSync(resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'), 'utf8');
     expect(parentSource).toContain('const [selectedRateKey, setSelectedRateKey] = useState<string | null>(');
+    expect(parentSource).toContain('const recommendedRateKey = useMemo(() =>');
     expect(parentSource).toContain('const selectedRate = useMemo(');
     expect(parentSource).toContain('const selectedCancellation = useMemo(');
     expect(parentSource).toContain('const selectedBookingHref = useMemo(() =>');
@@ -31,6 +32,9 @@ describe('hotel booking card selected-rate contract', () => {
     expect(parentSource).toContain("status: 'Cancellation policy pending'");
     expect(sidebarSource).toContain('selectedCancellation?.status');
     expect(sidebarSource).toContain('selectedCancellation?.detail');
+    expect(sidebarSource).not.toContain('In high demand');
+    expect(sidebarSource).not.toContain('Prices may increase soon.');
+    expect(sidebarSource.indexOf('Booking clarity')).toBeLessThan(sidebarSource.indexOf('Reserve selected room'));
   });
 
   it('passes complete booking query payload including cancellation fields', () => {
@@ -44,5 +48,16 @@ describe('hotel booking card selected-rate contract', () => {
     expect(parentSource).toContain('amount: String(rate.amount)');
     expect(parentSource).toContain('checkIn: context.checkin');
     expect(parentSource).toContain('checkOut: context.checkout');
+  });
+
+  it('pins a recommended offer without hiding alternatives', () => {
+    const parentSource = readFileSync(resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'), 'utf8');
+    expect(parentSource).toContain('function pickRecommendedRate<T extends Pick<HotelRateOption, \'offerId\' | \'roomId\' | \'amount\'>>(rates: T[]): T | null {');
+
+    expect(source).toContain('recommendedRateKey: string | null;');
+    expect(source).toContain('const isRecommended = recommendedRateKey === buildRateKey(rate);');
+    expect(source).toContain('Recommended value');
+    expect(source).toContain('Choose recommended offer');
+    expect(source).toContain('every available room option remains visible below');
   });
 });

@@ -34,15 +34,7 @@ export function HotelBookingSidebar({
   return (
     <aside className="lg:sticky lg:top-24 lg:self-start">
       <div className="rounded-2xl border border-border bg-card p-6 shadow-editorial-md">
-        <div className="mb-6 flex items-start gap-3 rounded border border-red-100 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
-          <span className="mt-0.5 flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-500"></span>
-          <div>
-            <p className="text-sm font-bold text-red-700 dark:text-red-400">In high demand</p>
-            <p className="text-xs text-red-600/80 dark:text-red-400/70">Prices may increase soon.</p>
-          </div>
-        </div>
-
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Best available rate</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Selected stay</p>
         <p className="mt-2 text-4xl font-bold text-foreground">{formatMoney(selectedRate?.currency ?? currency, selectedRate?.amount ?? lowestRate, true)}</p>
         <p className="mt-1 text-xs text-muted-foreground">per night, taxes and charges included</p>
 
@@ -69,26 +61,39 @@ export function HotelBookingSidebar({
           </div>
         </div>
 
-        <div className="mt-6 rounded-xl border border-border bg-background/70 p-3">
-          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Cancellation</p>
-          <p className="mt-1 text-sm font-semibold text-foreground">{selectedCancellation?.status ?? 'Select a room to view policy'}</p>
+        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
+          <p className="text-xs uppercase tracking-[0.14em] text-emerald-800">Booking clarity</p>
+          <p className="mt-2 text-sm font-semibold text-foreground">{selectedCancellation?.status ?? 'Select a room to view policy'}</p>
           <p className="mt-1 text-xs text-muted-foreground">{selectedCancellation?.detail ?? 'Cancellation details will follow the selected room.'}</p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Taxes and charges are already included in the price shown here. Your final confirmation will use the selected rate and policy shown before payment.
+          </p>
         </div>
 
         {selectedBookingHref ? (
-          <PreferenceLink href={selectedBookingHref} className="mt-8 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
+          <PreferenceLink href={selectedBookingHref} className="mt-6 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
             Reserve selected room
           </PreferenceLink>
         ) : (
-          <a href="#rooms" className="mt-8 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
+          <a href="#rooms" className="mt-6 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
             See availability
           </a>
         )}
 
-        <ul className="mt-6 space-y-2 text-xs text-muted-foreground">
-          <li className="flex items-center gap-2">✓ No booking fees</li>
-          <li className="flex items-center gap-2">✓ Price match guarantee</li>
-        </ul>
+        <div className="mt-6 rounded-xl border border-border bg-background/70 p-3">
+          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">After booking</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            You will receive confirmation details immediately after payment completes and the selected room is finalized.
+          </p>
+        </div>
+
+        <div className="mt-6 rounded-xl border border-border bg-background/70 p-3">
+          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Stay details</p>
+          <p className="mt-1 text-sm font-semibold text-foreground">{selectedRate?.roomName ?? 'Select a room to view stay details'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Check-in {checkin} · Check-out {checkout} · {adults} adults
+          </p>
+        </div>
       </div>
     </aside>
   );
