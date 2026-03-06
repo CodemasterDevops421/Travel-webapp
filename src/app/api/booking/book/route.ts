@@ -69,7 +69,14 @@ export async function POST(request: NextRequest) {
   let transactionIdForLock: string | null = null;
 
   try {
-    assertProductionReadiness();
+    try {
+      assertProductionReadiness();
+    } catch (error) {
+      throw new HttpError(503, 'Checkout is not configured for this deployment.', {
+        code: 'CHECKOUT_ENV_INVALID',
+        safeMessage: 'Checkout is not configured for this deployment. Set LiteAPI, signing, webhook, persistence, and Supabase production secrets before launching payments.'
+      });
+    }
     assertSameOrigin(request);
 
     const supabase = await createServerSupabaseClient();

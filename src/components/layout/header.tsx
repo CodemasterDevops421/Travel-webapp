@@ -58,7 +58,7 @@ export function Header() {
         )}
 
         {/* Desktop Actions */}
-        <div className="hidden shrink-0 items-center gap-2 md:flex">
+        <div className="ml-auto hidden shrink-0 items-center gap-2 md:flex">
           <LanguageCurrencyChooser />
           <Button
             variant="ghost"
@@ -141,7 +141,7 @@ export function Header() {
         </div>
 
         {/* Mobile: hamburger menu */}
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="ml-auto flex items-center gap-2 md:hidden">
           <Button
             variant="ghost"
             size="icon"
