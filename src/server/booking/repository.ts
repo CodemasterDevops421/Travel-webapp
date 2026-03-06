@@ -705,6 +705,79 @@ export async function updateBookingStatusById(
   return true;
 }
 
+export async function updateBookingMetadataById(
+  bookingId: string,
+  metadata: Record<string, unknown>
+): Promise<{ ok: boolean; reason: 'updated' | 'not_found' | 'conflict' | 'db_error' }> {
+  if (supabaseSchemaUnavailable) {
+    const booking = fallbackBookings.get(bookingId);
+    if (!booking) {
+      return { ok: false, reason: 'not_found' };
+    }
+
+    const mergedMetadata = mergeMetadata(booking.metadata, metadata);
+    fallbackBookings.set(bookingId, {
+      ...booking,
+      metadata: mergedMetadata
+    });
+    return { ok: true, reason: 'updated' };
+  }
+
+  const supabase = createAdminClient();
+  // Optimistic concurrency protects concurrent metadata writes from lost updates.
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('id, metadata, updated_at')
+      .eq('id', bookingId)
+      .single();
+
+    if (error || !data?.id) {
+      if (isSchemaMissingError(error)) {
+        supabaseSchemaUnavailable = true;
+        logger.warn({ error, bookingId }, 'Supabase booking schema missing during booking metadata update lookup.');
+        return { ok: false, reason: 'db_error' };
+      }
+
+      const code = (error as { code?: string } | null | undefined)?.code;
+      if (code === 'PGRST116' || !data?.id) {
+        return { ok: false, reason: 'not_found' };
+      }
+
+      logger.warn({ error, bookingId }, 'Booking lookup for metadata update failed');
+      return { ok: false, reason: 'db_error' };
+    }
+
+    const mergedMetadata = mergeMetadata(data.metadata as Record<string, unknown> | null | undefined, metadata);
+    const { data: updatedRow, error: updateError } = await supabase
+      .from('bookings')
+      .update({
+        metadata: mergedMetadata
+      })
+      .eq('id', data.id)
+      .eq('updated_at', data.updated_at as string)
+      .select('id')
+      .maybeSingle();
+
+    if (updateError) {
+      if (isSchemaMissingError(updateError)) {
+        supabaseSchemaUnavailable = true;
+        logger.warn({ error: updateError, bookingId }, 'Supabase booking schema missing during booking metadata update.');
+      } else {
+        logger.error({ updateError, bookingId, attempt }, 'Failed to update booking metadata');
+      }
+      return { ok: false, reason: 'db_error' };
+    }
+
+    if (updatedRow?.id) {
+      return { ok: true, reason: 'updated' };
+    }
+  }
+
+  logger.warn({ bookingId }, 'Booking metadata update hit concurrency conflicts after retries');
+  return { ok: false, reason: 'conflict' };
+}
+
 export async function getBookingByTransactionId(transactionId: string): Promise<BookingRecord | null> {
   for (const booking of fallbackBookings.values()) {
     const existingTransactionId = typeof booking.metadata?.transactionId === 'string'

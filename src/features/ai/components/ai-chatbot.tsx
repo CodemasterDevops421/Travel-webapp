@@ -16,11 +16,12 @@ type Message = {
 export function AIChatbot() {
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
+    const [assistantMode, setAssistantMode] = useState<'live' | 'fallback'>('live');
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
             role: 'assistant',
-            content: 'Hi! I can help you find the perfect hotel or deal. What are you looking for today?'
+            content: 'Hi! I can help refine destination, vibe, budget, and amenities before you book.'
         }
     ]);
     const [isTyping, setIsTyping] = useState(false);
@@ -41,20 +42,57 @@ export function AIChatbot() {
             content: inputValue.trim()
         };
 
-        setMessages((prev) => [...prev, userMsg]);
+        const nextConversation = [...messages, userMsg];
+        setMessages(nextConversation);
         setInputValue('');
         setIsTyping(true);
 
-        // Mock AI Response
-        setTimeout(() => {
+        try {
+            const searchParams = new URLSearchParams(window.location.search);
+            const response = await fetch('/api/concierge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: nextConversation.slice(-20).map((item) => ({
+                        role: item.role,
+                        text: item.content
+                    })),
+                    trip: {
+                        destination: searchParams.get('q') ?? undefined,
+                        checkin: searchParams.get('checkin') ?? undefined,
+                        checkout: searchParams.get('checkout') ?? undefined,
+                        adults: Number(searchParams.get('adults') ?? '') || undefined,
+                        rooms: Number(searchParams.get('rooms') ?? '') || undefined,
+                        currency: searchParams.get('currency') ?? undefined,
+                        language: searchParams.get('language') ?? undefined
+                    }
+                })
+            });
+
+            const payload = (await response.json().catch(() => ({}))) as { reply?: string; error?: string };
+            if (!response.ok) {
+                setAssistantMode('fallback');
+                throw new Error(payload.error ?? 'Concierge is temporarily unavailable.');
+            }
+
+            const reply = payload.reply?.trim() || 'Tell me your destination and budget, and I will narrow top options.';
+            setAssistantMode('live');
             const botMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: "I'm currently in demo mode, but I'm learning fast! Try searching for 'Tokyo' or 'Bali' in the main search bar to see our best rates."
+                content: reply
             };
             setMessages((prev) => [...prev, botMsg]);
+        } catch {
+            const botMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: 'Concierge is temporarily unavailable. You can continue browsing and I can still guide with general tips.'
+            };
+            setMessages((prev) => [...prev, botMsg]);
+        } finally {
             setIsTyping(false);
-        }, 1500);
+        }
     };
 
     return (
@@ -74,8 +112,10 @@ export function AIChatbot() {
                                     <Sparkles className="h-4 w-4" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-sm">TravelApp AI</h3>
-                                    <p className="text-xs text-primary-foreground/80">Beta · Demo mode</p>
+                                    <h3 className="font-semibold text-sm">TravelApp Assistant</h3>
+                                    <p className="text-xs text-primary-foreground/80">
+                                        {assistantMode === 'live' ? 'Live concierge' : 'Fallback guidance'}
+                                    </p>
                                 </div>
                             </div>
                             <Button
@@ -83,6 +123,7 @@ export function AIChatbot() {
                                 size="icon"
                                 className="h-8 w-8 rounded-full text-primary-foreground hover:bg-white/20"
                                 onClick={() => setIsOpen(false)}
+                                aria-label="Close assistant"
                             >
                                 <X className="h-4 w-4" />
                             </Button>
@@ -148,7 +189,7 @@ export function AIChatbot() {
                                 <Input
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder="Ask about hotels..."
+                                    placeholder="Ask about destination, vibe, budget, or amenities..."
                                     className="rounded-full border-muted bg-muted/50 focus-visible:ring-1 focus-visible:ring-primary"
                                 />
                                 <Button
@@ -170,6 +211,7 @@ export function AIChatbot() {
                 onClick={() => setIsOpen(!isOpen)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label="Open assistant"
                 className={cn(
                     "fixed bottom-6 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-colors hover:bg-primary/90 sm:bottom-8 sm:right-8",
                     isOpen && "hidden"

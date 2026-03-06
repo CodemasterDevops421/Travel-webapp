@@ -1,0 +1,33 @@
+config:
+  target: "{{ $processEnvironment.PERF_BASE_URL || 'http://localhost:3000' }}"
+  phases:
+    - duration: 120
+      arrivalRate: 20
+      name: warmup
+    - duration: 180
+      arrivalRate: 40
+      name: steady
+  defaults:
+    headers:
+      Authorization: "Bearer {{ $processEnvironment.ADMIN_JWT }}"
+  processor: "./artillery-processor.js"
+
+scenarios:
+  - name: admin-reconciliation
+    weight: 45
+    flow:
+      - get:
+          url: "/api/admin/reconciliation?days=30&includeResolved=0"
+          capture:
+            - json: "$.summary.coveragePercent"
+              as: "coveragePercent"
+  - name: admin-reconciliation-export
+    weight: 20
+    flow:
+      - get:
+          url: "/api/admin/reconciliation/export?days=30&includeResolved=0"
+  - name: admin-support-operations
+    weight: 35
+    flow:
+      - get:
+          url: "/api/admin/support/operations?days=30&breachHours=24"

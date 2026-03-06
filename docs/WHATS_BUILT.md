@@ -218,3 +218,12 @@ Travel-webapp/
 ├── docs/                 ← Documentation (this folder!)
 └── .planning/            ← Project planning & roadmap files
 ```
+
+---
+
+## ⚠️ Known Limitations (As of 2026-03-04)
+
+- **Occupancy contract confirmation pending:** checkout now uses indexed occupancies and valid guest names for each guest row, but LiteAPI `occupancyNumber` contract semantics should be explicitly re-verified with supplier docs/tests.
+
+For detailed severity, evidence, and remediation guidance, see:
+- `docs/CODE_REVIEW_2026-03-04.md`

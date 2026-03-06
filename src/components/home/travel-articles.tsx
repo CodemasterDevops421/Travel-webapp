@@ -42,25 +42,30 @@ export function TravelArticles() {
       </div>
       <div className="grid gap-5 md:grid-cols-3">
         {articles.map((article) => (
-          <article
+          <PreferenceLink
             key={article.title}
-            className={`group flex h-full flex-col justify-between gap-5 rounded-2xl border border-border/60 bg-gradient-to-br ${article.gradient} p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 cursor-pointer`}
+            href={`/search?q=${encodeURIComponent(article.tag)}`}
+            className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <div className="space-y-3">
-              <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
-                {article.tag}
-              </span>
-              <h3 className="text-lg font-bold leading-snug">{article.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{article.summary}</p>
-            </div>
-            <div className="flex items-center justify-between border-t border-border/40 pt-4 text-sm">
-              <span className="text-muted-foreground">{article.readTime}</span>
-              <span className="inline-flex items-center gap-1 font-bold text-primary transition-transform duration-300 group-hover:translate-x-1">
-                Read article
-                <ArrowUpRight className="h-4 w-4" />
-              </span>
-            </div>
-          </article>
+            <article
+              className={`flex h-full flex-col justify-between gap-5 rounded-2xl border border-border/60 bg-gradient-to-br ${article.gradient} p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30`}
+            >
+              <div className="space-y-3">
+                <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
+                  {article.tag}
+                </span>
+                <h3 className="text-lg font-bold leading-snug">{article.title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{article.summary}</p>
+              </div>
+              <div className="flex items-center justify-between border-t border-border/40 pt-4 text-sm">
+                <span className="text-muted-foreground">{article.readTime}</span>
+                <span className="inline-flex items-center gap-1 font-bold text-primary transition-transform duration-300 group-hover:translate-x-1">
+                  Read article
+                  <ArrowUpRight className="h-4 w-4" />
+                </span>
+              </div>
+            </article>
+          </PreferenceLink>
         ))}
       </div>
     </section>

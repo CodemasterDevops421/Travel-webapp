@@ -17,9 +17,12 @@ const querySchema = z.object({
   adults: z.coerce.number().int().min(1).max(8).optional(),
   rooms: z.coerce.number().int().min(1).max(4).optional(),
   brief: z.string().trim().min(3).max(240).optional(),
+  minPrice: z.coerce.number().min(0).max(5000).optional(),
   minStars: z.coerce.number().min(0).max(5).optional(),
   minGuestRating: z.coerce.number().min(0).max(10).optional(),
-  maxPrice: z.coerce.number().min(50).max(5000).optional()
+  maxPrice: z.coerce.number().min(50).max(5000).optional(),
+  page: z.coerce.number().int().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional()
 });
 
 type PropertyPreviewEnvelope = {
@@ -54,9 +57,12 @@ export async function GET(request: NextRequest) {
       adults: request.nextUrl.searchParams.get('adults') ?? undefined,
       rooms: request.nextUrl.searchParams.get('rooms') ?? undefined,
       brief: request.nextUrl.searchParams.get('brief') ?? undefined,
+      minPrice: request.nextUrl.searchParams.get('minPrice') ?? undefined,
       minStars: request.nextUrl.searchParams.get('minStars') ?? undefined,
       minGuestRating: request.nextUrl.searchParams.get('minGuestRating') ?? undefined,
-      maxPrice: request.nextUrl.searchParams.get('maxPrice') ?? undefined
+      maxPrice: request.nextUrl.searchParams.get('maxPrice') ?? undefined,
+      page: request.nextUrl.searchParams.get('page') ?? undefined,
+      limit: request.nextUrl.searchParams.get('limit') ?? undefined
     });
     if (!parsed.success) {
       return NextResponse.json(
@@ -81,17 +87,23 @@ export async function GET(request: NextRequest) {
     const adults = parsed.data.adults;
     const rooms = parsed.data.rooms;
     const brief = parsed.data.brief;
+    const minPrice = parsed.data.minPrice;
     const minStars = parsed.data.minStars;
     const minGuestRating = parsed.data.minGuestRating;
     const maxPrice = parsed.data.maxPrice;
+    const page = parsed.data.page;
+    const limit = parsed.data.limit;
     const clientIp = getClientIp(request);
     await assertRateLimit(`property-preview:${clientIp}`);
 
     const briefKey = brief ? brief.toLowerCase().replace(/\s+/g, '-').slice(0, 80) : 'none';
     const filterKey = [
+      typeof minPrice === 'number' ? `min-${minPrice}` : 'min-any',
       typeof minStars === 'number' ? `stars-${minStars}` : 'stars-any',
       typeof minGuestRating === 'number' ? `rating-${minGuestRating}` : 'rating-any',
-      typeof maxPrice === 'number' ? `max-${maxPrice}` : 'max-any'
+      typeof maxPrice === 'number' ? `max-${maxPrice}` : 'max-any',
+      `page-${page ?? 1}`,
+      `limit-${limit ?? 8}`
     ].join(':');
     const payload = await getOrSetRedisCache(
       `property-preview:${mode}:${q.toLowerCase()}:${language ?? 'en'}:${currency ?? 'default'}:${checkin ?? 'auto'}:${checkout ?? 'auto'}:${adults ?? 2}:${rooms ?? 1}:${briefKey}:${filterKey}`,
@@ -100,9 +112,12 @@ export async function GET(request: NextRequest) {
         return searchPropertyPreviews(q, language, currency, checkin, checkout, adults, rooms, {
           searchMode: mode,
           brief,
+          minPrice,
           minStars,
           minGuestRating,
-          maxPrice
+          maxPrice,
+          page,
+          limit
         });
       }
     );

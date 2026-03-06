@@ -7,10 +7,9 @@ function normalizeRole(value: unknown): string {
   return typeof value === 'string' ? value.toLowerCase().trim() : '';
 }
 
-function hasAdminClaim(user: { app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> }): boolean {
+function hasAdminClaim(user: { app_metadata?: Record<string, unknown> }): boolean {
   const appRole = normalizeRole(user.app_metadata?.role);
-  const userRole = normalizeRole(user.user_metadata?.role);
-  return ADMIN_ROLES.has(appRole) || ADMIN_ROLES.has(userRole);
+  return ADMIN_ROLES.has(appRole);
 }
 
 const CONTENT_SECURITY_POLICY = [

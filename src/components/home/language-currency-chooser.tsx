@@ -48,11 +48,20 @@ export function LanguageCurrencyChooser() {
     window.localStorage.setItem('travelapp:language', normalizedLanguage);
     window.localStorage.setItem('travelapp:currency', normalizedCurrency);
 
-    const nextParams = upsertPreferenceParams(new URLSearchParams(searchParams.toString()), {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    const queryLanguage = normalizeLanguage(currentParams.get('language'));
+    const queryCurrency = normalizeCurrency(currentParams.get('currency'));
+    if (
+      (queryLanguage && queryLanguage !== normalizedLanguage) ||
+      (queryCurrency && queryCurrency !== normalizedCurrency)
+    ) {
+      return;
+    }
+    const nextParams = upsertPreferenceParams(new URLSearchParams(currentParams.toString()), {
       language: normalizedLanguage,
       currency: normalizedCurrency
     });
-    const current = searchParams.toString();
+    const current = currentParams.toString();
     const next = nextParams.toString();
     if (current !== next) {
       router.replace((next ? `${pathname}?${next}` : pathname) as never, { scroll: false });
