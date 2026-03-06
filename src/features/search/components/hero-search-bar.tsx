@@ -75,6 +75,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     const suggestions = data ?? [];
     const isSuggestionsOpen = query.length > 2 && showSuggestions;
     const canSearch = query.trim().length >= 3 && checkIn.length > 0 && checkOut.length > 0 && checkOut > checkIn;
+    const isCompact = variant === 'compact';
 
     useEffect(() => {
         setHighlightedIndex(-1);
@@ -160,15 +161,30 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             )}
         >
             <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="relative w-full">
-                <div className="flex w-full flex-col md:flex-row md:items-stretch transition-all rounded-2xl md:rounded-full border border-border/60 bg-card/95 shadow-xl px-2 py-2">
+                <div
+                    className={cn(
+                        "flex w-full flex-col transition-all border border-border/60 bg-card/95 md:flex-row md:items-stretch",
+                        isCompact
+                            ? "rounded-2xl md:rounded-full px-2 py-2 shadow-sm"
+                            : "rounded-2xl md:rounded-full px-2 py-2 shadow-xl"
+                    )}
+                >
 
                     {/* Destination Input */}
                     <div className="relative z-50 flex-[1.5]">
-                        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
-                            <MapPin className="h-5 w-5 text-primary/80" strokeWidth={1.5} />
+                        <div className={cn(
+                            "absolute top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
+                            isCompact ? "left-4" : "left-6"
+                        )}>
+                            <MapPin className={cn("text-primary/80", isCompact ? "h-4 w-4" : "h-5 w-5")} strokeWidth={1.5} />
                         </div>
                         <Input
-                            className="h-14 w-full border-0 bg-transparent pl-14 text-sm font-medium text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-0 md:h-16"
+                            className={cn(
+                                "w-full border-0 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-0",
+                                isCompact
+                                    ? "h-11 pl-10 text-xs font-medium md:h-12"
+                                    : "h-14 pl-14 text-sm font-medium md:h-16"
+                            )}
                             placeholder="Enter a destination"
                             value={query}
                             onChange={(e) => {
@@ -220,24 +236,40 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     {/* Dates - Split into Check-in / Check-out */}
                     <div className="flex flex-1 items-center border-t border-border/20 md:border-t-0 md:border-l">
                         <div className="relative flex-1">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
-                                <Calendar className="h-4 w-4 text-primary/80" strokeWidth={1.5} />
+                            <div className={cn(
+                                "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
+                                isCompact && "left-3"
+                            )}>
+                                <Calendar className={cn("text-primary/80", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} strokeWidth={1.5} />
                             </div>
                             <input
                                 type="date"
-                                className="h-14 w-full cursor-pointer bg-transparent pl-10 pr-2 text-xs font-medium text-foreground focus:outline-none md:h-16"
+                                className={cn(
+                                    "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
+                                    isCompact
+                                        ? "h-11 pl-8 pr-2 text-[11px] md:h-12"
+                                        : "h-14 pl-10 pr-2 text-xs md:h-16"
+                                )}
                                 value={checkIn}
                                 min={today.toISOString().slice(0, 10)}
                                 onChange={(e) => setCheckIn(e.target.value)}
                             />
                         </div>
                         <div className="relative flex-1 border-l border-border/20">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
-                                <Calendar className="h-4 w-4 text-primary/80" strokeWidth={1.5} />
+                            <div className={cn(
+                                "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
+                                isCompact && "left-3"
+                            )}>
+                                <Calendar className={cn("text-primary/80", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} strokeWidth={1.5} />
                             </div>
                             <input
                                 type="date"
-                                className="h-14 w-full cursor-pointer bg-transparent pl-10 pr-2 text-xs font-medium text-foreground focus:outline-none md:h-16"
+                                className={cn(
+                                    "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
+                                    isCompact
+                                        ? "h-11 pl-8 pr-2 text-[11px] md:h-12"
+                                        : "h-14 pl-10 pr-2 text-xs md:h-16"
+                                )}
                                 value={checkOut}
                                 min={checkIn}
                                 onChange={(e) => setCheckOut(e.target.value)}
@@ -246,13 +278,30 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     </div>
 
                     {/* Guests & Search Button */}
-                    <div className="flex flex-1 items-center justify-between border-t border-border/20 md:border-t-0 md:border-l pl-2 pb-2 pt-2 md:p-0">
+                    <div className={cn(
+                        "flex flex-1 items-center justify-between border-t border-border/20 md:border-t-0 md:border-l",
+                        isCompact ? "pl-1 pb-1 pt-1 md:p-0" : "pl-2 pb-2 pt-2 md:p-0"
+                    )}>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <button type="button" className="flex flex-1 items-center gap-3 hover:bg-primary/5 px-4 text-left transition-colors h-14 md:h-16 group outline-none focus-visible:bg-primary/5 rounded-l-xl md:rounded-xl">
-                                    <Users className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" strokeWidth={1.5} />
+                                <button
+                                    type="button"
+                                    className={cn(
+                                        "group flex flex-1 items-center text-left transition-colors outline-none focus-visible:bg-primary/5 hover:bg-primary/5",
+                                        isCompact
+                                            ? "h-11 gap-2 px-3 rounded-l-xl md:h-12 md:rounded-xl"
+                                            : "h-14 gap-3 px-4 rounded-l-xl md:h-16 md:rounded-xl"
+                                    )}
+                                >
+                                    <Users className={cn(
+                                        "text-muted-foreground transition-colors group-hover:text-primary",
+                                        isCompact ? "h-4 w-4" : "h-5 w-5"
+                                    )} strokeWidth={1.5} />
                                     <div className="flex flex-col">
-                                        <span className="text-xs font-semibold text-foreground">{rooms} Room, {adults} Guests</span>
+                                        <span className={cn(
+                                            "font-semibold text-foreground",
+                                            isCompact ? "text-[11px]" : "text-xs"
+                                        )}>{rooms} Room, {adults} Guests</span>
                                     </div>
                                 </button>
                             </PopoverTrigger>
@@ -287,9 +336,14 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                         <Button
                             type="submit"
                             disabled={!canSearch}
-                            className="mr-2 md:mr-0 h-12 w-12 shrink-0 rounded-full bg-primary flex items-center justify-center p-0 text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:shadow-xl hover:shadow-primary/40 hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                            className={cn(
+                                "shrink-0 rounded-full bg-primary flex items-center justify-center p-0 text-primary-foreground transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:shadow-none",
+                                isCompact
+                                    ? "mr-1 h-10 w-10 shadow-md shadow-primary/20 md:mr-0"
+                                    : "mr-2 h-12 w-12 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 md:mr-0"
+                            )}
                         >
-                            <Search className="h-5 w-5" strokeWidth={2.5} />
+                            <Search className={cn(isCompact ? "h-4 w-4" : "h-5 w-5")} strokeWidth={2.5} />
                         </Button>
                     </div>
                 </div>

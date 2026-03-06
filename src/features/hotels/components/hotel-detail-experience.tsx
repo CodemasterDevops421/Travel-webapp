@@ -25,14 +25,15 @@ type HotelDetailExperienceProps = {
 
 const SECTION_TABS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'rooms', label: 'Rooms' },
   { id: 'reviews', label: 'Reviews' },
-  { id: 'amenities', label: 'Amenities' },
-  { id: 'location', label: 'Location' },
-  { id: 'policies', label: 'Policies' },
+  { id: 'rooms', label: 'Rooms' },
   { id: 'travelers-asking', label: 'FAQs' },
+  { id: 'ask-ai', label: 'Ask AI' },
+  { id: 'amenities', label: 'Amenities' },
+  { id: 'policies', label: 'Policies' },
+  { id: 'location', label: 'Location' },
   { id: 'pros-cons', label: 'Pros & Cons' },
-  { id: 'ask-ai', label: 'Ask AI (Beta)' }
+  { id: 'description', label: 'Details' }
 ];
 
 function formatMoney(currency: string, amount: number | null, compact = false): string {

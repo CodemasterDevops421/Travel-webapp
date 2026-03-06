@@ -40,16 +40,25 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-white/20 dark:border-white/10 shadow-premium-sm transition-all duration-300">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:h-20">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 md:h-20 md:gap-6">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 premium-hover group">
+        <Link href="/" className="flex shrink-0 items-center gap-2 premium-hover group">
           <span className="text-2xl font-heading font-extrabold tracking-tight text-primary transition-colors group-hover:text-primary/80">
             Hostel Stays
           </span>
         </Link>
 
+        {!isHomePage && (
+          <div className="hidden min-w-0 flex-1 md:block">
+            <HeroSearchBar
+              variant="compact"
+              className="mx-auto max-w-3xl border border-border/60 bg-card/95 shadow-sm"
+            />
+          </div>
+        )}
+
         {/* Desktop Actions */}
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden shrink-0 items-center gap-2 md:flex">
           <LanguageCurrencyChooser />
           <Button
             variant="ghost"
@@ -151,14 +160,6 @@ export function Header() {
           </Button>
         </div>
       </div>
-
-      {!isHomePage && (
-        <div className="hidden border-t border-border/40 bg-background/85 px-4 py-3 md:block">
-          <div className="mx-auto max-w-7xl">
-            <HeroSearchBar variant="compact" className="mx-auto max-w-5xl border border-border/60 bg-card/95 shadow-sm" />
-          </div>
-        </div>
-      )}
 
       {/* Mobile slide-out menu */}
       {mobileMenuOpen && (
