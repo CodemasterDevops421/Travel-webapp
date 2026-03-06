@@ -22,7 +22,7 @@
 - 🔍 **Search** — Destination autocomplete, date range, guest selection, filter & sort
 - 🏨 **Hotel Details** — Photo gallery, amenities, room rates, reviews, interactive map
 - 🤖 **AI Assistant** — Chatbot concierge + hotel-specific Q&A
-- 💳 **Secure Checkout** — 3-step flow with Stripe payments & signed price quotes
+- 💳 **Secure Checkout** — 3-step flow with LiteAPI payment SDK and signed price quotes
 - 🔐 **Auth** — Email/password + Google OAuth with protected routes
 - 📊 **Admin Panel** — Commission controls, sandbox/production mode toggle
 - 📧 **Notifications** — Automated booking confirmation and cancellation emails
@@ -72,7 +72,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | **State** | Zustand, React Query |
 | **Database** | Supabase (PostgreSQL) |
 | **Auth** | Supabase Auth (email + Google OAuth) |
-| **Payments** | Stripe |
+| **Payments** | LiteAPI Payment SDK (`liteapi` mode), optional Stripe fallback in non-launch modes |
 | **Hotels API** | LiteAPI (2M+ hotels) |
 | **Caching** | Upstash Redis |
 | **Monitoring** | Sentry (optional) |

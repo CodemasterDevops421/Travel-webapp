@@ -46,7 +46,7 @@ The platform is built as a **web application** that works on both desktop and mo
 
 ### 💳 Booking & Checkout
 - **3-step checkout** — guest details → payment → confirmation
-- **Secure payments** — powered by Stripe with bank-grade encryption
+- **Secure payments** — powered by LiteAPI's hosted payment SDK in the launch profile
 - **Signed quotes** — prices are cryptographically locked when you proceed to checkout (no surprise charges)
 - **Booking confirmation page** — shows your booking details with a secure, time-limited link
 - **Booking management** — view existing bookings and cancel if needed
@@ -85,7 +85,7 @@ guests.                 Apply filters.                                  Manage l
 Behind the scenes:
 1. **Hotel data** comes from a provider called **LiteAPI** — which connects to millions of hotels globally
 2. **User accounts** are managed by **Supabase** — a secure database and authentication service
-3. **Payments** are processed by **Stripe** — the same payment system used by major companies
+3. **Payments** are processed through **LiteAPI's payment SDK** in the launch profile, with optional Stripe code paths reserved for non-launch fallback modes
 4. **Speed** is enhanced by **Upstash Redis** — a caching layer that avoids re-fetching the same data
 5. **Error tracking** is handled by **Sentry** — monitors and alerts on any issues (optional)
 
@@ -97,7 +97,8 @@ Behind the scenes:
 |---------|---------|--------|
 | **LiteAPI** | Provides the hotel inventory — search, rates, booking, and confirmation | ✅ Active |
 | **Supabase** | User accounts, database for bookings/quotes, authentication | ✅ Active |
-| **Stripe** | Processes credit card payments securely | ✅ Active |
+| **LiteAPI Payment SDK** | Processes launch-profile card payments and booking payment handoff | ✅ Active |
+| **Stripe** | Optional fallback payment path for non-launch modes | ⚙️ Mode-gated |
 | **Upstash Redis** | Speeds up the app by caching frequent searches and rate-limiting abuse | ✅ Active |
 | **Sentry** | Monitors errors and app health | ⚙️ Optional |
 | **OpenAI** | Powers the AI chatbot concierge feature | ⚙️ Optional |
@@ -112,7 +113,7 @@ Behind the scenes:
 |------|--------|-------|
 | Hotel search & discovery | ✅ Complete | Full search, filters, sorting, map view |
 | Hotel detail pages | ✅ Complete | Gallery, amenities, reviews, rooms, AI Q&A |
-| Booking & checkout flow | ✅ Complete | 3-step flow with Stripe payments |
+| Booking & checkout flow | ✅ Complete | 3-step flow with LiteAPI payment SDK in the launch profile |
 | User accounts & auth | ✅ Complete | Email, Google login, protected routes |
 | Webhooks & lifecycle | ✅ Complete | Stripe & LiteAPI webhook handling |
 | Email notifications | ✅ Complete | Booking confirmation & cancellation emails |

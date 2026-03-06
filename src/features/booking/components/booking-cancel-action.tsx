@@ -7,17 +7,38 @@ type BookingCancelActionProps = {
   bookingId: string;
   viewToken: string;
   bookingStatus: string;
+  refundPending?: boolean;
+  cancellationOutcome?: string | null;
 };
 
 type CancelState = 'idle' | 'submitting' | 'success' | 'error';
 
 const CANCELLABLE_STATUSES = new Set(['payment_authorized', 'confirmed']);
 
-export function BookingCancelAction({ bookingId, viewToken, bookingStatus }: BookingCancelActionProps) {
+export function BookingCancelAction({
+  bookingId,
+  viewToken,
+  bookingStatus,
+  refundPending = false,
+  cancellationOutcome = null
+}: BookingCancelActionProps) {
   const [state, setState] = useState<CancelState>('idle');
   const [message, setMessage] = useState<string | null>(null);
 
-  const canCancel = useMemo(() => CANCELLABLE_STATUSES.has(bookingStatus), [bookingStatus]);
+  const canCancel = useMemo(
+    () => CANCELLABLE_STATUSES.has(bookingStatus) && !refundPending,
+    [bookingStatus, refundPending]
+  );
+
+  const pendingMessage = useMemo(() => {
+    if (!refundPending) {
+      return null;
+    }
+    if (cancellationOutcome === 'liteapi_refund_managed') {
+      return 'Cancellation submitted. LiteAPI is processing the refund outcome.';
+    }
+    return 'Cancellation submitted. Refund status will update shortly.';
+  }, [cancellationOutcome, refundPending]);
 
   async function submitCancellation(): Promise<void> {
     setState('submitting');
@@ -51,7 +72,11 @@ export function BookingCancelAction({ bookingId, viewToken, bookingStatus }: Boo
   if (!canCancel) {
     return (
       <p className="mt-3 text-sm text-muted-foreground">
-        This booking is currently <span className="font-medium capitalize">{bookingStatus}</span> and cannot be canceled from this page.
+        {pendingMessage ?? (
+          <>
+            This booking is currently <span className="font-medium capitalize">{bookingStatus}</span> and cannot be canceled from this page.
+          </>
+        )}
       </p>
     );
   }

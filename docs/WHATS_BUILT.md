@@ -41,7 +41,7 @@ A rich page dedicated to a single hotel showing:
 ### 4. Booking / Checkout (`/booking`)
 The secure checkout flow:
 - **Step 1: Guest Details** — name, email, phone, special requests
-- **Step 2: Payment** — Stripe's secure payment form (credit/debit card)
+- **Step 2: Payment** — LiteAPI's hosted secure payment form in the launch profile
 - **Step 3: Confirmation** — success screen with booking summary
 - **Price lock** — the quoted price is cryptographically signed so it can't change during checkout
 - **Progress persistence** — if you refresh or go back, your progress is saved
@@ -81,7 +81,8 @@ For operators and business owners (requires admin privileges):
 - **Booking storage** — all bookings and quotes are saved in the Supabase database
 
 ### Payment Processing
-- **Stripe integration** — credit/debit card processing with PCI compliance
+- **LiteAPI payment SDK integration** — launch-profile credit/debit card processing bound to LiteAPI prebook and booking flow
+- **Stripe fallback integration** — retained only for non-launch fallback modes
 - **Webhook handling** — Stripe sends automatic notifications about payment status changes (confirmed, refunded, failed), and the system processes these securely
 - **Refund support** — when a booking is cancelled with an eligible cancellation policy, refunds are processed through Stripe
 
@@ -165,7 +166,8 @@ The project includes **28+ test files** covering:
 | **React** | UI library | Builds the interactive components users see |
 | **Tailwind CSS** | Styling | Makes the design responsive and consistent |
 | **Supabase** | Database + Auth | Stores data and manages user login/accounts |
-| **Stripe** | Payments | Processes credit/debit card payments securely |
+| **LiteAPI Payment SDK** | Payments | Processes launch-profile credit/debit card payments securely |
+| **Stripe** | Payments | Optional fallback path outside the LiteAPI launch profile |
 | **LiteAPI** | Hotel data | Provides access to 2M+ hotels worldwide |
 | **Upstash Redis** | Caching | Speeds up searches and prevents abuse |
 | **Framer Motion** | Animations | Smooth transitions and micro-animations |
