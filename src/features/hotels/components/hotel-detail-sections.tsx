@@ -252,7 +252,7 @@ export function HotelDetailSections({
   ].filter((item): item is string => Boolean(item));
 
   return (
-    <div className="flex flex-col gap-6 pb-20">
+    <div className="flex flex-col gap-5 pb-16">
       <section id="overview" className="scroll-mt-24 space-y-3" onMouseEnter={() => setActiveTab('overview')}>
         {isPartialDetail ? (
           <p className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -260,9 +260,9 @@ export function HotelDetailSections({
           </p>
         ) : null}
         {smartHighlights.length > 0 ? (
-          <ul className="grid gap-3 md:grid-cols-3">
+          <ul className="grid gap-2.5 md:grid-cols-3">
             {smartHighlights.slice(0, 3).map((highlight) => (
-              <li key={`${highlight.source}-${highlight.title}`} className="rounded-[20px] border border-border/70 bg-card px-4 py-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
+              <li key={`${highlight.source}-${highlight.title}`} className="rounded-[16px] border border-border/70 bg-card px-3.5 py-3.5 shadow-[0_12px_28px_-28px_rgba(15,23,42,0.38)]">
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-primary/10 p-1.5 text-primary">
                     <Sparkles className="h-3.5 w-3.5" />
@@ -281,7 +281,7 @@ export function HotelDetailSections({
         )}
       </section>
 
-      <section id="rooms" className="scroll-mt-24 space-y-4" onMouseEnter={() => setActiveTab('rooms')}>
+      <section id="rooms" className="scroll-mt-24 space-y-3.5" onMouseEnter={() => setActiveTab('rooms')}>
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/70 pb-4">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Choose your room</h2>
@@ -298,10 +298,10 @@ export function HotelDetailSections({
           <p className="rounded-2xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
         ) : (
           groupedRates.map((group) => (
-            <article key={group.roomId} className="rounded-[22px] border border-border/70 bg-card shadow-[0_22px_55px_-40px_rgba(15,23,42,0.5)]">
-              <div className="flex flex-col gap-4 p-4 md:flex-row md:items-start">
+            <article key={group.roomId} className="rounded-[18px] border border-border/60 bg-card shadow-[0_16px_34px_-34px_rgba(15,23,42,0.35)]">
+              <div className="flex flex-col gap-3 p-3.5 md:flex-row md:items-start">
                 {group.imageUrl ? (
-                  <div className="relative h-44 w-full overflow-hidden rounded-[16px] md:w-[235px] md:flex-none">
+                  <div className="relative h-40 w-full overflow-hidden rounded-[14px] md:w-[220px] md:flex-none">
                     <Image
                       src={group.imageUrl}
                       alt={group.roomName}
@@ -315,7 +315,7 @@ export function HotelDetailSections({
                     </div>
                   </div>
                 ) : null}
-                <div className="min-w-0 flex-1 space-y-3">
+                <div className="min-w-0 flex-1 space-y-2.5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-lg font-semibold leading-6 text-foreground">{group.roomName}</h3>
@@ -329,7 +329,7 @@ export function HotelDetailSections({
                     ) : null}
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {group.offers.map((rate) => {
                       const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
                       const isRecommended = recommendedRateKey === buildRateKey(rate);
@@ -339,12 +339,12 @@ export function HotelDetailSections({
                         <div
                           key={`${rate.offerId}-${rate.roomId}`}
                           className={cn(
-                            'grid gap-4 rounded-[18px] border px-4 py-4 transition-all md:grid-cols-[minmax(0,1.2fr),190px,auto] md:items-center',
+                            'grid gap-3 rounded-[15px] border px-3.5 py-3 transition-all md:grid-cols-[minmax(0,1.2fr),170px,auto] md:items-center',
                             isSelected ? 'border-primary bg-primary/[0.05] shadow-[0_16px_34px_-28px_rgba(37,99,235,0.75)]' : 'border-border bg-background',
                             isRecommended && !isSelected ? 'border-primary/30' : ''
                           )}
                         >
-                          <div className="space-y-2">
+                            <div className="space-y-1.5">
                             <div className="flex flex-wrap items-center gap-2">
                               {isRecommended ? (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
@@ -370,14 +370,14 @@ export function HotelDetailSections({
                           </div>
 
                           <div className="space-y-1 md:text-right">
-                            <p className="text-[1.8rem] font-bold leading-none text-foreground">{formatMoney(rate.currency, rate.amount, true)}</p>
+                            <p className="text-[1.6rem] font-bold leading-none text-foreground">{formatMoney(rate.currency, rate.amount, true)}</p>
                             <p className="text-[11px] text-muted-foreground">1 room · taxes & fees included</p>
                           </div>
 
                           <button
                             type="button"
                             onClick={() => setSelectedRateKey(buildRateKey(rate))}
-                            className="inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_14px_30px_-18px_rgba(37,99,235,0.85)] transition-all hover:bg-primary/90 hover:shadow-[0_18px_32px_-18px_rgba(37,99,235,0.95)] md:w-auto"
+                            className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_10px_20px_-16px_rgba(37,99,235,0.85)] transition-all hover:bg-primary/90 hover:shadow-[0_14px_24px_-16px_rgba(37,99,235,0.95)] md:w-[168px]"
                           >
                             {isSelected ? 'Selected' : isRecommended ? 'Choose recommended offer' : 'Choose room'}
                           </button>
@@ -392,7 +392,7 @@ export function HotelDetailSections({
         )}
       </section>
 
-      <section id="ask-ai" className="rounded-[20px] border border-border/70 bg-card p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" onMouseEnter={() => setActiveTab('rooms')}>
+      <section id="ask-ai" className="rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)]" onMouseEnter={() => setActiveTab('rooms')}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Ask AI</p>
         <h2 className="mt-1 text-lg font-semibold">Ask about this hotel</h2>
         <p className="mt-1 text-sm text-muted-foreground">Get quick answers before selecting a room.</p>
@@ -432,7 +432,7 @@ export function HotelDetailSections({
         {askAnswer ? <p className="mt-3 rounded-xl border border-border bg-background/70 p-3 text-sm">{askAnswer}</p> : null}
       </section>
 
-      <section id="reviews" className="scroll-mt-24 rounded-[20px] border border-border/70 bg-card p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)] md:p-5" onMouseEnter={() => setActiveTab('reviews')}>
+      <section id="reviews" className="scroll-mt-24 rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)] md:p-4" onMouseEnter={() => setActiveTab('reviews')}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2">
             <h2 className="text-xl font-semibold text-foreground">Guest reviews</h2>
@@ -601,7 +601,7 @@ export function HotelDetailSections({
         )}
       </section>
 
-      <section id="amenities" className="scroll-mt-24 rounded-[20px] border border-border/70 bg-card p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)] md:p-5" onMouseEnter={() => setActiveTab('amenities')}>
+      <section id="amenities" className="scroll-mt-24 rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)] md:p-4" onMouseEnter={() => setActiveTab('amenities')}>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-xl font-semibold">Amenities</h2>
           <span className="text-xs text-muted-foreground">Supplier-backed data</span>
@@ -621,7 +621,7 @@ export function HotelDetailSections({
         )}
       </section>
 
-      <section id="policies" className="scroll-mt-24 rounded-[20px] border border-border/70 bg-card p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)] md:p-5" onMouseEnter={() => setActiveTab('policies')}>
+      <section id="policies" className="scroll-mt-24 rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)] md:p-4" onMouseEnter={() => setActiveTab('policies')}>
         <h2 className="text-xl font-semibold">Policies</h2>
         <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <p className="rounded-xl border border-border bg-background p-3">
@@ -654,7 +654,7 @@ export function HotelDetailSections({
         </div>
       </section>
 
-      <section id="description" className="rounded-[20px] border border-border/70 bg-card p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)] md:p-5" onMouseEnter={() => setActiveTab('policies')}>
+      <section id="description" className="rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)] md:p-4" onMouseEnter={() => setActiveTab('policies')}>
         <h2 className="text-xl font-semibold">More about this stay</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <article className="rounded-xl border border-border bg-background p-4">

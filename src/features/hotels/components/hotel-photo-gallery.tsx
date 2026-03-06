@@ -15,7 +15,7 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
 
   return (
     <>
-      <section className="grid h-[290px] grid-cols-1 gap-1.5 overflow-hidden rounded-[22px] border border-border/70 bg-card shadow-[0_22px_55px_-36px_rgba(15,23,42,0.45)] md:h-[400px] md:grid-cols-[1.95fr,1fr]">
+      <section className="grid h-[300px] grid-cols-1 gap-1.5 overflow-hidden rounded-[18px] border border-border/60 bg-card md:h-[380px] md:grid-cols-[2fr,1fr]">
         {photos[0] ? (
           <button type="button" className="group relative h-full w-full overflow-hidden bg-muted" onClick={() => onOpen(0)}>
             <Image src={photos[0]} alt={hotelName} fill sizes="(max-width: 768px) 100vw, 66vw" className="object-cover transition-transform duration-700 group-hover:scale-110" />
