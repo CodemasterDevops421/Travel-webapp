@@ -25,15 +25,10 @@ type HotelDetailExperienceProps = {
 
 const SECTION_TABS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'reviews', label: 'Reviews' },
   { id: 'rooms', label: 'Rooms' },
-  { id: 'travelers-asking', label: 'FAQs' },
-  { id: 'ask-ai', label: 'Ask AI' },
+  { id: 'reviews', label: 'Reviews' },
   { id: 'amenities', label: 'Amenities' },
-  { id: 'policies', label: 'Policies' },
-  { id: 'location', label: 'Location' },
-  { id: 'pros-cons', label: 'Pros & Cons' },
-  { id: 'description', label: 'Details' }
+  { id: 'policies', label: 'Policies' }
 ];
 
 function formatMoney(currency: string, amount: number | null, compact = false): string {
@@ -241,16 +236,16 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   }
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 px-4 py-7 md:py-9">
-      <section className="space-y-4 border-b border-border pb-8 pt-4">
+    <main className="mx-auto max-w-6xl space-y-5 px-4 py-6 md:py-8">
+      <section className="space-y-4 border-b border-border/70 pb-6 pt-3">
         <PreferenceLink href={browseHotelsHref} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
           &larr; See all properties
         </PreferenceLink>
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="font-heading text-4xl font-bold md:text-5xl">{hotel?.name ?? 'Hotel'}</h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{address}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="space-y-2">
+            <h1 className="font-heading text-3xl font-bold tracking-tight md:text-[2.45rem]">{hotel?.name ?? 'Hotel'}</h1>
+            <p className="max-w-2xl text-sm text-muted-foreground">{address}</p>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="rounded-full border border-border/70 bg-background px-2.5 py-1">
                 {checkin} to {checkout}
               </span>
@@ -259,14 +254,14 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
               <span>{rooms} room{rooms > 1 ? 's' : ''}</span>
             </div>
             {hotel?.reviewScore ? (
-              <p className="mt-2 text-sm font-medium">
+              <p className="text-sm font-medium">
                 {hotel.reviewScore.toFixed(1)} / 10 guest rating
                 {hotel.reviewCount ? ` · Based on ${Math.round(hotel.reviewCount)} reviews` : ''}
               </p>
             ) : (
-              <p className="mt-2 text-sm text-muted-foreground">Guest reviews are not available for this property yet.</p>
+              <p className="text-sm text-muted-foreground">Guest reviews are not available for this property yet.</p>
             )}
-            <div className="mt-3 flex items-center gap-3">
+            <div className="flex items-center gap-3 pt-1">
               <button
                 type="button"
                 onClick={() => {
@@ -294,10 +289,10 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
               ) : null}
             </div>
           </div>
-          <div className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-right">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">From</p>
-            <p className="text-2xl font-bold text-primary">{formatMoney(currency, lowestRate, true)}</p>
-            <p className="text-xs text-muted-foreground">/ night</p>
+          <div className="min-w-[170px] rounded-2xl border border-border/70 bg-card px-4 py-3 text-right shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">From</p>
+            <p className="mt-1 text-2xl font-bold text-foreground">{formatMoney(currency, lowestRate, true)}</p>
+            <p className="text-xs text-muted-foreground">per night</p>
           </div>
         </div>
       </section>
@@ -312,16 +307,16 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
         }}
       />
 
-      <nav className="sticky top-16 z-20 -mx-4 border-b border-border bg-background/95 backdrop-blur md:top-20 md:mx-0 md:px-0">
+      <nav className="sticky top-16 z-20 -mx-4 border-b border-border/70 bg-background/95 backdrop-blur md:top-20 md:mx-0">
         <div className="relative">
-          <div className="flex w-full gap-8 overflow-x-auto px-4 md:px-0 scrollbar-none">
+          <div className="flex w-full gap-6 overflow-x-auto px-4 md:px-0 scrollbar-none">
             {SECTION_TABS.map((tab) => (
               <a
                 key={tab.id}
                 href={`#${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  'whitespace-nowrap border-b-2 py-4 text-sm font-semibold transition-colors',
+                  'whitespace-nowrap border-b-2 py-3 text-sm font-semibold transition-colors',
                   activeTab === tab.id
                     ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
@@ -336,7 +331,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
         </div>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr,minmax(320px,400px)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr),320px] lg:items-start">
         <HotelDetailSections
           activeTab={activeTab}
           setActiveTab={setActiveTab}

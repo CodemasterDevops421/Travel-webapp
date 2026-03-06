@@ -252,623 +252,137 @@ export function HotelDetailSections({
   ].filter((item): item is string => Boolean(item));
 
   return (
-    <div className="flex flex-col gap-12 pb-24">
-      <section id="overview" className="order-1 scroll-mt-24 space-y-6" onMouseEnter={() => setActiveTab('overview')}>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">Smart Highlights</span>
-          <span className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">Verified supplier signals</span>
-        </div>
-        <h2 className="font-heading text-3xl font-light">Why this stay stands out</h2>
+    <div className="flex flex-col gap-8 pb-20">
+      <section id="overview" className="scroll-mt-24 space-y-4" onMouseEnter={() => setActiveTab('overview')}>
         {isPartialDetail ? (
-          <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             {hotel?.completeness?.message ?? 'Some supplier details are currently unavailable for this property.'}
           </p>
         ) : null}
         {smartHighlights.length > 0 ? (
-          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {smartHighlights.map((highlight) => (
-              <li key={`${highlight.source}-${highlight.title}`} className="border border-border bg-card p-6 transition-colors hover:bg-muted/50">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{highlight.source}</p>
-                <p className="mt-2 font-semibold text-foreground">{highlight.title}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{highlight.detail}</p>
+          <ul className="grid gap-3 md:grid-cols-3">
+            {smartHighlights.slice(0, 3).map((highlight) => (
+              <li key={`${highlight.source}-${highlight.title}`} className="rounded-2xl border border-border bg-card px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">{highlight.source}</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{highlight.title}</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">{highlight.detail}</p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
             Smart highlights are currently unavailable because supplier detail signals are limited for this property.
           </p>
         )}
-        {mapUrl ? (
-            <div className="mt-8 overflow-hidden rounded-[28px] border border-border/60 bg-muted shadow-[0_22px_60px_-40px_rgba(15,23,42,0.45)]">
-              <iframe title="Hotel map" src={mapUrl} className="h-[400px] w-full" loading="lazy" />
-            </div>
-        ) : (
-          <p className="rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            Exact map coordinates are not available from the supplier for this property.
-          </p>
-        )}
       </section>
 
-      <section id="amenities" className="order-[6] scroll-mt-24 space-y-6" onMouseEnter={() => setActiveTab('amenities')}>
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xl font-semibold">Amenities</h2>
-          <span className="text-xs text-muted-foreground">Supplier-backed data</span>
-        </div>
-        {amenities.length > 0 ? (
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {amenities.map((facility) => (
-              <p key={facility} className="rounded-xl border border-border bg-background/70 px-3 py-2 text-sm">
-                {facility}
-              </p>
-            ))}
+      <section id="rooms" className="scroll-mt-24 space-y-5" onMouseEnter={() => setActiveTab('rooms')}>
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/70 pb-4">
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground">Choose your room</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {checkin} to {checkout} · {adults} adults · {rooms} room{rooms > 1 ? 's' : ''}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">We recommend the lowest-priced selectable offer first, but every available room option remains visible below.</p>
           </div>
-        ) : (
-          <p className="rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            Amenities data is currently unavailable from the supplier for this property.
-          </p>
-        )}
-      </section>
-
-      <section id="policies" className="order-[7] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('policies')}>
-        <h2 className="text-xl font-semibold">Policies</h2>
-        <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-          <p className="rounded-xl border border-border bg-background/70 p-3">
-            Check-in: {policies?.checkInFrom || policies?.checkInUntil ? `${policies.checkInFrom ?? 'Unknown'} - ${policies.checkInUntil ?? 'Unknown'}` : 'Not provided by supplier'}
-          </p>
-          <p className="rounded-xl border border-border bg-background/70 p-3">
-            Check-out: {policies?.checkOutFrom || policies?.checkOutUntil ? `${policies.checkOutFrom ?? 'Unknown'} - ${policies.checkOutUntil ?? 'Unknown'}` : 'Not provided by supplier'}
-          </p>
-        </div>
-        {policies && policies.cancellation.length > 0 ? (
-          <ul className="mt-3 space-y-2 text-sm">
-            {policies.cancellation.map((item, index) => (
-              <li key={`${item}-${index}`} className="rounded-xl border border-border bg-background/70 p-3">{item}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            Cancellation policy details are currently unavailable from the supplier.
-          </p>
-        )}
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <article className="rounded-xl border border-border bg-background/70 p-3 text-sm">
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Payment policies</p>
-            <p className="mt-2 text-muted-foreground">{policies?.payment?.length ? policies.payment.join(' ') : 'Not provided by supplier'}</p>
-          </article>
-          <article className="rounded-xl border border-border bg-background/70 p-3 text-sm">
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Additional notes</p>
-            <p className="mt-2 text-muted-foreground">{policies?.extra?.length ? policies.extra.join(' ') : 'No additional policy notes provided.'}</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="location" className="order-[8] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('location')}>
-        <h2 className="text-xl font-semibold">Location context</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {locationContext?.addressLine ?? 'Address details are currently unavailable from the supplier.'}
-        </p>
-        {locationContext?.nearbyLandmarks?.length ? (
-          <div className="mt-3">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Nearby landmarks</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {locationContext.nearbyLandmarks.map((landmark) => (
-                <span key={landmark} className="rounded-full border border-border bg-background px-3 py-1 text-xs">{landmark}</span>
-              ))}
-            </div>
+          <div className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground">
+            {rates.length} offer{rates.length === 1 ? '' : 's'} found
           </div>
-        ) : (
-          <p className="mt-3 rounded-xl border border-border bg-background/70 p-3 text-sm text-muted-foreground">
-            Nearby landmark context is currently unavailable from the supplier.
-          </p>
-        )}
-      </section>
-
-      <section id="area-info" className="order-[9] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('area-info')}>
-        <div className="flex items-center gap-2">
-          <MapPin className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-semibold">Area and surroundings</h2>
         </div>
-        {areaInfo.length > 0 ? (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {areaInfo.map((item) => (
-              <article key={`${item.label}-${item.value}`} className="rounded-xl border border-border bg-background/70 p-3">
-                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{item.label}</p>
-                <p className="mt-1 text-sm text-foreground">{item.value}</p>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            Area context details are currently unavailable from the supplier.
-          </p>
-        )}
-      </section>
-
-      <section id="restaurants" className="order-[10] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('restaurants')}>
-        <h2 className="text-xl font-semibold">Restaurants</h2>
-        {nearbyRestaurants.length > 0 ? (
-          <div className="mt-3 grid gap-3">
-            {nearbyRestaurants.map((restaurant) => (
-              <article key={restaurant.name} className="rounded-xl border border-border bg-background/70 p-3">
-                <p className="text-sm font-semibold text-foreground">{restaurant.name}</p>
-                {restaurant.cuisine ? <p className="mt-1 text-xs text-muted-foreground">Cuisine: {restaurant.cuisine}</p> : null}
-                {restaurant.description ? <p className="mt-1 text-sm text-muted-foreground">{restaurant.description}</p> : null}
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            Nearby restaurant details are currently unavailable from the supplier.
-          </p>
-        )}
-      </section>
-
-      <section id="surroundings" className="order-[9] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('surroundings')}>
-        <h2 className="text-xl font-semibold">Property surroundings</h2>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {surroundings.slice(0, 8).map((item, index) => (
-            <article key={`${item}-${index}`} className="rounded-xl border border-border bg-background/70 p-3">
-              <p className="text-sm text-foreground">{item}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section id="rooms" className="order-3 scroll-mt-24 space-y-6" onMouseEnter={() => setActiveTab('rooms')}>
-        <h2 className="font-heading text-3xl font-light">Choose your room</h2>
-        <div className="border-b border-border pb-4">
-          <p className="text-sm font-medium text-foreground">
-            {checkin} to {checkout}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {adults} adults · {rooms} room{rooms > 1 ? 's' : ''}
-          </p>
-        </div>
-        <article className="rounded-xl border border-border bg-card/70 p-4">
-          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Availability snapshot</p>
-          <p className="mt-2 text-sm text-foreground">{rates.length} room options found for your selected dates.</p>
-          <p className="mt-1 text-sm text-muted-foreground">We recommend the lowest-priced selectable offer first, but every available room option remains visible below.</p>
-        </article>
         {groupedRates.length === 0 ? (
-          <p className="rounded-xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
+          <p className="rounded-2xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
         ) : (
-          groupedRates.map((group) => {
-            return (
-              <article key={group.roomId} className="space-y-4 rounded-[28px] border border-border/70 bg-card/90 p-5 shadow-[0_22px_60px_-40px_rgba(15,23,42,0.45)]">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start">
-                  {group.imageUrl ? (
-                    <div className="relative h-40 w-full overflow-hidden rounded-[24px] md:w-56">
-                      <Image
-                        src={group.imageUrl}
-                        alt={group.roomName}
-                        fill
-                        sizes="(max-width: 768px) 100vw, 224px"
-                        className="object-cover transition-transform duration-500 hover:scale-105"
-                      />
-                    </div>
-                  ) : null}
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-foreground">{group.roomName}</h3>
-                    <p className="text-xs text-muted-foreground">{group.offers.length} offer{group.offers.length > 1 ? 's' : ''} for this room type</p>
+          groupedRates.map((group) => (
+            <article key={group.roomId} className="rounded-[24px] border border-border/70 bg-card shadow-sm">
+              <div className="flex flex-col gap-4 p-4 md:flex-row md:items-start">
+                {group.imageUrl ? (
+                  <div className="relative h-44 w-full overflow-hidden rounded-[18px] md:w-[230px] md:flex-none">
+                    <Image
+                      src={group.imageUrl}
+                      alt={group.roomName}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 230px"
+                      className="object-cover"
+                    />
                   </div>
-                </div>
+                ) : null}
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">{group.roomName}</h3>
+                      <p className="text-xs text-muted-foreground">{group.offers.length} offer{group.offers.length > 1 ? 's' : ''} for this room type</p>
+                    </div>
+                    {group.offers.some((rate) => buildRateKey(rate) === recommendedRateKey) ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Recommended
+                      </span>
+                    ) : null}
+                  </div>
 
-                <div className="space-y-3">
-                  {group.offers.map((rate) => {
-                    const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
-                    const isRecommended = recommendedRateKey === buildRateKey(rate);
-                    const cancellationCopy = getCancellationCopy(rate);
+                  <div className="space-y-3">
+                    {group.offers.map((rate) => {
+                      const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
+                      const isRecommended = recommendedRateKey === buildRateKey(rate);
+                      const cancellationCopy = getCancellationCopy(rate);
 
-                    return (
-                      <div
-                        key={`${rate.offerId}-${rate.roomId}`}
-                        className={cn(
-                          'flex flex-col justify-between gap-5 rounded-[24px] border p-5 transition-all duration-200 md:flex-row md:items-center',
-                          isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/20',
-                          isRecommended && !isSelected ? 'border-emerald-300 bg-emerald-50/60' : ''
-                        )}
-                      >
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {isRecommended ? (
-                              <span className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-                                <Sparkles className="h-3.5 w-3.5" />
-                                Recommended value
+                      return (
+                        <div
+                          key={`${rate.offerId}-${rate.roomId}`}
+                          className={cn(
+                            'grid gap-4 rounded-2xl border px-4 py-4 transition-colors md:grid-cols-[minmax(0,1.15fr),180px,auto] md:items-center',
+                            isSelected ? 'border-primary bg-primary/[0.04]' : 'border-border bg-background',
+                            isRecommended && !isSelected ? 'border-primary/30' : ''
+                          )}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {isRecommended ? (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                  Recommended value
+                                </span>
+                              ) : null}
+                              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] text-foreground">
+                                <Coffee className="h-3.5 w-3.5" />
+                                {rate.boardName}
                               </span>
-                            ) : null}
-                            <span className="inline-flex w-fit items-center gap-1 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              {rate.refundableTag}
-                            </span>
-                            <span className="inline-flex w-fit items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-                              <Coffee className="h-3.5 w-3.5" />
-                              {rate.boardName}
-                            </span>
+                              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] text-foreground">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                {cancellationCopy.status}
+                              </span>
+                            </div>
+                            <p className="text-sm font-medium text-foreground">{rate.roomName}</p>
+                            <p className="text-xs leading-5 text-muted-foreground">{cancellationCopy.detail}</p>
                           </div>
-                          <p className="text-xs font-medium text-foreground">{cancellationCopy.status}</p>
-                          <p className="text-xs text-muted-foreground">{cancellationCopy.detail}</p>
-                        </div>
 
-                        <div className="flex min-w-[220px] flex-col gap-3 md:items-end">
-                          <div className="w-full text-left md:text-right">
-                            <p className="text-2xl font-bold text-foreground">{formatMoney(rate.currency, rate.amount)}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">Includes taxes and charges</p>
+                          <div className="space-y-1 md:text-right">
+                            <p className="text-2xl font-bold text-foreground">{formatMoney(rate.currency, rate.amount, true)}</p>
+                            <p className="text-xs text-muted-foreground">1 room, taxes & fees included</p>
                           </div>
+
                           <button
                             type="button"
                             onClick={() => setSelectedRateKey(buildRateKey(rate))}
-                            className={cn(
-                              'w-full rounded-full px-6 py-3 text-sm font-bold transition-all md:w-auto',
-                              isSelected
-                                ? 'bg-primary text-primary-foreground'
-                                : 'border border-border bg-background text-foreground hover:bg-muted'
-                            )}
+                            className="inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 md:w-auto"
                           >
-                            {isSelected ? 'Selected offer' : isRecommended ? 'Choose recommended offer' : 'Select offer'}
+                            {isSelected ? 'Selected' : isRecommended ? 'Choose recommended offer' : 'Choose room'}
                           </button>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            );
-          })
-        )}
-      </section>
-
-      <section id="reviews" className="order-2 rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('reviews')}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-3xl font-bold text-foreground">Guest reviews</h2>
-          <a href="#rooms" className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">See availability</a>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <span className="rounded-full bg-primary px-3 py-1.5 text-base font-bold text-primary-foreground">{(hotel?.reviewScore ?? 0).toFixed(1)}</span>
-          <p className="text-lg font-semibold text-foreground">
-            {hotel?.reviewScore ? (hotel.reviewScore >= 9 ? 'Excellent' : hotel.reviewScore >= 8 ? 'Very good' : 'Good') : 'Verified'}
-            <span className="font-normal text-muted-foreground"> · {hotel?.reviewCount ? Math.round(hotel.reviewCount).toLocaleString() : reviews.length.toLocaleString()} reviews</span>
-          </p>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Showing {visibleReviews.length} of {reviews.length} fetched review{reviews.length === 1 ? '' : 's'}
-          {typeof hotel?.reviewCount === 'number' && hotel.reviewCount > reviews.length
-            ? ` (supplier returned ${reviews.length} of ${Math.round(hotel.reviewCount)} total).`
-            : '.'}
-        </p>
-
-        {reviewHighlights && !reviewHighlights.lowSignal && (reviewHighlights.positiveTopics.length > 0 || reviewHighlights.tradeoffTopics.length > 0) ? (
-          <div className="mt-5 space-y-4 rounded-xl border border-border bg-background/70 p-4">
-            <div className="flex flex-wrap gap-2">
-              {[...reviewHighlights.positiveTopics, ...reviewHighlights.tradeoffTopics].slice(0, 8).map((topic) => (
-                <span key={`topic-${topic.label}`} className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground">
-                  {topic.label} ({topic.mentions})
-                </span>
-              ))}
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <article className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-emerald-800">Loved by guests</p>
-                {reviewHighlights.positiveTopics.length > 0 ? (
-                  <ul className="mt-2 space-y-1 text-sm text-emerald-900">
-                    {reviewHighlights.positiveTopics.slice(0, 4).map((topic) => (
-                      <li key={`positive-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-sm text-emerald-900">No recurring positive themes met the stability threshold yet.</p>
-                )}
-              </article>
-              <article className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-amber-900">Consider before booking</p>
-                {reviewHighlights.tradeoffTopics.length > 0 ? (
-                  <ul className="mt-2 space-y-1 text-sm text-amber-900">
-                    {reviewHighlights.tradeoffTopics.slice(0, 4).map((topic) => (
-                      <li key={`tradeoff-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-sm text-amber-900">No recurring trade-offs met the stability threshold yet.</p>
-                )}
-              </article>
-            </div>
-          </div>
-        ) : (
-          <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            {reviewHighlights?.message ?? 'Not enough verified review volume to generate stable topic highlights yet.'}
-          </p>
-        )}
-
-        {reviewBreakdown.length > 0 && (
-          <>
-            <p className="mt-6 text-lg font-semibold text-foreground">Categories</p>
-            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {reviewBreakdown.map((item) => (
-                <div key={item.label} className="text-sm">
-                  <div className="mb-1 flex items-center justify-between">
-                    <p className="font-medium text-foreground">{item.label}</p>
-                    <p className="font-semibold text-foreground">{item.score.toFixed(1)}</p>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-200">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, Math.min(100, (item.score / 10) * 100))}%` }} />
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {reviews.length > 0 && (
-          <>
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-lg font-semibold text-foreground">See what guests loved the most</p>
-              <div className="flex items-center gap-2 text-sm">
-                <label htmlFor="review-sort" className="text-muted-foreground">Sort by</label>
-                <select
-                  id="review-sort"
-                  className="rounded border border-border bg-background px-2 py-1 text-foreground"
-                  value={reviewSort}
-                  onChange={(event) => {
-                    setReviewSort(event.target.value as 'top' | 'newest' | 'oldest');
-                  }}
-                >
-                  <option value="top">Top rated</option>
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
-                </select>
-                {!showAllReviews && visibleReviews.length > 1 ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        reviewRailRef.current?.scrollBy({ left: -360, behavior: 'smooth' });
-                      }}
-                      className="rounded-full border border-border bg-background p-2 text-foreground transition-colors hover:bg-muted"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        reviewRailRef.current?.scrollBy({ left: 360, behavior: 'smooth' });
-                      }}
-                      className="rounded-full border border-border bg-background p-2 text-foreground transition-colors hover:bg-muted"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </>
-                ) : null}
               </div>
-            </div>
-
-            <div
-              ref={reviewRailRef}
-              className={cn(
-                'mt-3 gap-3',
-                showAllReviews
-                  ? 'grid md:grid-cols-2 xl:grid-cols-3'
-                  : 'flex snap-x snap-mandatory overflow-x-auto pb-2'
-              )}
-              onMouseEnter={() => setIsReviewRailPaused(true)}
-              onMouseLeave={() => setIsReviewRailPaused(false)}
-              onFocusCapture={() => setIsReviewRailPaused(true)}
-              onBlurCapture={() => setIsReviewRailPaused(false)}
-            >
-              {visibleReviews.map((review, index) => (
-                <article
-                  key={`${review.author ?? 'guest'}-${index}`}
-                  className={cn(
-                    'rounded-[24px] border border-border/70 bg-background p-5 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.45)]',
-                    showAllReviews ? '' : 'min-w-[320px] max-w-[360px] shrink-0 snap-start'
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                      {(review.author ?? 'G').charAt(0).toUpperCase()}
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{review.author ?? 'Guest'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {review.travelerType ?? 'Traveler'}
-                        {typeof review.score === 'number' ? ` · ${review.score.toFixed(1)}` : ''}
-                        {formatReviewDate(review.createdAt) ? ` · ${formatReviewDate(review.createdAt)}` : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-foreground">{review.comment}</p>
-                </article>
-              ))}
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {reviews.length > 3 ? (
-                <button
-                  type="button"
-                  onClick={() => setShowAllReviews((previous) => !previous)}
-                  className="rounded-full border border-primary/30 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
-                >
-                  {showAllReviews ? 'Show top reviews only' : `View all reviews (${reviews.length})`}
-                </button>
-              ) : null}
-            </div>
-          </>
-        )}
-
-        {reviews.length === 0 ? (
-          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            Detailed guest comments are currently unavailable from the supplier.
-          </p>
-        ) : null}
-      </section>
-
-      <section id="travelers-asking" className="order-4 rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('travelers-asking')}>
-        <h2 className="text-xl font-semibold">Travelers are asking</h2>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {travelersQuestions.map((item) => (
-            <article key={item.q} className="rounded-xl border border-border bg-background/70 p-4">
-              <p className="text-sm font-semibold text-foreground">{item.q}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
             </article>
-          ))}
-        </div>
-      </section>
-
-      <section id="pros-cons" className="order-[11] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('pros-cons')}>
-        <h2 className="text-xl font-semibold">Pros and cons</h2>
-        {prosAndCons && (prosAndCons.pros.length > 0 || prosAndCons.cons.length > 0) ? (
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Pros</p>
-              {prosAndCons.pros.length > 0 ? (
-                <ul className="mt-2 space-y-2 text-sm">
-                  {prosAndCons.pros.map((item, index) => (
-                    <li key={`${item}-${index}`} className="rounded-xl border border-border bg-background/70 p-3">{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 rounded-xl border border-border bg-background/70 p-3 text-sm text-muted-foreground">
-                  Positive highlights are currently unavailable from supplier reviews.
-                </p>
-              )}
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Cons</p>
-              {prosAndCons.cons.length > 0 ? (
-                <ul className="mt-2 space-y-2 text-sm">
-                  {prosAndCons.cons.map((item, index) => (
-                    <li key={`${item}-${index}`} className="rounded-xl border border-border bg-background/70 p-3">{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 rounded-xl border border-border bg-background/70 p-3 text-sm text-muted-foreground">
-                  Trade-off details are currently unavailable from supplier reviews.
-                </p>
-              )}
-            </div>
-          </div>
-        ) : (
-          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            Pros and cons summaries are currently unavailable from supplier reviews.
-          </p>
+          ))
         )}
       </section>
 
-      <section id="description" className="order-[12] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('description')}>
-        <h2 className="text-xl font-semibold">Property description</h2>
-        {descriptionNarrative && descriptionNarrative.sections.length > 0 ? (
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {descriptionNarrative.sections.map((section, index) => (
-              <article key={`${section.title}-${index}`} className="rounded-xl border border-border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{section.source}</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{section.title}</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{section.body}</p>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            {descriptionNarrative?.message ?? 'Property description is currently unavailable.'}
-          </p>
-        )}
-      </section>
-
-      <section id="facilities-detail" className="order-[13] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('facilities-detail')}>
-        <h2 className="text-xl font-semibold">Facilities of this property</h2>
-        {popularFacilityHighlights.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {popularFacilityHighlights.map((item) => (
-              <span key={item} className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground">
-                {item}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        {facilityCategories.length > 0 ? (
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
-            {facilityCategories.map((category) => (
-              <article key={category.category} className="rounded-xl border border-border bg-background/70 p-4">
-                <p className="text-sm font-semibold text-foreground">{category.category}</p>
-                <ul className="mt-2 grid gap-1 text-sm text-muted-foreground">
-                  {category.items.slice(0, 16).map((item) => (
-                    <li key={`${category.category}-${item}`}>• {item}</li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            Detailed facilities categories are currently unavailable from the supplier.
-          </p>
-        )}
-      </section>
-
-      <section id="languages" className="order-[14] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('languages')}>
-        <h2 className="text-xl font-semibold">Practical details</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {languagesSpoken.map((language) => (
-            <span key={language} className="rounded-full border border-border bg-background px-3 py-1 text-sm text-foreground">
-              {language}
-            </span>
-          ))}
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Language data from supplier feeds can be partial; English support is commonly available for international bookings.
-        </p>
-      </section>
-
-      <section id="house-rules" className="order-[14] rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('house-rules')}>
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-semibold">House rules</h2>
-        </div>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <article className="rounded-xl border border-border bg-background/70 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Check-in window</p>
-            <p className="mt-2 text-sm text-foreground">
-              {policies?.checkInFrom || policies?.checkInUntil
-                ? `${policies?.checkInFrom ?? 'Unknown'} - ${policies?.checkInUntil ?? 'Unknown'}`
-                : 'Not provided by supplier'}
-            </p>
-          </article>
-          <article className="rounded-xl border border-border bg-background/70 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Check-out window</p>
-            <p className="mt-2 text-sm text-foreground">
-              {policies?.checkOutFrom || policies?.checkOutUntil
-                ? `${policies?.checkOutFrom ?? 'Unknown'} - ${policies?.checkOutUntil ?? 'Unknown'}`
-                : 'Not provided by supplier'}
-            </p>
-          </article>
-          <article className="rounded-xl border border-border bg-background/70 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Children policy</p>
-            <p className="mt-2 text-sm text-foreground">
-              {policies?.children?.length ? policies.children.join(' ') : 'Children policy details are currently unavailable.'}
-            </p>
-          </article>
-          <article className="rounded-xl border border-border bg-background/70 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Pet policy</p>
-            <p className="mt-2 text-sm text-foreground">
-              {policies?.pets?.length ? policies.pets.join(' ') : 'Pet policy details are currently unavailable.'}
-            </p>
-          </article>
-        </div>
-        {houseRulesDetailed.length > 0 ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {houseRulesDetailed.map((rule) => (
-              <article key={`${rule.title}-${rule.detail}`} className="rounded-xl border border-border bg-background/70 p-4">
-                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{rule.title}</p>
-                <p className="mt-2 text-sm text-foreground">{rule.detail}</p>
-              </article>
-            ))}
-          </div>
-        ) : null}
-      </section>
-
-      <section id="ask-ai" className="order-5 rounded-xl border border-border bg-card/85 p-4" onMouseEnter={() => setActiveTab('ask-ai')}>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Ask AI · Beta</p>
-        <h2 className="mt-2 text-xl font-semibold">Ask about this hotel</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Get quick answers about facilities, policies, and stay details.</p>
+      <section id="ask-ai" className="rounded-2xl border border-border bg-card p-4" onMouseEnter={() => setActiveTab('rooms')}>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Ask AI</p>
+        <h2 className="mt-1 text-lg font-semibold">Ask about this hotel</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Get quick answers before selecting a room.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {['Does this property have parking?', 'Is breakfast included?', 'What are check-in/check-out times?'].map((preset) => (
             <button
@@ -903,6 +417,442 @@ export function HotelDetailSections({
           </button>
         </div>
         {askAnswer ? <p className="mt-3 rounded-xl border border-border bg-background/70 p-3 text-sm">{askAnswer}</p> : null}
+      </section>
+
+      <section id="reviews" className="scroll-mt-24 rounded-2xl border border-border bg-card p-4 md:p-5" onMouseEnter={() => setActiveTab('reviews')}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold text-foreground">Guest reviews</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground">{(hotel?.reviewScore ?? 0).toFixed(1)}</span>
+              <p className="text-sm font-medium text-foreground">
+                {hotel?.reviewScore ? (hotel.reviewScore >= 9 ? 'Excellent' : hotel.reviewScore >= 8 ? 'Very good' : 'Good') : 'Verified'}
+                <span className="text-muted-foreground"> · {hotel?.reviewCount ? Math.round(hotel.reviewCount).toLocaleString() : reviews.length.toLocaleString()} reviews</span>
+              </p>
+            </div>
+          </div>
+          <a href="#rooms" className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">See availability</a>
+        </div>
+
+        {reviewHighlights && !reviewHighlights.lowSignal && (reviewHighlights.positiveTopics.length > 0 || reviewHighlights.tradeoffTopics.length > 0) ? (
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {[...reviewHighlights.positiveTopics, ...reviewHighlights.tradeoffTopics].slice(0, 6).map((topic) => (
+                <span key={`topic-${topic.label}`} className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground">
+                  {topic.label} ({topic.mentions})
+                </span>
+              ))}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <article className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-emerald-800">Loved by guests</p>
+                {reviewHighlights.positiveTopics.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-emerald-900">
+                    {reviewHighlights.positiveTopics.slice(0, 3).map((topic) => (
+                      <li key={`positive-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-emerald-900">No recurring positive themes met the stability threshold yet.</p>
+                )}
+              </article>
+              <article className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-amber-900">Consider before booking</p>
+                {reviewHighlights.tradeoffTopics.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                    {reviewHighlights.tradeoffTopics.slice(0, 3).map((topic) => (
+                      <li key={`tradeoff-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-amber-900">No recurring trade-off themes met the stability threshold yet.</p>
+                )}
+              </article>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            {reviewHighlights?.message ?? 'Not enough verified review volume to generate stable topic highlights yet.'}
+          </p>
+        )}
+
+        {reviewBreakdown.length > 0 ? (
+          <div className="mt-5 space-y-2">
+            {reviewBreakdown.slice(0, 4).map((item) => {
+              const value = item.score ? Math.max(0, Math.min(10, item.score)) : 0;
+              return (
+                <div key={item.label} className="grid grid-cols-[108px,1fr,44px] items-center gap-3 text-sm">
+                  <p className="text-foreground">{item.label}</p>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${value * 10}%` }} />
+                  </div>
+                  <p className="text-right text-muted-foreground">{value.toFixed(1)}</p>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {visibleReviews.length > 0 ? (
+          <>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-medium text-foreground">Top comments from travelers</p>
+              <div className="flex items-center gap-2">
+                <label htmlFor="review-sort" className="text-xs text-muted-foreground">Sort by</label>
+                <select
+                  id="review-sort"
+                  className="rounded-full border border-border bg-background px-3 py-1.5 text-xs"
+                  value={reviewSort}
+                  onChange={(event) => setReviewSort(event.target.value as 'top' | 'newest' | 'oldest')}
+                >
+                  <option value="top">Top rated</option>
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+                {!showAllReviews ? (
+                  <>
+                    <button
+                      type="button"
+                      className="rounded-full border border-border bg-background p-2 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                      onClick={() => reviewRailRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+                      aria-label="Scroll reviews left"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-border bg-background p-2 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                      onClick={() => reviewRailRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+                      aria-label="Scroll reviews right"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            <div
+              ref={reviewRailRef}
+              className={cn(
+                'mt-3 gap-3',
+                showAllReviews
+                  ? 'grid md:grid-cols-2'
+                  : 'flex snap-x snap-mandatory overflow-x-auto pb-2 scrollbar-none'
+              )}
+              onMouseEnter={() => setIsReviewRailPaused(true)}
+              onMouseLeave={() => setIsReviewRailPaused(false)}
+              onFocusCapture={() => setIsReviewRailPaused(true)}
+              onBlurCapture={() => setIsReviewRailPaused(false)}
+            >
+              {visibleReviews.map((review, index) => (
+                <article
+                  key={`${review.author}-${review.createdAt ?? index}`}
+                  className={cn(
+                    'rounded-2xl border border-border bg-background p-4',
+                    showAllReviews ? '' : 'min-w-[300px] snap-start'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">
+                      {(review.author ?? 'G').slice(0, 1).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">{review.author ?? 'Guest'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {review.travelerType}
+                        {review.score ? ` · ${review.score.toFixed(1)}` : ''}
+                        {formatReviewDate(review.createdAt) ? ` · ${formatReviewDate(review.createdAt)}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{review.comment}</p>
+                </article>
+              ))}
+            </div>
+
+            {sortedReviews.length > 6 ? (
+              <button
+                type="button"
+                className="mt-4 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted"
+                onClick={() => setShowAllReviews((current) => !current)}
+              >
+                {showAllReviews ? 'Collapse reviews' : `View all reviews (${sortedReviews.length})`}
+              </button>
+            ) : null}
+          </>
+        ) : (
+          <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            Detailed guest comments are currently unavailable from the supplier.
+          </p>
+        )}
+      </section>
+
+      <section id="amenities" className="scroll-mt-24 rounded-2xl border border-border bg-card p-4 md:p-5" onMouseEnter={() => setActiveTab('amenities')}>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold">Amenities</h2>
+          <span className="text-xs text-muted-foreground">Supplier-backed data</span>
+        </div>
+        {amenities.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {amenities.map((item) => (
+              <span key={item} className="rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground">
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+            Amenities data is currently unavailable from the supplier for this property.
+          </p>
+        )}
+      </section>
+
+      <section id="policies" className="scroll-mt-24 rounded-2xl border border-border bg-card p-4 md:p-5" onMouseEnter={() => setActiveTab('policies')}>
+        <h2 className="text-xl font-semibold">Policies</h2>
+        <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <p className="rounded-xl border border-border bg-background p-3">
+            Check-in: {policies?.checkInFrom || policies?.checkInUntil ? `${policies.checkInFrom ?? 'Unknown'} - ${policies.checkInUntil ?? 'Unknown'}` : 'Not provided by supplier'}
+          </p>
+          <p className="rounded-xl border border-border bg-background p-3">
+            Check-out: {policies?.checkOutFrom || policies?.checkOutUntil ? `${policies.checkOutFrom ?? 'Unknown'} - ${policies.checkOutUntil ?? 'Unknown'}` : 'Not provided by supplier'}
+          </p>
+        </div>
+        {policies && policies.cancellation.length > 0 ? (
+          <ul className="mt-3 space-y-2 text-sm">
+            {policies.cancellation.map((item, index) => (
+              <li key={`${item}-${index}`} className="rounded-xl border border-border bg-background p-3">{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 rounded-xl border border-border bg-background p-4 text-sm text-muted-foreground">
+            Cancellation policy details are currently unavailable from the supplier.
+          </p>
+        )}
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <article className="rounded-xl border border-border bg-background p-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Payment policies</p>
+            <p className="mt-2 text-muted-foreground">{policies?.payment?.length ? policies.payment.join(' ') : 'Not provided by supplier'}</p>
+          </article>
+          <article className="rounded-xl border border-border bg-background p-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Additional notes</p>
+            <p className="mt-2 text-muted-foreground">{policies?.extra?.length ? policies.extra.join(' ') : 'No additional policy notes provided.'}</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="description" className="rounded-2xl border border-border bg-card p-4 md:p-5" onMouseEnter={() => setActiveTab('policies')}>
+        <h2 className="text-xl font-semibold">More about this stay</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <article className="rounded-xl border border-border bg-background p-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-primary" />
+              <p className="text-sm font-semibold text-foreground">Location context</p>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {locationContext?.addressLine ?? 'Address details are currently unavailable from the supplier.'}
+            </p>
+            {locationContext?.nearbyLandmarks?.length ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {locationContext.nearbyLandmarks.map((landmark) => (
+                  <span key={landmark} className="rounded-full border border-border bg-card px-3 py-1 text-xs">{landmark}</span>
+                ))}
+              </div>
+            ) : null}
+            {mapUrl ? (
+              <div className="mt-4 overflow-hidden rounded-xl border border-border/60">
+                <iframe title="Hotel map" src={mapUrl} className="h-56 w-full" loading="lazy" />
+              </div>
+            ) : null}
+          </article>
+
+          <article className="rounded-xl border border-border bg-background p-4">
+            <p className="text-sm font-semibold text-foreground">Practical details</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {languagesSpoken.map((language) => (
+                <span key={language} className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground">
+                  {language}
+                </span>
+              ))}
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <article className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Children policy</p>
+                <p className="mt-2 text-sm text-foreground">
+                  {policies?.children?.length ? policies.children.join(' ') : 'Children policy details are currently unavailable.'}
+                </p>
+              </article>
+              <article className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Pet policy</p>
+                <p className="mt-2 text-sm text-foreground">
+                  {policies?.pets?.length ? policies.pets.join(' ') : 'Pet policy details are currently unavailable.'}
+                </p>
+              </article>
+            </div>
+          </article>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <article className="rounded-xl border border-border bg-background p-4">
+            <p className="text-sm font-semibold text-foreground">Property description</p>
+            {descriptionNarrative && descriptionNarrative.sections.length > 0 ? (
+              <div className="mt-3 space-y-3">
+                {descriptionNarrative.sections.map((section, index) => (
+                  <article key={`${section.title}-${index}`} className="rounded-xl border border-border bg-card p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{section.source}</p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">{section.title}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{section.body}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                {descriptionNarrative?.message ?? 'Property description is currently unavailable.'}
+              </p>
+            )}
+          </article>
+
+          <article className="rounded-xl border border-border bg-background p-4">
+            <p className="text-sm font-semibold text-foreground">Property area</p>
+            {areaInfo.length > 0 ? (
+              <div className="mt-3 grid gap-3">
+                {areaInfo.map((item) => (
+                  <article key={item.label} className="rounded-xl border border-border bg-card p-3">
+                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{item.label}</p>
+                    <p className="mt-2 text-sm text-foreground">{item.value}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                Area insight data is currently unavailable from the supplier.
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {surroundings.map((item) => (
+                <span key={item} className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground">
+                  {item}
+                </span>
+              ))}
+            </div>
+          </article>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <article className="rounded-xl border border-border bg-background p-4">
+            <p className="text-sm font-semibold text-foreground">Facilities of this property</p>
+            {popularFacilityHighlights.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {popularFacilityHighlights.map((item) => (
+                  <span key={item} className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {facilityCategories.length > 0 ? (
+              <div className="mt-3 grid gap-3">
+                {facilityCategories.map((category) => (
+                  <article key={category.category} className="rounded-xl border border-border bg-card p-3">
+                    <p className="text-sm font-semibold text-foreground">{category.category}</p>
+                    <ul className="mt-2 grid gap-1 text-sm text-muted-foreground">
+                      {category.items.slice(0, 12).map((item) => (
+                        <li key={`${category.category}-${item}`}>• {item}</li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                Detailed facilities categories are currently unavailable from the supplier.
+              </p>
+            )}
+          </article>
+
+          <article className="rounded-xl border border-border bg-background p-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <p className="text-sm font-semibold text-foreground">House rules and nearby dining</p>
+            </div>
+            {nearbyRestaurants.length > 0 ? (
+              <div className="mt-3 grid gap-3">
+                {nearbyRestaurants.slice(0, 3).map((restaurant) => (
+                  <article key={`${restaurant.name}-${restaurant.cuisine}`} className="rounded-xl border border-border bg-card p-3">
+                    <p className="text-sm font-semibold text-foreground">{restaurant.name}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">{restaurant.cuisine}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{restaurant.description}</p>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <article className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Check-in window</p>
+                <p className="mt-2 text-sm text-foreground">
+                  {policies?.checkInFrom || policies?.checkInUntil
+                    ? `${policies?.checkInFrom ?? 'Unknown'} - ${policies?.checkInUntil ?? 'Unknown'}`
+                    : 'Not provided by supplier'}
+                </p>
+              </article>
+              <article className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Check-out window</p>
+                <p className="mt-2 text-sm text-foreground">
+                  {policies?.checkOutFrom || policies?.checkOutUntil
+                    ? `${policies?.checkOutFrom ?? 'Unknown'} - ${policies?.checkOutUntil ?? 'Unknown'}`
+                    : 'Not provided by supplier'}
+                </p>
+              </article>
+            </div>
+            {houseRulesDetailed.length > 0 ? (
+              <div className="mt-3 grid gap-3">
+                {houseRulesDetailed.map((rule) => (
+                  <article key={`${rule.title}-${rule.detail}`} className="rounded-xl border border-border bg-card p-3">
+                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{rule.title}</p>
+                    <p className="mt-2 text-sm text-foreground">{rule.detail}</p>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </article>
+        </div>
+
+        {prosAndCons && (prosAndCons.pros.length > 0 || prosAndCons.cons.length > 0) ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <article className="rounded-xl border border-border bg-background p-4">
+              <p className="text-sm font-semibold text-foreground">Pros</p>
+              {prosAndCons.pros.length > 0 ? (
+                <ul className="mt-3 space-y-2 text-sm">
+                  {prosAndCons.pros.map((item, index) => (
+                    <li key={`${item}-${index}`} className="rounded-xl border border-border bg-card p-3">{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
+                  Positive highlights are currently unavailable from supplier reviews.
+                </p>
+              )}
+            </article>
+            <article className="rounded-xl border border-border bg-background p-4">
+              <p className="text-sm font-semibold text-foreground">Cons</p>
+              {prosAndCons.cons.length > 0 ? (
+                <ul className="mt-3 space-y-2 text-sm">
+                  {prosAndCons.cons.map((item, index) => (
+                    <li key={`${item}-${index}`} className="rounded-xl border border-border bg-card p-3">{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
+                  Trade-off details are currently unavailable from supplier reviews.
+                </p>
+              )}
+            </article>
+          </div>
+        ) : (
+          <p className="mt-4 rounded-xl border border-border bg-background p-4 text-sm text-muted-foreground">
+            Pros and cons summaries are currently unavailable from supplier reviews.
+          </p>
+        )}
       </section>
     </div>
   );

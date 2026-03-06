@@ -17,12 +17,14 @@ describe('hotel detail redesign regression coverage', () => {
   );
 
   it('keeps the tab order aligned to the redesigned hotel detail flow', () => {
-    expect(experienceSource.indexOf("{ id: 'reviews', label: 'Reviews' }")).toBeLessThan(
+    expect(experienceSource.indexOf("{ id: 'overview', label: 'Overview' }")).toBeLessThan(
       experienceSource.indexOf("{ id: 'rooms', label: 'Rooms' }")
     );
-    expect(experienceSource.indexOf("{ id: 'travelers-asking', label: 'FAQs' }")).toBeLessThan(
-      experienceSource.indexOf("{ id: 'amenities', label: 'Amenities' }")
+    expect(experienceSource.indexOf("{ id: 'rooms', label: 'Rooms' }")).toBeLessThan(
+      experienceSource.indexOf("{ id: 'reviews', label: 'Reviews' }")
     );
+    expect(experienceSource).not.toContain("{ id: 'travelers-asking', label: 'FAQs' }");
+    expect(experienceSource).not.toContain("{ id: 'location', label: 'Location' }");
   });
 
   it('uses six reviews in collapsed rail mode and respects reduced-motion preferences', () => {

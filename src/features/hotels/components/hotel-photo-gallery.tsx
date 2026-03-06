@@ -15,12 +15,12 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
 
   return (
     <>
-      <section className="grid h-[320px] grid-cols-1 gap-1 overflow-hidden rounded-[30px] border border-border/60 bg-card shadow-[0_24px_60px_-36px_rgba(15,23,42,0.45)] md:h-[500px] md:grid-cols-[2fr,1fr]">
+      <section className="grid h-[280px] grid-cols-1 gap-1 overflow-hidden rounded-[24px] border border-border/60 bg-card shadow-sm md:h-[380px] md:grid-cols-[1.8fr,1fr]">
         {photos[0] ? (
           <button type="button" className="group relative h-full w-full overflow-hidden bg-muted" onClick={() => onOpen(0)}>
             <Image src={photos[0]} alt={hotelName} fill sizes="(max-width: 768px) 100vw, 66vw" className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-90 transition-opacity duration-300 group-hover:opacity-100" />
-            <div className="absolute bottom-4 left-4 hidden rounded-full border border-white/30 bg-black/35 px-3 py-1 text-xs font-semibold text-white backdrop-blur md:inline-flex">
+            <div className="absolute bottom-4 left-4 hidden rounded-full border border-white/30 bg-black/35 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur md:inline-flex">
               Main view
             </div>
             {photos.length > 1 ? (

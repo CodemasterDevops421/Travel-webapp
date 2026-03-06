@@ -22,11 +22,13 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
   );
 
   it('renders required HOTL-01 section anchors', () => {
+    expect(source).toContain("{ id: 'overview', label: 'Overview' }");
+    expect(source).toContain("{ id: 'rooms', label: 'Rooms' }");
+    expect(source).toContain("{ id: 'reviews', label: 'Reviews' }");
     expect(source).toContain("{ id: 'amenities', label: 'Amenities' }");
     expect(source).toContain("{ id: 'policies', label: 'Policies' }");
-    expect(source).toContain("{ id: 'location', label: 'Location' }");
-    expect(source).toContain("{ id: 'reviews', label: 'Reviews' }");
-    expect(source).toContain("{ id: 'pros-cons', label: 'Pros & Cons' }");
+    expect(source).not.toContain("{ id: 'location', label: 'Location' }");
+    expect(source).not.toContain("{ id: 'pros-cons', label: 'Pros & Cons' }");
   });
 
   it('shows explicit partial-data messaging from normalized completeness contract', () => {
