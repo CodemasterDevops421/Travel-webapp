@@ -235,6 +235,10 @@
   display: none;
 }
 
+.hotel-detail-page {
+  overflow-x: clip;
+}
+
 /* ── Normalize native date inputs ── */
 input[type="date"] {
   -webkit-appearance: none;

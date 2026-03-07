@@ -57,7 +57,7 @@ export function PropertyHero({
       <PreferenceLink href={browseHotelsHref} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
         &larr; See all properties
       </PreferenceLink>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-start md:justify-between">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
             {starRating ? (
@@ -89,7 +89,7 @@ export function PropertyHero({
             <span className="rounded-full border border-border/70 bg-background px-2.5 py-1">{rooms} room{rooms > 1 ? 's' : ''}</span>
           </div>
         </div>
-        <div className="min-w-[210px] rounded-[18px] border border-border/70 bg-background px-4 py-3 text-right">
+        <div className="w-full rounded-[18px] border border-border/70 bg-background px-4 py-3 text-left sm:min-w-[210px] md:w-auto md:text-right">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Best available rate</p>
           <p className="mt-1 text-[1.9rem] font-bold leading-none text-foreground">{formatMoney(currency, lowestRate, true)}</p>
           <p className="mt-1 text-xs text-muted-foreground">per night · taxes and fees included</p>

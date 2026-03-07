@@ -33,6 +33,15 @@ describe('hotel detail redesign regression coverage', () => {
     expect(sectionsSource).toContain('const [isReviewRailPaused, setIsReviewRailPaused] = useState(false);');
   });
 
+  it('keeps facilities and review snapshot in the overview flow before room inventory', () => {
+    expect(sectionsSource.indexOf('Popular facilities')).toBeLessThan(
+      sectionsSource.indexOf('Choose your room')
+    );
+    expect(sectionsSource.indexOf('Review snapshot')).toBeLessThan(
+      sectionsSource.indexOf('Choose your room')
+    );
+  });
+
   it('removes the legacy hardcoded blue booking colors from review actions and score bars', () => {
     expect(sectionsSource).not.toContain('bg-[#006ce4]');
     expect(sectionsSource).not.toContain('bg-[#003b95]');

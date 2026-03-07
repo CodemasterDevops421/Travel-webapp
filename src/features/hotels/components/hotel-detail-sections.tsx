@@ -230,6 +230,7 @@ export function HotelDetailSections({
       });
   }, [buildRateKey, rates, recommendedRateKey]);
   const popularFacilityHighlights = amenities.slice(0, 12);
+  const overviewReviewMetrics = reviewBreakdown.slice(0, 4);
   const surroundings = locationContext?.nearbyLandmarks?.length
     ? locationContext.nearbyLandmarks
     : [
@@ -279,6 +280,74 @@ export function HotelDetailSections({
             Smart highlights are currently unavailable because supplier detail signals are limited for this property.
           </p>
         )}
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr),minmax(0,0.9fr)]">
+          <article className="rounded-[16px] border border-border/70 bg-card p-4 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)]">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Popular facilities</h2>
+                <p className="mt-1 text-sm text-muted-foreground">The most visible amenities guests check first.</p>
+              </div>
+              <a href="#amenities" className="text-xs font-semibold text-primary transition-colors hover:text-primary/80">See all</a>
+            </div>
+            {popularFacilityHighlights.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {popularFacilityHighlights.slice(0, 10).map((item) => (
+                  <span key={item} className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+                Amenities data is currently unavailable from the supplier for this property.
+              </p>
+            )}
+          </article>
+
+          <article className="rounded-[16px] border border-border/70 bg-card p-4 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Review snapshot</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Quick guest sentiment before you compare rooms.</p>
+              </div>
+              <a href="#reviews" className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+                Read reviews
+              </a>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground">
+                {(hotel?.reviewScore ?? 0).toFixed(1)}
+              </span>
+              <p className="text-sm font-medium text-foreground">
+                {hotel?.reviewScore ? (hotel.reviewScore >= 9 ? 'Excellent' : hotel.reviewScore >= 8 ? 'Very good' : 'Good') : 'Verified'}
+                <span className="text-muted-foreground"> · {hotel?.reviewCount ? Math.round(hotel.reviewCount).toLocaleString() : reviews.length.toLocaleString()} reviews</span>
+              </p>
+            </div>
+
+            {overviewReviewMetrics.length > 0 ? (
+              <div className="mt-4 space-y-2.5">
+                {overviewReviewMetrics.map((item) => {
+                  const value = item.score ? Math.max(0, Math.min(10, item.score)) : 0;
+                  return (
+                    <div key={item.label} className="grid grid-cols-[92px,1fr,36px] items-center gap-3 text-sm">
+                      <p className="text-foreground">{item.label}</p>
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${value * 10}%` }} />
+                      </div>
+                      <p className="text-right text-muted-foreground">{value.toFixed(1)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
+                Detailed review category scores are currently unavailable from the supplier.
+              </p>
+            )}
+          </article>
+        </div>
       </section>
 
       <section id="rooms" className="scroll-mt-24 space-y-3.5" onMouseEnter={() => setActiveTab('rooms')}>
@@ -299,15 +368,15 @@ export function HotelDetailSections({
         ) : (
           groupedRates.map((group) => (
             <article key={group.roomId} className="rounded-[18px] border border-border/60 bg-card shadow-[0_16px_34px_-34px_rgba(15,23,42,0.35)]">
-              <div className="flex flex-col gap-3 p-3.5 md:flex-row md:items-start">
+              <div className="flex flex-col gap-3 p-3.5 md:grid md:grid-cols-[220px,minmax(0,1fr)] md:items-start">
                 {group.imageUrl ? (
-                  <div className="relative h-40 w-full overflow-hidden rounded-[14px] md:w-[220px] md:flex-none">
+                  <div className="relative h-44 w-full overflow-hidden rounded-[14px] md:h-full md:min-h-[212px] md:w-[220px]">
                     <Image
                       src={group.imageUrl}
                       alt={group.roomName}
                       fill
                       sizes="(max-width: 768px) 100vw, 230px"
-                      className="object-cover transition-transform duration-500 hover:scale-[1.03]"
+                      className="object-cover transition-transform duration-500 hover:scale-[1.03] motion-reduce:transform-none motion-reduce:transition-none"
                     />
                     <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
                     <div className="absolute bottom-3 left-3 rounded-full border border-white/25 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
@@ -315,11 +384,11 @@ export function HotelDetailSections({
                     </div>
                   </div>
                 ) : null}
-                <div className="min-w-0 flex-1 space-y-2.5">
-                  <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="text-lg font-semibold leading-6 text-foreground">{group.roomName}</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">{group.offers.length} offer{group.offers.length > 1 ? 's' : ''} for this room type</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{group.offers.length} offer{group.offers.length > 1 ? 's' : ''} for this room type</p>
                     </div>
                     {group.offers.some((rate) => buildRateKey(rate) === recommendedRateKey) ? (
                       <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
@@ -339,12 +408,12 @@ export function HotelDetailSections({
                         <div
                           key={`${rate.offerId}-${rate.roomId}`}
                           className={cn(
-                            'grid gap-3 rounded-[15px] border px-3.5 py-3 transition-all md:grid-cols-[minmax(0,1.2fr),170px,auto] md:items-center',
+                            'grid gap-3 rounded-[15px] border px-3.5 py-3 transition-all md:grid-cols-[minmax(0,1.4fr),138px,156px] md:items-start',
                             isSelected ? 'border-primary bg-primary/[0.05] shadow-[0_16px_34px_-28px_rgba(37,99,235,0.75)]' : 'border-border bg-background',
                             isRecommended && !isSelected ? 'border-primary/30' : ''
                           )}
                         >
-                            <div className="space-y-1.5">
+                          <div className="space-y-2">
                             <div className="flex flex-wrap items-center gap-2">
                               {isRecommended ? (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
@@ -356,31 +425,42 @@ export function HotelDetailSections({
                                 <Coffee className="h-3.5 w-3.5" />
                                 {rate.boardName}
                               </span>
-                              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] text-foreground">
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                {cancellationCopy.status}
-                              </span>
+                                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] text-foreground">
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  {cancellationCopy.status}
+                                </span>
                             </div>
-                            <p className="text-sm font-semibold leading-5 text-foreground">{rate.roomName}</p>
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold leading-5 text-foreground">{rate.roomName}</p>
+                              <p className="text-xs leading-5 text-muted-foreground">
+                                {isSelected ? 'Currently selected for your stay.' : 'Available for your selected dates.'}
+                              </p>
+                            </div>
                             <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                               <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {adults} guests</span>
-                              <span>Room mapped: {rate.roomId}</span>
+                              <span className="inline-flex items-center gap-1"><Coffee className="h-3.5 w-3.5" /> {rate.boardName}</span>
                             </div>
                             <p className="text-xs leading-5 text-muted-foreground">{cancellationCopy.detail}</p>
                           </div>
 
-                          <div className="space-y-1 md:text-right">
+                          <div className="space-y-1 rounded-[14px] border border-border/70 bg-card/70 p-3 md:text-right">
+                            <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Total stay rate</p>
                             <p className="text-[1.6rem] font-bold leading-none text-foreground">{formatMoney(rate.currency, rate.amount, true)}</p>
                             <p className="text-[11px] text-muted-foreground">1 room · taxes & fees included</p>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRateKey(buildRateKey(rate))}
-                            className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_10px_20px_-16px_rgba(37,99,235,0.85)] transition-all hover:bg-primary/90 hover:shadow-[0_14px_24px_-16px_rgba(37,99,235,0.95)] md:w-[168px]"
-                          >
-                            {isSelected ? 'Selected' : isRecommended ? 'Choose recommended offer' : 'Choose room'}
-                          </button>
+                          <div className="flex flex-col gap-2 md:items-end">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRateKey(buildRateKey(rate))}
+                              className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_10px_20px_-16px_rgba(37,99,235,0.85)] transition-all hover:bg-primary/90 hover:shadow-[0_14px_24px_-16px_rgba(37,99,235,0.95)] md:w-[156px]"
+                            >
+                              {isSelected ? 'Selected' : isRecommended ? 'Choose recommended offer' : 'Choose room'}
+                            </button>
+                            <p className="text-center text-[11px] leading-5 text-muted-foreground md:text-right">
+                              {cancellationCopy.status}
+                            </p>
+                          </div>
                         </div>
                       );
                     })}
@@ -411,7 +491,7 @@ export function HotelDetailSections({
             </button>
           ))}
         </div>
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input
             className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
             placeholder="Ask anything..."
@@ -420,7 +500,7 @@ export function HotelDetailSections({
           />
           <button
             type="button"
-            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60 sm:self-auto"
             onClick={() => {
               void askHotelAI();
             }}
@@ -508,9 +588,9 @@ export function HotelDetailSections({
 
         {visibleReviews.length > 0 ? (
           <>
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
               <p className="text-sm font-medium text-foreground">Top comments from travelers</p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <label htmlFor="review-sort" className="text-xs text-muted-foreground">Sort by</label>
                 <select
                   id="review-sort"
@@ -563,7 +643,7 @@ export function HotelDetailSections({
                   key={`${review.author}-${review.createdAt ?? index}`}
                   className={cn(
                     'rounded-[18px] border border-border bg-background p-4 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.45)]',
-                    showAllReviews ? '' : 'min-w-[320px] snap-start'
+                    showAllReviews ? '' : 'min-w-[280px] snap-start sm:min-w-[320px]'
                   )}
                 >
                   <div className="flex items-center gap-3">

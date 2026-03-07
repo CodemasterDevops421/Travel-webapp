@@ -234,7 +234,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   }
 
   return (
-    <main className="mx-auto max-w-[1160px] space-y-4 px-4 py-4 md:space-y-5 md:py-6">
+    <main className="hotel-detail-page mx-auto max-w-[1160px] space-y-4 px-4 py-4 md:space-y-5 md:py-6">
       <PropertyHero
         browseHotelsHref={browseHotelsHref}
         hotelName={hotel?.name ?? 'Hotel'}
@@ -304,7 +304,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
             askHotelAI={askHotelAI}
           />
         </div>
-        <div className="mt-5 lg:mt-0">
+        <div className="mt-5 hidden lg:mt-0 lg:block">
           <PropertyBookingRail
             checkin={checkin}
             checkout={checkout}
