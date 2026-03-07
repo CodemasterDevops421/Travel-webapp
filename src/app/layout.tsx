@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import { Fraunces, Manrope } from 'next/font/google';
 import './globals.css';
@@ -43,6 +43,12 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/'
   }
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover'
 };
 
 import { AIChatbot } from '@/features/ai/components/ai-chatbot';
