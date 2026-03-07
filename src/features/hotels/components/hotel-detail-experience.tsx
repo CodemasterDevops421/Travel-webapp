@@ -1,17 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Heart, MapPin, Star } from 'lucide-react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { HotelDetails, HotelRateOption } from '@/server/liteapi';
-import { PreferenceLink } from '@/components/navigation/preference-link';
-import { cn } from '@/shared/lib/utils';
 import { useHotelDetails } from '@/features/hotels/hooks/use-hotel-details';
 import { useHotelRates, type HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
 import { useWishlist } from '@/shared/hooks/use-wishlist';
-import { HotelPhotoGallery } from '@/features/hotels/components/hotel-photo-gallery';
-import { HotelDetailSections } from '@/features/hotels/components/hotel-detail-sections';
-import { HotelBookingSidebar } from '@/features/hotels/components/hotel-booking-sidebar';
+import { PropertyHero } from '@/features/hotels/components/property-hero';
+import { PropertyTabNav } from '@/features/hotels/components/property-tab-nav';
+import { PropertyContentSections } from '@/features/hotels/components/property-content-sections';
+import { PropertyBookingRail } from '@/features/hotels/components/property-booking-rail';
 
 type HotelDetailExperienceProps = {
   hotelId: string;
@@ -236,156 +234,90 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   }
 
   return (
-    <main className="mx-auto max-w-[1080px] space-y-4 px-4 py-4 md:py-6">
-      <section className="space-y-3 rounded-[22px] border border-border/70 bg-card px-4 py-4 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.5)] md:px-5">
-        <PreferenceLink href={browseHotelsHref} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
-          &larr; See all properties
-        </PreferenceLink>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
-              {hotel?.starRating ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">
-                  <Star className="h-3.5 w-3.5 fill-current" />
-                  {hotel.starRating}-star stay
-                </span>
-              ) : null}
-              {hotel?.reviewScore ? (
-                <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-2.5 py-1 text-foreground">
-                  <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
-                    {hotel.reviewScore.toFixed(1)}
-                  </span>
-                  {hotel.reviewScore >= 9 ? 'Excellent' : hotel.reviewScore >= 8 ? 'Very good' : 'Good'}
-                  {hotel.reviewCount ? ` · ${Math.round(hotel.reviewCount)} reviews` : ''}
-                </span>
-              ) : null}
-            </div>
-            <h1 className="max-w-3xl font-heading text-[1.9rem] font-bold leading-tight tracking-tight text-foreground md:text-[2.25rem]">{hotel?.name ?? 'Hotel'}</h1>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4 text-primary/80" />
-              <p className="max-w-2xl">{address}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="rounded-full border border-border/70 bg-background px-2.5 py-1">
-                {checkin} to {checkout}
-              </span>
-              <span className="rounded-full border border-border/70 bg-background px-2.5 py-1">{adults} guests</span>
-              <span className="rounded-full border border-border/70 bg-background px-2.5 py-1">{rooms} room{rooms > 1 ? 's' : ''}</span>
-            </div>
-          </div>
-          <div className="min-w-[210px] rounded-[18px] border border-border/70 bg-background px-4 py-3 text-right">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Best available rate</p>
-            <p className="mt-1 text-[1.9rem] font-bold leading-none text-foreground">{formatMoney(currency, lowestRate, true)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">per night · taxes and fees included</p>
-            <a href="#rooms" className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
-              See rooms
-            </a>
-          </div>
+    <main className="mx-auto max-w-[1160px] space-y-4 px-4 py-4 md:space-y-5 md:py-6">
+      <PropertyHero
+        browseHotelsHref={browseHotelsHref}
+        hotelName={hotel?.name ?? 'Hotel'}
+        starRating={hotel?.starRating}
+        reviewScore={hotel?.reviewScore}
+        reviewCount={hotel?.reviewCount}
+        address={address}
+        checkin={checkin}
+        checkout={checkout}
+        adults={adults}
+        rooms={rooms}
+        currency={currency}
+        lowestRate={lowestRate}
+        photos={photos}
+        lightboxIndex={lightboxIndex}
+        onOpenLightbox={setLightboxIndex}
+        onCloseLightbox={() => {
+          setLightboxIndex(null);
+        }}
+        isHotelSaved={isHotelSaved}
+        authRequired={authRequired}
+        loginHref={loginHref}
+        onToggleSave={() => {
+          clearAuthRequired();
+          void toggleSave({
+            hotelId,
+            hotelName: hotel?.name,
+            hotelImage: hotel?.mainPhoto ?? undefined,
+            starRating: hotel?.starRating ?? undefined,
+            city: hotel?.city
+          });
+        }}
+        formatMoney={formatMoney}
+      />
+
+      <PropertyTabNav activeTab={activeTab} tabs={SECTION_TABS} onTabChange={setActiveTab} />
+
+      <section className="relative lg:grid lg:grid-cols-[minmax(0,1fr),272px] lg:items-start lg:gap-6">
+        <div className="min-w-0">
+          <PropertyContentSections
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            isPartialDetail={isPartialDetail}
+            hotel={hotel ?? null}
+            mapUrl={mapUrl}
+            amenities={amenities}
+            policies={policies}
+            locationContext={locationContext}
+            rates={rates}
+            checkin={checkin}
+            checkout={checkout}
+            adults={adults}
+            rooms={rooms}
+            selectedRate={selectedRate}
+            recommendedRateKey={recommendedRateKey}
+            setSelectedRateKey={setSelectedRateKey}
+            buildRateKey={buildRateKey}
+            getCancellationCopy={getCancellationCopy}
+            formatMoney={formatMoney}
+            reviewBreakdown={reviewBreakdown}
+            reviews={reviews}
+            prosAndCons={prosAndCons}
+            question={question}
+            setQuestion={setQuestion}
+            askLoading={askLoading}
+            askAnswer={askAnswer}
+            askHotelAI={askHotelAI}
+          />
         </div>
-        <HotelPhotoGallery
-          photos={photos}
-          hotelName={hotel?.name ?? 'Hotel photo'}
-          lightboxIndex={lightboxIndex}
-          onOpen={setLightboxIndex}
-          onClose={() => {
-            setLightboxIndex(null);
-          }}
-        />
-        <div className="flex items-center gap-3 pt-1">
-          <button
-            type="button"
-            onClick={() => {
-              clearAuthRequired();
-              void toggleSave({
-                hotelId,
-                hotelName: hotel?.name,
-                hotelImage: hotel?.mainPhoto ?? undefined,
-                starRating: hotel?.starRating ?? undefined,
-                city: hotel?.city
-              });
-            }}
-            className={cn(
-              'inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-sm font-semibold transition-colors',
-              isHotelSaved ? 'bg-rose-50 text-rose-600' : 'bg-background text-foreground hover:bg-muted'
-            )}
-          >
-            <Heart className={cn('h-4 w-4', isHotelSaved ? 'fill-current' : '')} />
-            {isHotelSaved ? 'Saved to wishlist' : 'Save stay'}
-          </button>
-          {authRequired ? (
-            <PreferenceLink href={loginHref} className="text-sm font-semibold text-amber-700 underline underline-offset-2">
-              Sign in to save
-            </PreferenceLink>
-          ) : null}
+        <div className="mt-5 lg:mt-0">
+          <PropertyBookingRail
+            checkin={checkin}
+            checkout={checkout}
+            adults={adults}
+            currency={currency}
+            lowestRate={lowestRate}
+            selectedRate={selectedRate}
+            selectedCancellation={selectedCancellation}
+            selectedBookingHref={selectedBookingHref}
+            formatMoney={formatMoney}
+          />
         </div>
       </section>
-
-      <nav className="sticky top-16 z-20 -mx-4 border-b border-border/70 bg-background/95 backdrop-blur md:top-20 md:mx-0">
-        <div className="relative">
-          <div className="flex w-full gap-4 overflow-x-auto px-4 md:px-0 scrollbar-none">
-            {SECTION_TABS.map((tab) => (
-              <a
-                key={tab.id}
-                href={`#${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'whitespace-nowrap border-b-2 py-3 text-sm font-semibold transition-colors',
-                  activeTab === tab.id
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
-                )}
-              >
-                {tab.label}
-              </a>
-            ))}
-          </div>
-          {/* Scroll fade indicator — signals more tabs offscreen */}
-          <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-background to-transparent md:hidden" />
-        </div>
-      </nav>
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr),308px] lg:items-start">
-        <HotelDetailSections
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          isPartialDetail={isPartialDetail}
-          hotel={hotel ?? null}
-          mapUrl={mapUrl}
-          amenities={amenities}
-          policies={policies}
-          locationContext={locationContext}
-          rates={rates}
-          checkin={checkin}
-          checkout={checkout}
-          adults={adults}
-          rooms={rooms}
-          selectedRate={selectedRate}
-          recommendedRateKey={recommendedRateKey}
-          setSelectedRateKey={setSelectedRateKey}
-          buildRateKey={buildRateKey}
-          getCancellationCopy={getCancellationCopy}
-          formatMoney={formatMoney}
-          reviewBreakdown={reviewBreakdown}
-          reviews={reviews}
-          prosAndCons={prosAndCons}
-          question={question}
-          setQuestion={setQuestion}
-          askLoading={askLoading}
-          askAnswer={askAnswer}
-          askHotelAI={askHotelAI}
-        />
-        <HotelBookingSidebar
-          checkin={checkin}
-          checkout={checkout}
-          adults={adults}
-          currency={currency}
-          lowestRate={lowestRate}
-          selectedRate={selectedRate}
-          selectedCancellation={selectedCancellation}
-          selectedBookingHref={selectedBookingHref}
-          formatMoney={formatMoney}
-        />
-      </div>
     </main>
   );
 }
