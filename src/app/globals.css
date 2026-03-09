@@ -119,6 +119,8 @@
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
     min-height: 100vh;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "liga" 1, "kern" 1;
   }
 
   h1,
@@ -127,9 +129,36 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-heading);
-    letter-spacing: -0.02em;
+    font-family: var(--font-body);
+    letter-spacing: -0.015em;
     font-weight: 700;
+    line-height: 1.15;
+  }
+}
+
+@layer utilities {
+  .display-heading {
+    font-family: var(--font-heading);
+    letter-spacing: -0.03em;
+    line-height: 0.98;
+    text-wrap: balance;
+  }
+
+  .ui-heading {
+    font-family: var(--font-body);
+    letter-spacing: -0.018em;
+    line-height: 1.12;
+  }
+
+  .ui-label {
+    font-family: var(--font-body);
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+  }
+
+  .numeric-tight {
+    font-variant-numeric: tabular-nums lining-nums;
+    line-height: 1;
   }
 }
 

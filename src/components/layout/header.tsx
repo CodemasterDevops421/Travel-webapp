@@ -37,13 +37,16 @@ export function Header() {
   }, []);
 
   const isDark = mounted && resolvedTheme === 'dark';
+  const headerClassName = isHomePage
+    ? 'sticky top-0 z-50 w-full border-b border-border/70 bg-background/88 backdrop-blur-2xl transition-all duration-300'
+    : 'sticky top-0 z-50 w-full border-b border-border/80 bg-background shadow-[0_10px_28px_-26px_rgba(15,23,42,0.42)] transition-all duration-300';
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/88 backdrop-blur-2xl transition-all duration-300">
+    <header className={headerClassName}>
       <div className="page-shell flex h-[var(--header-height)] items-center gap-3 md:gap-5">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2 premium-hover group">
-          <span className="text-xl font-heading font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary md:text-2xl">
+          <span className="display-heading text-xl font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary md:text-2xl">
             Hostel Stays
           </span>
         </Link>

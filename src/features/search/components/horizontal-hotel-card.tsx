@@ -132,7 +132,7 @@ export function HorizontalHotelCard({
                             ))}
                         </div>
                         <PreferenceLink href={hotelHref} className="focus-visible:outline-none">
-                            <h3 className="mt-1 line-clamp-2 text-lg font-bold leading-6 text-foreground transition-colors group-hover:text-primary">{hotel.name}</h3>
+                            <h3 className="ui-heading mt-1 line-clamp-2 text-lg font-bold text-foreground transition-colors group-hover:text-primary">{hotel.name}</h3>
                         </PreferenceLink>
                         <PreferenceLink href={hotelHref} className="mt-1 flex items-center gap-2 text-sm text-foreground underline underline-offset-2">
                             <span className="line-clamp-1">{hotel.city}, {hotel.countryCode}</span>
@@ -190,11 +190,11 @@ export function HorizontalHotelCard({
                 <div className="space-y-2 text-right">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Actual price</p>
                     <div className="flex items-baseline justify-end gap-1.5">
-                        <span className="text-[1.75rem] font-bold leading-none text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
+                        <span className="numeric-tight ui-heading text-[1.75rem] font-bold text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground">per night · taxes and charges included</p>
                     {typeof hotel.price === 'number' ? (
-                        <p className="text-sm font-semibold text-foreground">Total {formatMoney(hotel.currency, hotel.price * nights)}</p>
+                        <p className="numeric-tight text-sm font-semibold text-foreground">Total {formatMoney(hotel.currency, hotel.price * nights)}</p>
                     ) : null}
                 </div>
 
