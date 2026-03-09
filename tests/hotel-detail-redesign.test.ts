@@ -11,6 +11,14 @@ describe('hotel detail redesign regression coverage', () => {
     resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-sections.tsx'),
     'utf8'
   );
+  const roomSectionSource = readFileSync(
+    resolve(process.cwd(), 'src/features/hotels/components/property-room-selection-section.tsx'),
+    'utf8'
+  );
+  const guestReviewSectionSource = readFileSync(
+    resolve(process.cwd(), 'src/features/hotels/components/property-guest-reviews-section.tsx'),
+    'utf8'
+  );
   const gallerySource = readFileSync(
     resolve(process.cwd(), 'src/features/hotels/components/hotel-photo-gallery.tsx'),
     'utf8'
@@ -33,12 +41,21 @@ describe('hotel detail redesign regression coverage', () => {
     expect(sectionsSource).not.toContain('snap-x snap-mandatory');
   });
 
+  it('extracts room selection and guest reviews into dedicated property detail modules', () => {
+    expect(sectionsSource).toContain('<PropertyRoomSelectionSection');
+    expect(sectionsSource).toContain('<PropertyGuestReviewsSection');
+    expect(roomSectionSource).toContain('divide-y divide-border/70');
+    expect(roomSectionSource).not.toContain('rounded-[14px] border border-border/70 bg-card/70 p-3');
+    expect(guestReviewSectionSource).toContain("xl:grid-cols-[280px,minmax(0,1fr)]");
+    expect(guestReviewSectionSource).toContain('Load more reviews');
+  });
+
   it('keeps facilities and review snapshot in the overview flow before room inventory', () => {
     expect(sectionsSource.indexOf('Popular facilities')).toBeLessThan(
-      sectionsSource.indexOf('Choose your room')
+      sectionsSource.indexOf('<PropertyRoomSelectionSection')
     );
     expect(sectionsSource.indexOf('Review snapshot')).toBeLessThan(
-      sectionsSource.indexOf('Choose your room')
+      sectionsSource.indexOf('<PropertyRoomSelectionSection')
     );
   });
 

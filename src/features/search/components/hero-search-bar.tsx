@@ -76,6 +76,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     const isSuggestionsOpen = query.length > 2 && showSuggestions;
     const canSearch = query.trim().length >= 3 && checkIn.length > 0 && checkOut.length > 0 && checkOut > checkIn;
     const isCompact = variant === 'compact';
+    const isHero = variant === 'default';
 
     useEffect(() => {
         setHighlightedIndex(-1);
@@ -163,15 +164,20 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="relative w-full">
                 <div
                     className={cn(
-                        "flex w-full flex-col border border-border/70 bg-card/96 transition-all md:flex-row md:items-stretch",
+                        "flex w-full flex-col transition-all md:flex-row md:items-stretch",
                         isCompact
-                            ? "rounded-[18px] px-2 py-2 shadow-[var(--surface-shadow)] md:rounded-full"
-                            : "rounded-[22px] px-2 py-2 shadow-[var(--surface-shadow-lg)] md:rounded-full"
+                            ? "rounded-[18px] border border-border/70 bg-card/96 px-2 py-2 shadow-[var(--surface-shadow)] md:rounded-full"
+                            : "rounded-[24px] border border-white/85 bg-white px-2 py-2 shadow-[0_32px_60px_-34px_rgba(17,12,40,0.6)] md:rounded-full"
                     )}
                 >
 
                     {/* Destination Input */}
                     <div className="relative z-50 flex-[1.5]">
+                        {isHero ? (
+                            <span className="pointer-events-none absolute left-14 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
+                                Where
+                            </span>
+                        ) : null}
                         <div className={cn(
                             "absolute top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
                             isCompact ? "left-4" : "left-6"
@@ -183,7 +189,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                 "w-full border-0 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-0",
                                 isCompact
                                     ? "h-10 pl-10 text-xs font-medium md:h-11"
-                                    : "h-14 pl-14 text-sm font-medium md:h-16"
+                                    : "h-14 pl-14 text-sm font-medium md:h-16 md:pt-5"
                             )}
                             placeholder="Enter a destination"
                             value={query}
@@ -236,6 +242,11 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     {/* Dates - Split into Check-in / Check-out */}
                     <div className="flex flex-1 items-center border-t border-border/20 md:border-t-0 md:border-l">
                         <div className="relative flex-1">
+                            {isHero ? (
+                                <span className="pointer-events-none absolute left-10 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
+                                    Dates
+                                </span>
+                            ) : null}
                             <div className={cn(
                                 "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
                                 isCompact && "left-3"
@@ -245,10 +256,10 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             <input
                                 type="date"
                                 className={cn(
-                                    "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
-                                    isCompact
-                                        ? "h-11 pl-8 pr-2 text-[11px] md:h-12"
-                                        : "h-14 pl-10 pr-2 text-xs md:h-16"
+                                "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
+                                isCompact
+                                    ? "h-11 pl-8 pr-2 text-[11px] md:h-12"
+                                        : "h-14 pl-10 pr-2 text-xs md:h-16 md:pt-5"
                                 )}
                                 value={checkIn}
                                 min={today.toISOString().slice(0, 10)}
@@ -265,10 +276,10 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             <input
                                 type="date"
                                 className={cn(
-                                    "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
-                                    isCompact
-                                        ? "h-11 pl-8 pr-2 text-[11px] md:h-12"
-                                        : "h-14 pl-10 pr-2 text-xs md:h-16"
+                                "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
+                                isCompact
+                                    ? "h-11 pl-8 pr-2 text-[11px] md:h-12"
+                                        : "h-14 pl-10 pr-2 text-xs md:h-16 md:pt-5"
                                 )}
                                 value={checkOut}
                                 min={checkIn}
@@ -287,12 +298,17 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                 <button
                                     type="button"
                                     className={cn(
-                                        "group flex flex-1 items-center text-left transition-colors outline-none focus-visible:bg-primary/5 hover:bg-primary/5",
+                                        "group relative flex flex-1 items-center text-left transition-colors outline-none focus-visible:bg-primary/5 hover:bg-primary/5",
                                         isCompact
                                             ? "h-11 gap-2 px-3 rounded-l-xl md:h-12 md:rounded-xl"
-                                            : "h-14 gap-3 px-4 rounded-l-xl md:h-16 md:rounded-xl"
+                                            : "h-14 gap-3 px-4 rounded-l-xl md:h-16 md:rounded-xl md:pt-5"
                                     )}
                                 >
+                                    {isHero ? (
+                                        <span className="pointer-events-none absolute left-12 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
+                                            Guests
+                                        </span>
+                                    ) : null}
                                     <Users className={cn(
                                         "text-muted-foreground transition-colors group-hover:text-primary",
                                         isCompact ? "h-4 w-4" : "h-5 w-5"

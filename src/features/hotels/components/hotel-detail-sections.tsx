@@ -1,11 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Image from 'next/image';
-import { CheckCircle2, Coffee, MapPin, ShieldCheck, Sparkles, Users } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { MapPin, ShieldCheck, Sparkles } from 'lucide-react';
 import type { HotelDetails } from '@/server/liteapi';
 import type { HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
+import { PropertyRoomSelectionSection } from '@/features/hotels/components/property-room-selection-section';
+import { PropertyGuestReviewsSection } from '@/features/hotels/components/property-guest-reviews-section';
 
 type CancellationCopy = {
   status: string;
@@ -309,127 +309,21 @@ export function HotelDetailSections({
         </div>
       </section>
 
-      <section id="rooms" className="surface-shell scroll-mt-24 space-y-4 p-3.5 md:p-4" onMouseEnter={() => setActiveTab('rooms')}>
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/70 pb-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-foreground">Choose your room</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {checkin} to {checkout} · {adults} adults · {rooms} room{rooms > 1 ? 's' : ''}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">We recommend the lowest-priced selectable offer first, but every available room option remains visible below.</p>
-          </div>
-          <div className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground">
-            {rates.length} offer{rates.length === 1 ? '' : 's'} found
-          </div>
-        </div>
-        {groupedRates.length === 0 ? (
-          <p className="rounded-2xl border border-border bg-background/70 p-4 text-sm">No rates found for selected dates.</p>
-        ) : (
-          groupedRates.map((group) => (
-            <article key={group.roomId} className="rounded-[18px] border border-border/60 bg-card shadow-[0_16px_34px_-34px_rgba(15,23,42,0.35)]">
-              <div className="flex flex-col gap-3 p-3.5 md:grid md:grid-cols-[220px,minmax(0,1fr)] md:items-start">
-                {group.imageUrl ? (
-                  <div className="relative h-44 w-full overflow-hidden rounded-[14px] md:h-full md:min-h-[212px] md:w-[220px]">
-                    <Image
-                      src={group.imageUrl}
-                      alt={group.roomName}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 230px"
-                      className="object-cover transition-transform duration-500 hover:scale-[1.03] motion-reduce:transform-none motion-reduce:transition-none"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
-                    <div className="absolute bottom-3 left-3 rounded-full border border-white/25 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
-                      Room preview
-                    </div>
-                  </div>
-                ) : null}
-                <div className="min-w-0 space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-semibold leading-6 text-foreground">{group.roomName}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{group.offers.length} offer{group.offers.length > 1 ? 's' : ''} for this room type</p>
-                    </div>
-                    {group.offers.some((rate) => buildRateKey(rate) === recommendedRateKey) ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Recommended
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {group.offers.map((rate) => {
-                      const isSelected = selectedRate ? buildRateKey(selectedRate) === buildRateKey(rate) : false;
-                      const isRecommended = recommendedRateKey === buildRateKey(rate);
-                      const cancellationCopy = getCancellationCopy(rate);
-
-                      return (
-                        <div
-                          key={`${rate.offerId}-${rate.roomId}`}
-                          className={cn(
-                            'grid gap-3 rounded-[15px] border px-3.5 py-3 transition-all lg:grid-cols-[minmax(0,1.4fr),138px,156px] lg:items-start',
-                            isSelected ? 'border-primary bg-primary/[0.05] shadow-[0_16px_34px_-28px_rgba(37,99,235,0.75)]' : 'border-border bg-background',
-                            isRecommended && !isSelected ? 'border-primary/30' : ''
-                          )}
-                        >
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              {isRecommended ? (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
-                                  <Sparkles className="h-3.5 w-3.5" />
-                                  Recommended value
-                                </span>
-                              ) : null}
-                              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] text-foreground">
-                                <Coffee className="h-3.5 w-3.5" />
-                                {rate.boardName}
-                              </span>
-                                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] text-foreground">
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                  {cancellationCopy.status}
-                                </span>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold leading-5 text-foreground">{rate.roomName}</p>
-                              <p className="text-xs leading-5 text-muted-foreground">
-                                {isSelected ? 'Currently selected for your stay.' : 'Available for your selected dates.'}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                              <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {adults} guests</span>
-                              <span className="inline-flex items-center gap-1"><Coffee className="h-3.5 w-3.5" /> {rate.boardName}</span>
-                            </div>
-                            <p className="text-xs leading-5 text-muted-foreground">{cancellationCopy.detail}</p>
-                          </div>
-
-                          <div className="space-y-1 rounded-[14px] border border-border/70 bg-card/70 p-3 lg:text-right">
-                            <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Total stay rate</p>
-                            <p className="text-[1.6rem] font-bold leading-none text-foreground">{formatMoney(rate.currency, rate.amount, true)}</p>
-                            <p className="text-[11px] text-muted-foreground">1 room · taxes & fees included</p>
-                          </div>
-
-                          <div className="flex flex-col gap-2 lg:items-end">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedRateKey(buildRateKey(rate))}
-                              className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_10px_20px_-16px_rgba(37,99,235,0.85)] transition-all hover:bg-primary/90 hover:shadow-[0_14px_24px_-16px_rgba(37,99,235,0.95)] lg:w-[156px]"
-                            >
-                              {isSelected ? 'Selected' : isRecommended ? 'Choose recommended offer' : 'Choose room'}
-                            </button>
-                            <p className="text-center text-[11px] leading-5 text-muted-foreground lg:text-right">
-                              {cancellationCopy.status}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))
-        )}
-      </section>
+      <PropertyRoomSelectionSection
+        groupedRates={groupedRates}
+        ratesCount={rates.length}
+        checkin={checkin}
+        checkout={checkout}
+        adults={adults}
+        rooms={rooms}
+        selectedRate={selectedRate}
+        recommendedRateKey={recommendedRateKey}
+        buildRateKey={buildRateKey}
+        setSelectedRateKey={setSelectedRateKey}
+        getCancellationCopy={getCancellationCopy}
+        formatMoney={formatMoney}
+        onActivate={() => setActiveTab('rooms')}
+      />
 
       <section id="ask-ai" className="surface-shell scroll-mt-24 p-3.5 md:p-4" onMouseEnter={() => setActiveTab('rooms')}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Ask AI</p>
@@ -471,166 +365,20 @@ export function HotelDetailSections({
         {askAnswer ? <p className="mt-3 rounded-xl border border-border bg-background/70 p-3 text-sm">{askAnswer}</p> : null}
       </section>
 
-      <section id="reviews" className="surface-shell scroll-mt-24 p-3.5 md:p-4" onMouseEnter={() => setActiveTab('reviews')}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold text-foreground">Guest reviews</h2>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground">{(hotel?.reviewScore ?? 0).toFixed(1)}</span>
-              <p className="text-sm font-medium text-foreground">
-                {hotel?.reviewScore ? (hotel.reviewScore >= 9 ? 'Excellent' : hotel.reviewScore >= 8 ? 'Very good' : 'Good') : 'Verified'}
-                <span className="text-muted-foreground"> · {hotel?.reviewCount ? Math.round(hotel.reviewCount).toLocaleString() : reviews.length.toLocaleString()} reviews</span>
-              </p>
-            </div>
-          </div>
-          <a href="#rooms" className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">See availability</a>
-        </div>
-
-        {reviewHighlights && !reviewHighlights.lowSignal && (reviewHighlights.positiveTopics.length > 0 || reviewHighlights.tradeoffTopics.length > 0) ? (
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              <div className="flex flex-wrap gap-2">
-                {[...reviewHighlights.positiveTopics, ...reviewHighlights.tradeoffTopics].slice(0, 6).map((topic) => (
-                  <span key={`topic-${topic.label}`} className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground">
-                    {topic.label} ({topic.mentions})
-                  </span>
-                ))}
-              </div>
-              <div className="grid gap-3 md:grid-cols-2 lg:col-span-2">
-                <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-emerald-800">Loved by guests</p>
-                  {reviewHighlights.positiveTopics.length > 0 ? (
-                    <ul className="mt-2 space-y-1 text-sm text-emerald-900">
-                      {reviewHighlights.positiveTopics.slice(0, 3).map((topic) => (
-                      <li key={`positive-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-sm text-emerald-900">No recurring positive themes met the stability threshold yet.</p>
-                )}
-              </article>
-                <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-amber-900">Consider before booking</p>
-                  {reviewHighlights.tradeoffTopics.length > 0 ? (
-                    <ul className="mt-2 space-y-1 text-sm text-amber-900">
-                      {reviewHighlights.tradeoffTopics.slice(0, 3).map((topic) => (
-                      <li key={`tradeoff-${topic.label}`}>{topic.label} mentioned in {topic.mentions} reviews</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-sm text-amber-900">No recurring trade-off themes met the stability threshold yet.</p>
-                )}
-              </article>
-            </div>
-          </div>
-        ) : (
-          <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            {reviewHighlights?.message ?? 'Not enough verified review volume to generate stable topic highlights yet.'}
-          </p>
-        )}
-
-        {reviewBreakdown.length > 0 ? (
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {reviewBreakdown.slice(0, 4).map((item) => {
-              const value = item.score ? Math.max(0, Math.min(10, item.score)) : 0;
-              return (
-                <div key={item.label} className="rounded-xl border border-border/70 bg-background px-3 py-3">
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <p className="text-foreground">{item.label}</p>
-                    <p className="text-right text-muted-foreground">{value.toFixed(1)}</p>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${value * 10}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-
-        {visibleReviews.length > 0 ? (
-          <>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <p className="text-sm font-medium text-foreground">Top comments from travelers</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <label htmlFor="review-sort" className="text-xs text-muted-foreground">Sort by</label>
-                <select
-                  id="review-sort"
-                  className="rounded-full border border-border bg-background px-3 py-1.5 text-xs"
-                  value={reviewSort}
-                  onChange={(event) => setReviewSort(event.target.value as 'top' | 'newest' | 'oldest')}
-                >
-                  <option value="top">Top rated</option>
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-3 xl:grid-cols-[260px,minmax(0,1fr)]">
-              <aside className="surface-shell-subtle p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Who stays here</p>
-                <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-1">
-                  {[
-                    { label: 'Family', value: '53%' },
-                    { label: 'Couple', value: '30%' },
-                    { label: 'Friends', value: '11%' },
-                    { label: 'Solo', value: '4%' }
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-xl border border-border bg-background px-3 py-2">
-                      <p className="text-xs text-muted-foreground">{item.label}</p>
-                      <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </aside>
-
-              <div className="grid gap-3">
-                {visibleReviews.map((review, index) => (
-                  <article
-                    key={`${review.author}-${review.createdAt ?? index}`}
-                    className="rounded-[18px] border border-border bg-background p-4 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.18)]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">
-                          {(review.author ?? 'G').slice(0, 1).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-foreground">{review.author ?? 'Guest'}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {review.travelerType}
-                            {formatReviewDate(review.createdAt) ? ` · ${formatReviewDate(review.createdAt)}` : ''}
-                          </p>
-                        </div>
-                      </div>
-                      {review.score ? (
-                        <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">
-                          {review.score.toFixed(1)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{review.comment}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-
-            {sortedReviews.length > 6 ? (
-              <button
-                type="button"
-                className="mt-4 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted"
-                onClick={() => setShowAllReviews((current) => !current)}
-              >
-                {showAllReviews ? 'Collapse reviews' : `View all reviews (${sortedReviews.length})`}
-              </button>
-            ) : null}
-          </>
-        ) : (
-          <p className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-            Detailed guest comments are currently unavailable from the supplier.
-          </p>
-        )}
-      </section>
+      <PropertyGuestReviewsSection
+        hotel={hotel ?? null}
+        reviews={reviews}
+        reviewBreakdown={reviewBreakdown}
+        reviewHighlights={reviewHighlights}
+        reviewSort={reviewSort}
+        setReviewSort={setReviewSort}
+        visibleReviews={visibleReviews}
+        sortedReviewsCount={sortedReviews.length}
+        showAllReviews={showAllReviews}
+        setShowAllReviews={setShowAllReviews}
+        formatReviewDate={formatReviewDate}
+        onActivate={() => setActiveTab('reviews')}
+      />
 
       <section id="amenities" className="surface-shell scroll-mt-24 p-3.5 md:p-4" onMouseEnter={() => setActiveTab('amenities')}>
         <div className="flex items-center justify-between gap-2">
