@@ -1385,12 +1385,7 @@ export async function autocomplete(query: string, language?: string): Promise<Au
   const runtime = await resolveLiteApiRuntimeConfig();
 
   if (!hasConfiguredLiteApiKey(runtime.apiKey)) {
-    return fallbackProperties.map((item) => ({
-      id: item.hotelId,
-      name: item.city,
-      type: 'city' as const,
-      countryCode: item.countryCode
-    }));
+    return fallbackAutocomplete(query);
   }
 
   try {
@@ -1440,13 +1435,54 @@ export async function autocomplete(query: string, language?: string): Promise<Au
     return cities;
   } catch (error) {
     logger.warn({ error }, 'LiteAPI autocomplete failed');
-    return fallbackProperties.map((item) => ({
-      id: item.hotelId,
-      name: item.city,
-      type: 'city' as const,
-      countryCode: item.countryCode
-    }));
+    return fallbackAutocomplete(query);
   }
+}
+
+const fallbackAutocompleteCatalog: AutocompleteEntity[] = [
+  { id: 'fallback-city-dubai', name: 'Dubai', type: 'city', countryCode: 'AE' },
+  { id: 'fallback-city-abu-dhabi', name: 'Abu Dhabi', type: 'city', countryCode: 'AE' },
+  { id: 'fallback-city-bali', name: 'Bali', type: 'city', countryCode: 'ID' },
+  { id: 'fallback-city-bangkok', name: 'Bangkok', type: 'city', countryCode: 'TH' },
+  { id: 'fallback-city-barcelona', name: 'Barcelona', type: 'city', countryCode: 'ES' },
+  { id: 'fallback-city-berlin', name: 'Berlin', type: 'city', countryCode: 'DE' },
+  { id: 'fallback-city-goa', name: 'Goa', type: 'city', countryCode: 'IN' },
+  { id: 'fallback-city-hyderabad', name: 'Hyderabad', type: 'city', countryCode: 'IN' },
+  { id: 'fallback-city-istanbul', name: 'Istanbul', type: 'city', countryCode: 'TR' },
+  { id: 'fallback-city-kuala-lumpur', name: 'Kuala Lumpur', type: 'city', countryCode: 'MY' },
+  { id: 'fallback-city-london', name: 'London', type: 'city', countryCode: 'GB' },
+  { id: 'fallback-city-madrid', name: 'Madrid', type: 'city', countryCode: 'ES' },
+  { id: 'fallback-city-maldives', name: 'Maldives', type: 'city', countryCode: 'MV' },
+  { id: 'fallback-city-mumbai', name: 'Mumbai', type: 'city', countryCode: 'IN' },
+  { id: 'fallback-city-new-delhi', name: 'New Delhi', type: 'city', countryCode: 'IN' },
+  { id: 'fallback-city-new-york', name: 'New York', type: 'city', countryCode: 'US' },
+  { id: 'fallback-city-paris', name: 'Paris', type: 'city', countryCode: 'FR' },
+  { id: 'fallback-city-phuket', name: 'Phuket', type: 'city', countryCode: 'TH' },
+  { id: 'fallback-city-rome', name: 'Rome', type: 'city', countryCode: 'IT' },
+  { id: 'fallback-city-singapore', name: 'Singapore', type: 'city', countryCode: 'SG' },
+  { id: 'fallback-city-sydney', name: 'Sydney', type: 'city', countryCode: 'AU' },
+  { id: 'fallback-city-tokyo', name: 'Tokyo', type: 'city', countryCode: 'JP' },
+  { id: 'fallback-city-zurich', name: 'Zurich', type: 'city', countryCode: 'CH' }
+];
+
+function fallbackAutocomplete(query: string): AutocompleteEntity[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return fallbackAutocompleteCatalog.slice(0, 8);
+  }
+
+  const matches = fallbackAutocompleteCatalog.filter((item) =>
+    item.name.toLowerCase().includes(normalized) ||
+    item.countryCode?.toLowerCase().includes(normalized)
+  );
+
+  if (matches.length > 0) {
+    return matches.slice(0, 8);
+  }
+
+  return fallbackAutocompleteCatalog
+    .filter((item) => item.name.toLowerCase().startsWith(normalized[0] ?? ''))
+    .slice(0, 8);
 }
 
 const fallbackProperties: PropertyPreview[] = [
