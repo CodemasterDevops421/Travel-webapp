@@ -1480,6 +1480,180 @@ const fallbackProperties: PropertyPreview[] = [
   }
 ];
 
+const fallbackHotelContent: Record<string, {
+  address: string;
+  photos: string[];
+  facilities: string[];
+  reviewScore: number;
+  reviewCount: number;
+  description: string;
+}> = {
+  'fallback-dubai-1': {
+    address: 'Palm Jumeirah, Dubai, United Arab Emirates',
+    photos: [
+      'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=80',
+      'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80'
+    ],
+    facilities: ['Beachfront access', 'Infinity pool', 'Breakfast included', 'Spa', 'Airport transfer', 'Family rooms'],
+    reviewScore: 8.9,
+    reviewCount: 1248,
+    description: 'A resort-style stay on Palm Jumeirah with sea-view rooms, generous leisure facilities, and strong guest sentiment around service and breakfast.'
+  },
+  'fallback-bali-1': {
+    address: 'Ubud, Bali, Indonesia',
+    photos: [
+      'https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&w=1400&q=80',
+      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80'
+    ],
+    facilities: ['Private villas', 'Outdoor pool', 'Breakfast included', 'Wellness center', 'Free WiFi'],
+    reviewScore: 9.1,
+    reviewCount: 684,
+    description: 'A quiet villa retreat in Ubud with wellness-led amenities, lush landscaping, and spacious rooms for slower stays.'
+  },
+  'fallback-zurich-1': {
+    address: 'Seefeld District, Zurich, Switzerland',
+    photos: [
+      'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1400&q=80',
+      'https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1455587734955-081b22074882?auto=format&fit=crop&w=1200&q=80'
+    ],
+    facilities: ['Lake access', 'Breakfast included', 'Fitness studio', 'Business lounge', 'Free WiFi'],
+    reviewScore: 8.7,
+    reviewCount: 532,
+    description: 'A polished Zurich city stay with lake proximity, efficient business-friendly service, and strong comfort scores.'
+  }
+};
+
+function buildFallbackHotelDetails(hotelId: string): HotelDetails | null {
+  const property = fallbackProperties.find((item) => item.hotelId === hotelId);
+  const content = fallbackHotelContent[hotelId];
+  if (!property || !content) {
+    return null;
+  }
+
+  const reviewHighlights: HotelReviewHighlights = {
+    positiveTopics: [
+      { label: 'service', mentions: 18 },
+      { label: 'breakfast', mentions: 14 },
+      { label: 'pool', mentions: 11 }
+    ],
+    tradeoffTopics: [
+      { label: 'distance', mentions: 6 },
+      { label: 'price', mentions: 5 }
+    ],
+    lowSignal: false,
+    message: 'Fallback property review summary.'
+  };
+
+  return {
+    id: hotelId,
+    name: property.name,
+    city: property.city,
+    countryCode: property.countryCode ?? null,
+    address: content.address,
+    mainPhoto: content.photos[0] ?? null,
+    photos: content.photos,
+    facilities: content.facilities,
+    description: content.description,
+    latitude: null,
+    longitude: null,
+    starRating: property.starRating,
+    reviewScore: content.reviewScore,
+    reviewCount: content.reviewCount,
+    reviewBreakdown: [
+      { label: 'Cleanliness', score: 9.0 },
+      { label: 'Service', score: 9.2 },
+      { label: 'Location', score: 8.4 },
+      { label: 'Comfort', score: 8.9 }
+    ],
+    reviews: [
+      { author: 'Maya', travelerType: 'Couple', comment: 'Beautiful common areas, polished service, and an easy stay overall.', score: 9.2, createdAt: '2026-02-18', pros: 'Service and breakfast', cons: 'Long walk to some nearby spots' },
+      { author: 'Rohan', travelerType: 'Family', comment: 'Rooms felt spacious and the pool area was the highlight for our group.', score: 8.8, createdAt: '2026-02-05', pros: 'Pool and family rooms', cons: 'Peak-hour elevator waits' },
+      { author: 'Lena', travelerType: 'Solo', comment: 'Smooth check-in, clean room, and good value for a resort-style property.', score: 8.6, createdAt: '2026-01-28', pros: 'Clean and easy', cons: 'Location depends on your plans' },
+      { author: 'Haruto', travelerType: 'Couple', comment: 'Breakfast was strong and the room felt calm despite the large property size.', score: 9.0, createdAt: '2026-01-11', pros: 'Breakfast and room comfort', cons: 'Busy lobby at times' }
+    ],
+    policies: {
+      checkInFrom: '15:00',
+      checkInUntil: '00:00',
+      checkOutFrom: '06:00',
+      checkOutUntil: '12:00',
+      cancellation: ['Cancellation policy depends on the selected room and rate.'],
+      payment: ['A valid payment method is required to confirm the selected room.'],
+      pets: ['Pets are not allowed.'],
+      children: ['Children are welcome.'],
+      extra: ['Property is rendered from local fallback content while live supplier detail is unavailable.']
+    },
+    locationContext: {
+      addressLine: content.address,
+      city: property.city,
+      countryCode: property.countryCode ?? null,
+      latitude: null,
+      longitude: null,
+      neighborhood: null,
+      transit: ['Taxi access available', 'Airport transfer on request'],
+      nearbyLandmarks: ['City center access', 'Dining nearby', 'Shopping districts']
+    },
+    prosAndCons: {
+      pros: ['Strong guest service scores', 'Clear leisure amenities', 'Good room comfort'],
+      cons: ['Live supplier detail currently unavailable', 'Some location specifics are generalized']
+    },
+    facilityCategories: [
+      { category: 'Popular facilities', items: content.facilities }
+    ],
+    areaInfo: [
+      { label: 'Best for', value: 'Premium city stays with leisure amenities' },
+      { label: 'Stay rhythm', value: 'Short breaks, couples, and upgraded family trips' }
+    ],
+    nearbyRestaurants: [
+      { name: 'Signature Grill', cuisine: 'International', description: 'Upscale dinner option within a short drive.' },
+      { name: 'Harbor Kitchen', cuisine: 'Casual dining', description: 'All-day dining with breakfast and late lunch options.' }
+    ],
+    houseRulesDetailed: [
+      { title: 'Late arrival', detail: 'Arrival after midnight should be confirmed with the property when possible.' }
+    ],
+    smartHighlights: [
+      { title: 'Strong guest sentiment', detail: 'Review volume and score indicate a consistently positive stay experience.', source: 'reviews' },
+      { title: 'Amenity-led stay', detail: content.facilities.slice(0, 3).join(', '), source: 'amenities' },
+      { title: 'Policy clarity', detail: 'Room-level cancellation copy remains visible during selection and checkout.', source: 'policies' }
+    ],
+    reviewHighlights,
+    descriptionNarrative: {
+      mode: 'synthesized',
+      sections: [
+        { title: 'Stay overview', body: content.description, source: 'synthesized' }
+      ],
+      message: 'Fallback hotel description rendered from local content because supplier detail is unavailable.'
+    },
+    completeness: {
+      isPartial: true,
+      missingSections: ['live-supplier-detail'],
+      message: 'Some supplier details are currently unavailable for this property.'
+    }
+  };
+}
+
+function buildFallbackHotelRates(params: {
+  hotelId: string;
+  currency?: string;
+}): HotelRateOption[] {
+  const property = fallbackProperties.find((item) => item.hotelId === params.hotelId);
+  if (!property) {
+    return [];
+  }
+
+  const currency = params.currency ?? property.currency;
+  const base = property.price ?? 180;
+  return [
+    { offerId: params.hotelId + '-offer-1', roomId: params.hotelId + '-room-deluxe', roomName: 'Deluxe Room', imageUrl: fallbackHotelContent[params.hotelId]?.photos[1] ?? fallbackHotelContent[params.hotelId]?.photos[0], boardName: 'Breakfast included', refundableTag: 'Free cancellation', cancelTime: '2026-03-18 18:00:00', amount: base, currency },
+    { offerId: params.hotelId + '-offer-2', roomId: params.hotelId + '-room-deluxe', roomName: 'Deluxe Room', imageUrl: fallbackHotelContent[params.hotelId]?.photos[1] ?? fallbackHotelContent[params.hotelId]?.photos[0], boardName: 'Room only', refundableTag: 'Non-refundable', cancelTime: null, amount: base - 24, currency },
+    { offerId: params.hotelId + '-offer-3', roomId: params.hotelId + '-room-suite', roomName: 'Sea View Suite', imageUrl: fallbackHotelContent[params.hotelId]?.photos[2] ?? fallbackHotelContent[params.hotelId]?.photos[0], boardName: 'Breakfast included', refundableTag: 'Free cancellation', cancelTime: '2026-03-18 18:00:00', amount: base + 68, currency }
+  ];
+}
+
 function hasConfiguredLiteApiKey(apiKey: string): boolean {
   return Boolean(apiKey && apiKey !== 'liteapi-placeholder-key');
 }
@@ -2121,6 +2295,11 @@ export async function cancelBooking(params: { bookingId: string; timeoutSeconds?
 }
 
 export async function getHotelDetails(hotelId: string, language?: string, currency?: string): Promise<HotelDetails | null> {
+  const fallbackHotel = buildFallbackHotelDetails(hotelId);
+  if (fallbackHotel) {
+    return fallbackHotel;
+  }
+
   try {
     const runtime = await resolveLiteApiRuntimeConfig();
     const response = await fetch(`${runtime.baseUrl}/data/hotel?hotelId=${encodeURIComponent(hotelId)}${language ? `&language=${encodeURIComponent(language)}` : ''}`, {
@@ -2323,6 +2502,11 @@ export async function getHotelRates(params: {
   margin?: number;
   additionalMarkup?: number;
 }): Promise<HotelRateOption[]> {
+  const fallbackRates = buildFallbackHotelRates(params);
+  if (fallbackRates.length > 0) {
+    return fallbackRates;
+  }
+
   try {
     const runtime = await resolveLiteApiRuntimeConfig();
     const numRooms = params.rooms ?? 1;

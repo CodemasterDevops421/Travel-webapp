@@ -199,7 +199,15 @@ async function maybeUpsertCommissionTracking(input: CommissionTrackingLifecycleI
   return true;
 }
 
-function deriveInvoiceStatus(status: string, paymentStatus: string | null): string {
+function deriveInvoiceStatus(
+  status: string,
+  paymentStatus: string | null,
+  metadata?: Record<string, unknown> | null
+): string {
+  if (metadata?.refundPending === true) {
+    return 'pending_refund';
+  }
+
   if (status === 'refunded') {
     return 'refunded';
   }
@@ -222,7 +230,7 @@ function withLifecycleMetadata(
 ): Record<string, unknown> {
   return {
     ...metadata,
-    invoiceStatus: deriveInvoiceStatus(status, paymentStatus)
+    invoiceStatus: deriveInvoiceStatus(status, paymentStatus, metadata)
   };
 }
 

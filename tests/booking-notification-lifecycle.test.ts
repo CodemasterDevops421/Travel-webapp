@@ -83,7 +83,9 @@ describe('booking notification lifecycle', () => {
     );
     expect(body.status).toBe('confirmed');
     expect(body.cancellationOutcome).toBe('refund_pending_webhook');
-    expect(body.invoiceStatus).toBe('paid');
+    expect(body.invoiceStatus).toBe('pending_refund');
+    expect(body.refundPending).toBe(true);
+    expect(body.refundManagedBy).toBeNull();
   });
 
   it('cancels captured bookings in liteapi mode without requiring stripe refund ids', async () => {
@@ -141,6 +143,8 @@ describe('booking notification lifecycle', () => {
     );
     expect(body.cancellationOutcome).toBe('liteapi_refund_managed');
     expect(body.invoiceStatus).toBe('pending_refund');
+    expect(body.refundPending).toBe(true);
+    expect(body.refundManagedBy).toBe('liteapi');
   });
 
   it('emits lifecycle emails once per booking transition and keeps invoice status aligned', async () => {

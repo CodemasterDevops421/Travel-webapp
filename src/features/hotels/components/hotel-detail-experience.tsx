@@ -1,17 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Heart } from 'lucide-react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { HotelDetails, HotelRateOption } from '@/server/liteapi';
-import { PreferenceLink } from '@/components/navigation/preference-link';
-import { cn } from '@/shared/lib/utils';
 import { useHotelDetails } from '@/features/hotels/hooks/use-hotel-details';
 import { useHotelRates, type HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
 import { useWishlist } from '@/shared/hooks/use-wishlist';
-import { HotelPhotoGallery } from '@/features/hotels/components/hotel-photo-gallery';
-import { HotelDetailSections } from '@/features/hotels/components/hotel-detail-sections';
-import { HotelBookingSidebar } from '@/features/hotels/components/hotel-booking-sidebar';
+import { PropertyHero } from '@/features/hotels/components/property-hero';
+import { PropertyTabNav } from '@/features/hotels/components/property-tab-nav';
+import { PropertyContentSections } from '@/features/hotels/components/property-content-sections';
+import { PropertyBookingRail } from '@/features/hotels/components/property-booking-rail';
 
 type HotelDetailExperienceProps = {
   hotelId: string;
@@ -28,11 +26,7 @@ const SECTION_TABS = [
   { id: 'rooms', label: 'Rooms' },
   { id: 'reviews', label: 'Reviews' },
   { id: 'amenities', label: 'Amenities' },
-  { id: 'location', label: 'Location' },
-  { id: 'policies', label: 'Policies' },
-  { id: 'travelers-asking', label: 'FAQs' },
-  { id: 'pros-cons', label: 'Pros & Cons' },
-  { id: 'ask-ai', label: 'Ask AI (Beta)' }
+  { id: 'policies', label: 'Policies' }
 ];
 
 function formatMoney(currency: string, amount: number | null, compact = false): string {
@@ -50,6 +44,16 @@ function formatMoney(currency: string, amount: number | null, compact = false): 
 
 function buildRateKey(rate: Pick<HotelRateOption, 'offerId' | 'roomId'>): string {
   return `${rate.offerId}:${rate.roomId}`;
+}
+
+function pickRecommendedRate<T extends Pick<HotelRateOption, 'offerId' | 'roomId' | 'amount'>>(rates: T[]): T | null {
+  if (!rates.length) return null;
+  return [...rates].sort((left, right) => {
+    if (left.amount !== right.amount) {
+      return left.amount - right.amount;
+    }
+    return buildRateKey(left).localeCompare(buildRateKey(right));
+  })[0] ?? null;
 }
 
 function buildBookingQuery(
@@ -79,6 +83,38 @@ function buildBookingQuery(
   return bookingQuery;
 }
 
+function formatCancellationDeadline(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return value;
+
+  const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+  const isoCandidate = normalized.includes('T') ? normalized : normalized.replace(' ', 'T');
+  const parseCandidate = hasExplicitTimezone ? isoCandidate : `${isoCandidate}Z`;
+  const parsed = new Date(parseCandidate);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  const showTime = !/T?00:00(?::00(?:\.000)?)?(?:Z|[+-]\d{2}:?\d{2})?$/i.test(parseCandidate);
+
+  if (!showTime) {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(parsed);
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(parsed);
+}
+
 function getCancellationCopy(rate: HotelRateWithCancellationContext): { status: string; detail: string } {
   if (rate.isRefundable === false) {
     return {
@@ -89,7 +125,7 @@ function getCancellationCopy(rate: HotelRateWithCancellationContext): { status: 
   if (rate.cancellationDeadline) {
     return {
       status: 'Free cancellation',
-      detail: `Cancel until ${rate.cancellationDeadline}`
+      detail: `Cancel until ${formatCancellationDeadline(rate.cancellationDeadline)}`
     };
   }
   if (rate.isRefundable === true) {
@@ -105,6 +141,7 @@ function getCancellationCopy(rate: HotelRateWithCancellationContext): { status: 
 }
 
 export function HotelDetailExperience({ hotelId, checkin, checkout, adults, rooms, hotel: initialHotel, rates: initialRates }: HotelDetailExperienceProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
@@ -113,7 +150,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   const [askAnswer, setAskAnswer] = useState('');
   const [askLoading, setAskLoading] = useState(false);
   const [selectedRateKey, setSelectedRateKey] = useState<string | null>(
-    initialRates[0] ? buildRateKey(initialRates[0]) : null
+    pickRecommendedRate(initialRates) ? buildRateKey(pickRecommendedRate(initialRates)!) : null
   );
   const { isSaved, toggleSave, authRequired, clearAuthRequired } = useWishlist();
 
@@ -138,11 +175,13 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
       return;
     }
 
+    const recommendedRate = pickRecommendedRate(rates);
+
     setSelectedRateKey((current) => {
       if (current && rates.some((rate) => buildRateKey(rate) === current)) {
         return current;
       }
-      return buildRateKey(rates[0]);
+      return recommendedRate ? buildRateKey(recommendedRate) : buildRateKey(rates[0]);
     });
   }, [rates]);
 
@@ -160,6 +199,10 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     () => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? rates[0] ?? null,
     [rates, selectedRateKey]
   );
+  const recommendedRateKey = useMemo(() => {
+    const recommendedRate = pickRecommendedRate(rates);
+    return recommendedRate ? buildRateKey(recommendedRate) : null;
+  }, [rates]);
   const selectedCancellation = useMemo(
     () => (selectedRate ? getCancellationCopy(selectedRate) : null),
     [selectedRate]
@@ -175,6 +218,17 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     });
     return `/booking?${query.toString()}`;
   }, [selectedRate, hotelId, checkin, checkout, adults, rooms]);
+  const buildBookingHref = (rate: HotelRateWithCancellationContext) => {
+    const query = buildBookingQuery(rate, {
+      hotelId,
+      checkin,
+      checkout,
+      adults,
+      rooms
+    });
+
+    return `/booking?${query.toString()}`;
+  };
   const address = hotel?.address ?? `${hotel?.city ?? 'Unknown city'}${hotel?.countryCode ? `, ${hotel.countryCode}` : ''}`;
   const reviewBreakdown = hotel?.reviewBreakdown ?? [];
   const reviews = hotel?.reviews ?? [];
@@ -223,143 +277,96 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     }
   }
 
-  return (
-    <main className="mx-auto max-w-7xl space-y-6 px-4 py-7 md:py-9">
-      <section className="space-y-4 border-b border-border pb-8 pt-4">
-        <PreferenceLink href={browseHotelsHref} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
-          &larr; See all properties
-        </PreferenceLink>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="font-heading text-4xl font-bold md:text-5xl">{hotel?.name ?? 'Hotel'}</h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{address}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="rounded-full border border-border/70 bg-background px-2.5 py-1">
-                {checkin} to {checkout}
-              </span>
-              <span>{adults} guests</span>
-              <span>•</span>
-              <span>{rooms} room{rooms > 1 ? 's' : ''}</span>
-            </div>
-            {hotel?.reviewScore ? (
-              <p className="mt-2 text-sm font-medium">
-                {hotel.reviewScore.toFixed(1)} / 10 guest rating
-                {hotel.reviewCount ? ` · Based on ${Math.round(hotel.reviewCount)} reviews` : ''}
-              </p>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">Guest reviews are not available for this property yet.</p>
-            )}
-            <div className="mt-3 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  clearAuthRequired();
-                  void toggleSave({
-                    hotelId,
-                    hotelName: hotel?.name,
-                    hotelImage: hotel?.mainPhoto ?? undefined,
-                    starRating: hotel?.starRating ?? undefined,
-                    city: hotel?.city
-                  });
-                }}
-                className={cn(
-                  'inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-sm font-semibold transition-colors',
-                  isHotelSaved ? 'bg-rose-50 text-rose-600' : 'bg-background text-foreground hover:bg-muted'
-                )}
-              >
-                <Heart className={cn('h-4 w-4', isHotelSaved ? 'fill-current' : '')} />
-                {isHotelSaved ? 'Saved to wishlist' : 'Save stay'}
-              </button>
-              {authRequired ? (
-                <PreferenceLink href={loginHref} className="text-sm font-semibold text-amber-700 underline underline-offset-2">
-                  Sign in to save
-                </PreferenceLink>
-              ) : null}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-right">
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">From</p>
-            <p className="text-2xl font-bold text-primary">{formatMoney(currency, lowestRate, true)}</p>
-            <p className="text-xs text-muted-foreground">/ night</p>
-          </div>
-        </div>
-      </section>
+  function handleChooseRate(rate: HotelRateWithCancellationContext) {
+    setSelectedRateKey(buildRateKey(rate));
+    router.push(buildBookingHref(rate) as any);
+  }
 
-      <HotelPhotoGallery
+  return (
+    <main className="hotel-detail-page page-shell space-y-4 py-4 md:space-y-5 md:py-6">
+      <PropertyHero
+        browseHotelsHref={browseHotelsHref}
+        hotelName={hotel?.name ?? 'Hotel'}
+        starRating={hotel?.starRating}
+        reviewScore={hotel?.reviewScore}
+        reviewCount={hotel?.reviewCount}
+        address={address}
+        checkin={checkin}
+        checkout={checkout}
+        adults={adults}
+        rooms={rooms}
+        currency={currency}
+        lowestRate={lowestRate}
         photos={photos}
-        hotelName={hotel?.name ?? 'Hotel photo'}
         lightboxIndex={lightboxIndex}
-        onOpen={setLightboxIndex}
-        onClose={() => {
+        onOpenLightbox={setLightboxIndex}
+        onCloseLightbox={() => {
           setLightboxIndex(null);
         }}
+        isHotelSaved={isHotelSaved}
+        authRequired={authRequired}
+        loginHref={loginHref}
+        onToggleSave={() => {
+          clearAuthRequired();
+          void toggleSave({
+            hotelId,
+            hotelName: hotel?.name,
+            hotelImage: hotel?.mainPhoto ?? undefined,
+            starRating: hotel?.starRating ?? undefined,
+            city: hotel?.city
+          });
+        }}
+        formatMoney={formatMoney}
       />
 
-      <nav className="sticky top-16 z-20 -mx-4 border-b border-border bg-background/95 backdrop-blur md:top-20 md:mx-0 md:px-0">
-        <div className="relative">
-          <div className="flex w-full gap-8 overflow-x-auto px-4 md:px-0 scrollbar-none">
-            {SECTION_TABS.map((tab) => (
-              <a
-                key={tab.id}
-                href={`#${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'whitespace-nowrap border-b-2 py-4 text-sm font-semibold transition-colors',
-                  activeTab === tab.id
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
-                )}
-              >
-                {tab.label}
-              </a>
-            ))}
-          </div>
-          {/* Scroll fade indicator — signals more tabs offscreen */}
-          <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-background to-transparent md:hidden" />
-        </div>
-      </nav>
+      <PropertyTabNav activeTab={activeTab} tabs={SECTION_TABS} onTabChange={setActiveTab} />
 
-      <div className="grid gap-8 lg:grid-cols-[1fr,minmax(320px,400px)]">
-        <HotelDetailSections
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          isPartialDetail={isPartialDetail}
-          hotel={hotel ?? null}
-          mapUrl={mapUrl}
-          amenities={amenities}
-          policies={policies}
-          locationContext={locationContext}
-          rates={rates}
-          checkin={checkin}
-          checkout={checkout}
-          adults={adults}
-          rooms={rooms}
-          selectedRate={selectedRate}
-          setSelectedRateKey={setSelectedRateKey}
-          buildRateKey={buildRateKey}
-          getCancellationCopy={getCancellationCopy}
-          formatMoney={formatMoney}
-          reviewBreakdown={reviewBreakdown}
-          reviews={reviews}
-          prosAndCons={prosAndCons}
-          question={question}
-          setQuestion={setQuestion}
-          askLoading={askLoading}
-          askAnswer={askAnswer}
-          askHotelAI={askHotelAI}
-        />
-        <HotelBookingSidebar
-          checkin={checkin}
-          checkout={checkout}
-          adults={adults}
-          currency={currency}
-          lowestRate={lowestRate}
-          selectedRate={selectedRate}
-          selectedCancellation={selectedCancellation}
-          selectedBookingHref={selectedBookingHref}
-          formatMoney={formatMoney}
-        />
-      </div>
+      <section className="page-section relative flex flex-col">
+        <div className="space-y-4">
+          <PropertyBookingRail
+            checkin={checkin}
+            checkout={checkout}
+            adults={adults}
+            currency={currency}
+            lowestRate={lowestRate}
+            selectedRate={selectedRate}
+            selectedCancellation={selectedCancellation}
+            selectedBookingHref={selectedBookingHref}
+            formatMoney={formatMoney}
+          />
+
+          <PropertyContentSections
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            isPartialDetail={isPartialDetail}
+            hotel={hotel ?? null}
+            mapUrl={mapUrl}
+            amenities={amenities}
+            policies={policies}
+            locationContext={locationContext}
+            rates={rates}
+            checkin={checkin}
+            checkout={checkout}
+            adults={adults}
+            rooms={rooms}
+            selectedRate={selectedRate}
+            recommendedRateKey={recommendedRateKey}
+            setSelectedRateKey={setSelectedRateKey}
+            onChooseRate={handleChooseRate}
+            buildRateKey={buildRateKey}
+            getCancellationCopy={getCancellationCopy}
+            formatMoney={formatMoney}
+            reviewBreakdown={reviewBreakdown}
+            reviews={reviews}
+            prosAndCons={prosAndCons}
+            question={question}
+            setQuestion={setQuestion}
+            askLoading={askLoading}
+            askAnswer={askAnswer}
+            askHotelAI={askHotelAI}
+          />
+        </div>
+      </section>
     </main>
   );
 }

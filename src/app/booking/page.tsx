@@ -41,6 +41,14 @@ function pickPositiveInt(params: Record<string, string | string[] | undefined>, 
   return intValue > 0 ? intValue : undefined;
 }
 
+function pickRefundableState(
+  params: Record<string, string | string[] | undefined>,
+  key: string
+): 'true' | 'false' | 'unknown' | undefined {
+  const raw = pickParam(params, key);
+  return raw === 'true' || raw === 'false' || raw === 'unknown' ? raw : undefined;
+}
+
 export default async function BookingPage({ searchParams }: BookingPageProps) {
   const params = await searchParams;
   const amountRaw = pickParam(params, 'amount');
@@ -68,6 +76,8 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
           rooms: pickPositiveInt(params, 'rooms'),
           checkIn: pickParam(params, 'checkIn'),
           checkOut: pickParam(params, 'checkOut'),
+          cancellationNote: pickParam(params, 'cancellationNote'),
+          isRefundable: pickRefundableState(params, 'isRefundable'),
           amount
         }}
         preferredLanguage={preferredLanguage}

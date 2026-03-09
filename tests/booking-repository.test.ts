@@ -368,6 +368,67 @@ describe('booking repository fallback mode', () => {
     }));
   });
 
+  it('persists commission values that match configured booking amounts for confirmed lifecycle writes', async () => {
+    const upsertCommissionTracking = vi.fn().mockResolvedValue('commission-verified');
+    const createAdminClient = vi.fn(() => ({
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST205', message: 'missing booking schema' }
+            })
+          }))
+        }))
+      }))
+    }));
+
+    vi.doMock('@/server/supabase/admin', () => ({ createAdminClient }));
+    vi.doMock('@/server/logger', () => ({
+      logger: { warn: vi.fn(), error: vi.fn() }
+    }));
+    vi.doMock('@/server/commission-tracking-repository', () => ({
+      upsertCommissionTracking
+    }));
+
+    const repo = await import('@/server/booking/repository');
+    const bookingId = await repo.persistBooking(
+      buildBookingInput({
+        status: 'payment_authorized',
+        metadata: {
+          transactionId: 'txn-commission-1',
+          itinerary: {
+            totalAmount: 500,
+            currency: 'USD'
+          },
+          commissionAmount: 60,
+          commissionPercent: 12,
+          paymentStatus: 'authorized'
+        }
+      })
+    );
+
+    expect(bookingId).toBeTypeOf('string');
+
+    const confirmed = await repo.updateBookingStatusByTransactionId('txn-commission-1', 'confirmed', {
+      paymentStatus: 'captured',
+      confirmationCode: 'CONF-COMM-1'
+    });
+
+    expect(confirmed).toBe(true);
+    expect(upsertCommissionTracking).toHaveBeenLastCalledWith(expect.objectContaining({
+      bookingId,
+      grossBookingValue: 500,
+      commissionPercent: 12,
+      commissionAmount: 60,
+      currency: 'USD',
+      metadata: expect.objectContaining({
+        bookingStatus: 'confirmed',
+        confirmationCode: 'CONF-COMM-1'
+      })
+    }));
+  });
+
   it('allows fallback booking persistence when commission table is unavailable in non-production', async () => {
     const upsertCommissionTracking = vi.fn().mockResolvedValue(null);
     const createAdminClient = vi.fn(() => ({

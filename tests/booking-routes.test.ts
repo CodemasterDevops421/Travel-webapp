@@ -227,6 +227,44 @@ describe('booking route handlers', () => {
     expect(savePrebookSession).toHaveBeenCalledOnce();
   });
 
+  it('prebook route returns an actionable config error when live-production checkout is misconfigured', async () => {
+    vi.resetModules();
+    resetSecurityRouteMocks();
+    mockSecurityRouteDependencies();
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LITEAPI_ENV', 'sandbox');
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('LITEAPI_API_KEY', 'sand_test_key');
+    vi.stubEnv('QUOTE_SIGNING_SECRET', '');
+    vi.stubEnv('BOOKING_VIEW_TOKEN_SECRET', '');
+    vi.stubEnv('LITEAPI_WEBHOOK_SECRET', '');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'supabase-service-role-placeholder');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    vi.stubEnv('BOOKING_API_AUTH_SECRET', '');
+    vi.stubEnv('STRICT_PERSISTENCE_MODE', 'false');
+
+    const { POST } = await import('@/app/api/booking/prebook/route');
+    const req = {
+      url: 'https://example.com/api/booking/prebook',
+      headers: new Headers({ origin: 'https://example.com' }),
+      json: async () => ({
+        hotelId: 'h1',
+        roomId: 'r1',
+        offerId: 'offer-1',
+        checkIn: '2026-04-10',
+        checkOut: '2026-04-12',
+        guests: [{ adults: 2 }]
+      })
+    } as unknown as Request;
+
+    const res = await POST(req as never);
+    const body = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(body.error).toMatch(/checkout is not configured for this deployment/i);
+  });
+
   it('book route rejects invalid fallback session signatures', async () => {
     const bookRate = vi.fn();
 

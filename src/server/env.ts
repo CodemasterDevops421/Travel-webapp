@@ -11,6 +11,7 @@ const emptyStringToUndefined = <TSchema extends z.ZodTypeAny>(schema: TSchema) =
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  VERCEL_ENV: emptyStringToUndefined(z.enum(['development', 'preview', 'production']).optional()),
   PAYMENT_PROVIDER: z.enum(['liteapi', 'hybrid', 'stripe']).default('liteapi'),
   LITEAPI_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
   NEXT_PUBLIC_APP_URL: emptyStringToUndefined(z.string().url().default('http://localhost:3000')),
@@ -72,7 +73,7 @@ function getModeValue(
     return modeValue;
   }
 
-  if (mode === 'production' && parsedEnv.NODE_ENV === 'production') {
+  if (mode === 'production' && isStrictProductionRuntime()) {
     throw new Error('LiteAPI production mode requires dedicated production configuration in production runtime.');
   }
 
@@ -82,7 +83,7 @@ function getModeValue(
 export function assertLiteApiRuntimeConfig(config: LiteApiRuntimeConfig): void {
   const problems: string[] = [];
 
-  if (parsedEnv.NODE_ENV === 'production') {
+  if (isStrictProductionRuntime()) {
     if (config.mode === 'production') {
       if (isPlaceholderValue(config.apiKey, ['placeholder', 'your_liteapi_api_key', 'liteapi-placeholder-key'])) {
         problems.push('LITEAPI_PRODUCTION_API_KEY must be set to a real key when LITEAPI_ENV=production.');
@@ -95,6 +96,14 @@ export function assertLiteApiRuntimeConfig(config: LiteApiRuntimeConfig): void {
   if (problems.length > 0) {
     throw new Error(`LiteAPI runtime configuration invalid:\n- ${problems.join('\n- ')}`);
   }
+}
+
+function isStrictProductionRuntime(): boolean {
+  if (parsedEnv.NODE_ENV !== 'production') {
+    return false;
+  }
+
+  return parsedEnv.VERCEL_ENV !== 'preview';
 }
 
 export function getLiteApiRuntimeConfigForMode(mode: 'sandbox' | 'production'): LiteApiRuntimeConfig {
@@ -137,7 +146,7 @@ export function usesLiteApiPayments(): boolean {
 }
 
 export function assertProductionReadiness(): void {
-  if (parsedEnv.NODE_ENV !== 'production') {
+  if (!isStrictProductionRuntime()) {
     return;
   }
 

@@ -19,7 +19,7 @@ export function SearchResultsMap({ hotels }: SearchResultsMapProps) {
 
   if (markers.length === 0) {
     return (
-      <div className="flex h-[320px] items-center justify-center bg-slate-100 px-4 text-sm text-muted-foreground dark:bg-slate-800">
+      <div className="flex h-[320px] items-center justify-center bg-muted/40 px-4 text-sm text-muted-foreground dark:bg-slate-800">
         No map coordinates are available for these search results yet.
       </div>
     );
@@ -38,13 +38,13 @@ export function SearchResultsMap({ hotels }: SearchResultsMapProps) {
           key={hotel.hotelId}
           center={[hotel.latitude!, hotel.longitude!]}
           radius={8}
-          pathOptions={{ color: '#166534', fillColor: '#22c55e', fillOpacity: 0.8 }}
+          pathOptions={{ color: '#9333ea', fillColor: '#c084fc', fillOpacity: 0.82 }}
         >
           <Popup>
             <div className="space-y-1 text-sm">
               <p className="font-semibold">{hotel.name}</p>
               <p className="text-muted-foreground">{hotel.city}</p>
-              <a className="text-emerald-700 underline" href={`/hotels/${hotel.hotelId}`}>
+              <a className="text-primary underline" href={`/hotels/${hotel.hotelId}`}>
                 View stay
               </a>
             </div>

@@ -36,6 +36,13 @@ type GuestMetadata = {
   lastName: string;
 };
 
+type CancellationMetadata = {
+  cancellationOutcome: string | null;
+  refundPending: boolean;
+  refundManagedBy: string | null;
+  invoiceStatus: string | null;
+};
+
 export const metadata: Metadata = {
   title: 'Booking Confirmation | Hostel Stays',
   description: 'View your confirmed booking details securely.',
@@ -85,6 +92,24 @@ function pickGuests(metadata: Record<string, unknown> | null): GuestMetadata[] {
     .map((guest) => guest as GuestMetadata);
 }
 
+function pickCancellationMetadata(metadata: Record<string, unknown> | null): CancellationMetadata {
+  if (!metadata || typeof metadata !== 'object') {
+    return {
+      cancellationOutcome: null,
+      refundPending: false,
+      refundManagedBy: null,
+      invoiceStatus: null
+    };
+  }
+
+  return {
+    cancellationOutcome: typeof metadata.cancellationOutcome === 'string' ? metadata.cancellationOutcome : null,
+    refundPending: metadata.refundPending === true,
+    refundManagedBy: typeof metadata.refundManagedBy === 'string' ? metadata.refundManagedBy : null,
+    invoiceStatus: typeof metadata.invoiceStatus === 'string' ? metadata.invoiceStatus : null
+  };
+}
+
 export default async function BookingConfirmationPage({ params, searchParams }: BookingConfirmationPageProps) {
   const { bookingId } = await params;
   const qs = await searchParams;
@@ -104,6 +129,7 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
   const itinerary = pickItinerary(booking.metadata);
   const holder = pickHolder(booking.metadata);
   const guests = pickGuests(booking.metadata);
+  const cancellation = pickCancellationMetadata(booking.metadata);
   const totalGuests = guests.reduce((count, guest) => count + guest.occupancyNumber, 0);
   const bookingHotel = itinerary?.hotelId
     ? await getHotelDetails(itinerary.hotelId, undefined, itinerary.currency).catch(() => null)
@@ -112,13 +138,40 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
   return (
     <main className="mx-auto max-w-4xl space-y-5 px-4 py-8">
       <section className="rounded-3xl border border-border/80 bg-card/85 p-6 shadow-sm">
-        <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Booking Confirmed</p>
-        <h1 className="mt-2 text-3xl font-bold">Your stay is secured</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Keep this page for itinerary details, payment references, and support requests.</p>
+        <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{cancellation.refundPending ? 'Booking update' : 'Booking confirmed'}</p>
+        <h1 className="mt-2 text-3xl font-bold">{cancellation.refundPending ? 'Your booking status is being updated' : 'Your stay is secured'}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {cancellation.refundPending
+            ? 'Keep this page open for the latest refund and cancellation status, plus the booking references support may request.'
+            : 'Keep this page for itinerary details, payment references, and the next steps for your stay.'}
+        </p>
+        {cancellation.refundPending ? (
+          <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-semibold">Cancellation in progress</p>
+            <p className="mt-1">
+              {cancellation.refundManagedBy === 'liteapi'
+                ? 'Your cancellation was submitted. LiteAPI will finalize the refund outcome and this page will reflect the final status after reconciliation.'
+                : 'Your cancellation was submitted. Refund reconciliation is still in progress and this page will update once the final lifecycle result is recorded.'}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
         <article className="rounded-2xl border border-border bg-card/85 p-5">
+          <div className="mb-5 rounded-xl border border-border bg-background/60 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Next step</p>
+            <p className="mt-2 text-sm font-semibold text-foreground">
+              {cancellation.refundPending
+                ? 'Watch this page for the final refund outcome, then contact support if the status does not change after reconciliation.'
+                : 'Save your booking reference now. You can return to this page any time with the secure view link.'}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {cancellation.refundPending
+                ? 'Use the booking ID, transaction ID, and prebook ID below if you need help from support.'
+                : 'Use the support actions below if you need cancellation help or a supplier support handoff.'}
+            </p>
+          </div>
           {bookingHotel ? (
             <div className="mb-5 space-y-3 rounded-xl border border-border bg-background/60 p-4">
               {bookingHotel.mainPhoto ? (
@@ -153,7 +206,7 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
-              <p className="font-semibold capitalize">{booking.status}</p>
+              <p className="font-semibold capitalize">{cancellation.refundPending ? 'cancellation in progress' : booking.status}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Guests</p>
@@ -186,13 +239,21 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
             <p className="font-mono text-xs">{transactionId ?? 'Unavailable'}</p>
             <p className="mt-3 text-sm text-muted-foreground">Prebook ID</p>
             <p className="font-mono text-xs">{prebookId ?? 'Unavailable'}</p>
+            <p className="mt-3 text-sm text-muted-foreground">Invoice status</p>
+            <p className="font-medium capitalize">{cancellation.invoiceStatus ?? 'Unavailable'}</p>
           </article>
 
           <article className="rounded-2xl border border-border bg-card/85 p-5">
-            <p className="text-sm font-semibold">Support</p>
-            <p className="mt-2 text-sm text-muted-foreground">Need to cancel? Use the in-app action below. For other changes, include booking, transaction, and prebook references.</p>
+            <p className="text-sm font-semibold">Support and actions</p>
+            <p className="mt-2 text-sm text-muted-foreground">Use the in-app cancellation action for eligible bookings. For other changes, include booking, transaction, and prebook references.</p>
             <p className="mt-2 text-sm text-muted-foreground">Email: support@hostelstays.com</p>
-            <BookingCancelAction bookingId={booking.id} viewToken={viewToken} bookingStatus={booking.status} />
+            <BookingCancelAction
+              bookingId={booking.id}
+              viewToken={viewToken}
+              bookingStatus={booking.status}
+              refundPending={cancellation.refundPending}
+              cancellationOutcome={cancellation.cancellationOutcome}
+            />
             <BookingSupportHandoffAction bookingId={booking.id} viewToken={viewToken} />
           </article>
         </aside>

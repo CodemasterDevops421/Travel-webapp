@@ -5,11 +5,13 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { publicEnv } from '@/shared/env.public';
 import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
+import { useAuth } from '@/shared/hooks/use-auth';
 
 const formSchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -21,6 +23,8 @@ const formSchema = z.object({
   rooms: z.coerce.number().int().positive(),
   checkIn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkOut: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+  cancellationNote: z.string().trim().optional().or(z.literal('')),
+  isRefundable: z.enum(['true', 'false', 'unknown']).optional(),
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),
   email: z.string().trim().email()
@@ -82,7 +86,7 @@ type CheckoutSessionPayload = {
 
 type CheckoutDraft = Pick<
   FormValues,
-  'hotelId' | 'roomId' | 'offerId' | 'amount' | 'currency' | 'adults' | 'rooms' | 'checkIn' | 'checkOut'
+  'hotelId' | 'roomId' | 'offerId' | 'amount' | 'currency' | 'adults' | 'rooms' | 'checkIn' | 'checkOut' | 'cancellationNote' | 'isRefundable'
 >;
 
 const PAYMENT_SCRIPT_URL = 'https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v=a1';
@@ -272,6 +276,10 @@ async function ensurePaymentScriptLoaded(): Promise<void> {
 }
 
 export function BookingConsole({ initialValues, preferredLanguage, preferredCurrency }: BookingConsoleProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { user, isLoading: authIsLoading, error: authError } = useAuth();
   const isDevEnvironment = process.env.NODE_ENV !== 'production';
   const [prebook, setPrebook] = useState<PrebookResult | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -279,6 +287,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const [promoDiscount, setPromoDiscount] = useState<number | null>(null);
   const [promoError, setPromoError] = useState('');
   const [promoLoading, setPromoLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('guest_details');
 
   const defaultValues: FormValues = {
@@ -291,6 +300,10 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     rooms: initialValues?.rooms ?? 1,
     checkIn: initialValues?.checkIn ?? '',
     checkOut: initialValues?.checkOut ?? '',
+    cancellationNote: initialValues?.cancellationNote ?? '',
+    isRefundable: initialValues?.isRefundable === 'true' || initialValues?.isRefundable === 'false' || initialValues?.isRefundable === 'unknown'
+      ? initialValues.isRefundable
+      : 'unknown',
     firstName: initialValues?.firstName ?? '',
     lastName: initialValues?.lastName ?? '',
     email: initialValues?.email ?? ''
@@ -319,7 +332,9 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
         roomId: initialValues?.roomId ?? draft.roomId ?? '',
         offerId: initialValues?.offerId ?? draft.offerId ?? '',
         checkIn: initialValues?.checkIn ?? draft.checkIn ?? '',
-        checkOut: initialValues?.checkOut ?? draft.checkOut ?? ''
+        checkOut: initialValues?.checkOut ?? draft.checkOut ?? '',
+        cancellationNote: initialValues?.cancellationNote ?? draft.cancellationNote ?? '',
+        isRefundable: initialValues?.isRefundable ?? draft.isRefundable ?? 'unknown'
       });
     }
 
@@ -332,7 +347,16 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       ...latestSession.formValues
     });
     setCheckoutStep('confirmation');
-  }, [form, initialValues?.checkIn, initialValues?.checkOut, initialValues?.hotelId, initialValues?.offerId, initialValues?.roomId]);
+  }, [
+    form,
+    initialValues?.cancellationNote,
+    initialValues?.checkIn,
+    initialValues?.checkOut,
+    initialValues?.hotelId,
+    initialValues?.isRefundable,
+    initialValues?.offerId,
+    initialValues?.roomId
+  ]);
 
   const prebookFingerprint = useMemo(
     () => [
@@ -391,6 +415,13 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const currency = (liveValues.currency || 'USD').toUpperCase();
   const totalAmount = prebook?.quote.totalAmount ?? baseAmount;
   const markupAmount = Math.max(totalAmount - baseAmount, 0);
+  const cancellationSummary = liveValues.isRefundable === 'false'
+    ? 'This selected rate is non-refundable.'
+    : liveValues.cancellationNote?.trim()
+      ? liveValues.cancellationNote.trim()
+      : liveValues.isRefundable === 'true'
+        ? 'This selected rate includes supplier-provided cancellation flexibility.'
+        : 'Cancellation policy will be confirmed from the selected rate before final payment.';
   const nights = (() => {
     if (!liveValues.checkIn || !liveValues.checkOut) return null;
     const start = new Date(liveValues.checkIn);
@@ -427,10 +458,24 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     }
   });
 
+  async function ensureSignedInForPayment(): Promise<void> {
+    if (authIsLoading) {
+      throw new Error('Checking your account before payment. Please try again.');
+    }
+
+    if (!user) {
+      const query = searchParams.toString();
+      const redirectPath = query ? `${pathname}?${query}` : pathname;
+      router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
+      throw new Error(authError ?? 'Sign in to continue to secure payment.');
+    }
+  }
+
   async function startPayment(values: FormValues, prebookPayload?: PrebookResult): Promise<void> {
     const activePrebook = prebookPayload ?? prebook;
     if (!activePrebook) return;
     setPaymentError(null);
+    await ensureSignedInForPayment();
 
     const guestDistribution = buildPrebookGuests(values.adults, values.rooms);
     const guestsPayload = guestDistribution.map((_, index) => ({
@@ -495,10 +540,12 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const onSubmit = form.handleSubmit(async (values) => {
     if (!prebook) {
       const createdPrebook = await prebookMutation.mutateAsync(values);
-      await startPayment(values, createdPrebook).catch((error: unknown) => {
-        setCheckoutStep('payment');
-        setPaymentError(errorMessage(error));
-      });
+      setPrebook(createdPrebook);
+      setCheckoutStep('payment');
+      return;
+    }
+    if (!termsAccepted) {
+      setPaymentError('Please accept the cancellation policy and terms before continuing to payment.');
       return;
     }
     await startPayment(values).catch((error: unknown) => {
@@ -512,26 +559,30 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       <div className="space-y-4 border-b border-border pb-6">
         <p className="text-xs font-bold uppercase tracking-widest text-primary">Secure Checkout</p>
         <h1 className="font-heading text-4xl font-light">Finalize your stay</h1>
-        <p className="text-sm text-muted-foreground">Complete your booking in three simple steps.</p>
+        <p className="text-sm text-muted-foreground">We keep the booking flow explicit, but compress the page so your selected stay, trust signals, and payment decision are easier to scan.</p>
       </div>
 
-      <div className="grid gap-0 border border-border bg-background text-sm font-medium md:grid-cols-3">
-        <div className={`flex items-center gap-3 border-b border-border p-4 md:border-b-0 md:border-r ${checkoutStep === 'guest_details' ? 'bg-primary/5' : ''}`}>
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-background/70 p-2 text-sm font-medium">
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${checkoutStep === 'guest_details' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">1</span>
-          <span>Your details {hasGuestDetails ? 'done' : ''}</span>
+          <span>Guest details</span>
         </div>
-        <div className={`flex items-center gap-3 border-b border-border p-4 md:border-b-0 md:border-r ${checkoutStep === 'payment' ? 'bg-primary/5' : ''}`}>
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${checkoutStep === 'payment' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">2</span>
-          <span>Payment {prebook ? 'ready' : ''}</span>
+          <span>Payment</span>
         </div>
-        <div className={`flex items-center gap-3 p-4 ${checkoutStep === 'confirmation' ? 'bg-primary/5' : ''}`}>
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${checkoutStep === 'confirmation' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs text-primary">3</span>
-          <span>Confirmation {checkoutStep === 'confirmation' ? 'awaiting' : ''}</span>
+          <span>Confirmation</span>
         </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1.5fr,1fr]">
         <form className="space-y-6" onSubmit={onSubmit}>
+          <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+            All fields marked in your booking details are used only to prepare the stay. You will be asked to sign in only when you continue to payment.
+          </div>
+
           {hasSelectedRate ? (
             <div className="border border-border bg-muted/30 p-6">
               <p className="text-xs font-bold uppercase tracking-widest text-foreground">Selected stay</p>
@@ -573,22 +624,70 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
               <input type="hidden" {...form.register('rooms')} />
               <input type="hidden" {...form.register('checkIn')} />
               <input type="hidden" {...form.register('checkOut')} />
+              <input type="hidden" {...form.register('cancellationNote')} />
+              <input type="hidden" {...form.register('isRefundable')} />
             </>
           )}
 
-          <div className="space-y-4 pt-4">
-            <h2 className="font-heading text-2xl font-light">Guest Details</h2>
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-2xl font-light">Your details</h2>
+                <p className="mt-1 text-sm text-muted-foreground">We use these details to prepare the booking and send confirmation updates.</p>
+              </div>
+              {!user ? (
+                <Link href="/auth/login" className="text-sm font-semibold text-primary underline underline-offset-2">
+                  Sign in
+                </Link>
+              ) : null}
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input className="rounded-none border-border bg-background" aria-label="First name" placeholder="First name" {...form.register('firstName')} />
               <Input className="rounded-none border-border bg-background" aria-label="Last name" placeholder="Last name" {...form.register('lastName')} />
             </div>
-            <Input className="rounded-none border-border bg-background" aria-label="Email" placeholder="Email" type="email" {...form.register('email')} />
+            <Input className="mt-4 rounded-none border-border bg-background" aria-label="Email" placeholder="Email" type="email" {...form.register('email')} />
           </div>
 
-          <div className="pt-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Cancellation policy</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{cancellationSummary}</p>
+              </div>
+              <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground">
+                {liveValues.isRefundable === 'false' ? 'Non-refundable' : liveValues.isRefundable === 'true' ? 'Flexible' : 'Supplier policy'}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h3 className="text-lg font-semibold text-foreground">Terms and booking conditions</h3>
+            <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+              <p>Your booking is confirmed only after payment is authorized and supplier inventory remains available.</p>
+              <p>Taxes, fees, and cancellation rules shown here are the terms tied to the selected supplier rate.</p>
+              <label className="flex items-start gap-3 text-foreground">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(event) => setTermsAccepted(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border border-border"
+                />
+                <span className="text-sm">
+                  I accept the cancellation policy and terms for this booking.
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="pt-2">
             <Button className="rounded-none shadow-none w-full md:w-auto px-8" type="submit" size="lg" disabled={prebookMutation.isPending}>
-              {prebookMutation.isPending ? 'Securing your quote...' : !prebook ? 'Validate and launch payment' : 'Launch secure payment'}
+              {prebookMutation.isPending ? 'Preparing your booking...' : !prebook ? 'Continue to booking review' : 'Continue to payment'}
             </Button>
+            {!user ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                You can reach the booking page without signing in. We only require sign-in when you continue to payment.
+              </p>
+            ) : null}
           </div>
         </form>
 
@@ -613,6 +712,20 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
             <p className="text-xs text-muted-foreground mt-2">
               Prices are inclusive of all taxes and fees. No hidden charges.
             </p>
+          </div>
+
+          <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-800">Cancellation summary</p>
+            <p className="mt-2 text-sm font-medium text-foreground">{cancellationSummary}</p>
+          </div>
+
+          <div className="mt-6 rounded-xl border border-border bg-background p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Booking terms</p>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>Supplier cancellation rules apply to the selected room and rate.</li>
+              <li>Prices shown include taxes and fees attached to the current quote.</li>
+              <li>Payment is processed only after you continue from the booking review step.</li>
+            </ul>
           </div>
 
           {/* Promo Code Section */}
@@ -693,6 +806,10 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
                 <span className="text-green-600">✓</span>
                 <span><strong>Instant Confirmation</strong> - You will receive your booking details immediately.</span>
               </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600">✓</span>
+                <span><strong>Selected rate locked</strong> - Payment proceeds against the exact room and quote prepared for this booking.</span>
+              </li>
             </ul>
           </div>
         </aside>
@@ -703,13 +820,36 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       )}
 
       <section className={`rounded-2xl border border-border bg-background p-4 ${prebook ? '' : 'hidden'}`}>
-        <h2 className="mb-2 text-sm font-semibold">Payment</h2>
-        <p className="mb-2 text-xs text-muted-foreground">
-          {isDevEnvironment
-            ? 'Sandbox test card: `4242 4242 4242 4242` with any valid future date/CVV.'
-            : 'Secure payment form is loaded below.'}
-        </p>
-        <div id="liteapi-payment-target" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="mb-1 text-sm font-semibold">Payment</h2>
+            <p className="text-xs text-muted-foreground">
+              {isDevEnvironment
+                ? 'Sandbox test card: `4242 4242 4242 4242` with any valid future date/CVV.'
+                : 'Secure payment form is loaded below after you continue to payment.'}
+            </p>
+          </div>
+          <Button
+            type="button"
+            className="rounded-none shadow-none px-8"
+            disabled={!termsAccepted}
+            onClick={() => {
+              void form.handleSubmit(async (values) => {
+                if (!termsAccepted) {
+                  setPaymentError('Please accept the cancellation policy and terms before continuing to payment.');
+                  return;
+                }
+                await startPayment(values).catch((error: unknown) => {
+                  setCheckoutStep('payment');
+                  setPaymentError(errorMessage(error));
+                });
+              })();
+            }}
+          >
+            {user ? 'Open secure payment' : 'Sign in to pay'}
+          </Button>
+        </div>
+        <div className="mt-4" id="liteapi-payment-target" />
       </section>
 
       {prebookMutation.error && <p className="text-sm text-red-600">{errorMessage(prebookMutation.error)}</p>}

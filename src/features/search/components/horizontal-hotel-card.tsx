@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Heart, Star } from 'lucide-react';
+import { BedDouble, Coffee, Heart, MapPin, ParkingSquare, Sparkles, Star, UtensilsCrossed, Wifi } from 'lucide-react';
 import { PreferenceLink } from '@/components/navigation/preference-link';
 import { cn } from '@/shared/lib/utils';
 import { PropertyPreview } from '@/features/search/hooks/use-property-preview';
@@ -61,6 +61,43 @@ function getNights(checkin: string, checkout: string): number {
     return Math.max(1, Math.round(diff / 86400000));
 }
 
+function normalizeAmenityToken(value: string): string {
+    return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+}
+
+function formatDistance(distanceKm: number | null | undefined): string | null {
+    if (!Number.isFinite(distanceKm) || distanceKm === null || distanceKm === undefined || distanceKm <= 0) {
+        return null;
+    }
+    if (distanceKm < 1) {
+        return `${Math.round(distanceKm * 1000)} m from centre`;
+    }
+    return `${distanceKm.toFixed(distanceKm >= 10 ? 0 : 1)} km from centre`;
+}
+
+function getAmenityHighlights(amenities: string[] | undefined) {
+    const normalized = (amenities ?? []).map((item) => ({
+        raw: item,
+        normalized: normalizeAmenityToken(item)
+    }));
+
+    const picks: Array<{ key: string; label: string; icon: typeof Coffee }> = [];
+    const register = (key: string, label: string, icon: typeof Coffee, matcher: (token: string) => boolean) => {
+        if (picks.some((item) => item.key === key)) return;
+        const match = normalized.find((item) => matcher(item.normalized));
+        if (!match) return;
+        picks.push({ key, label, icon });
+    };
+
+    register('breakfast', 'Breakfast included', Coffee, (token) => token.includes('breakfast'));
+    register('wifi', 'WiFi available', Wifi, (token) => token.includes('wifi') || token.includes('internet'));
+    register('parking', 'Parking', ParkingSquare, (token) => token.includes('parking'));
+    register('restaurant', 'Restaurant', UtensilsCrossed, (token) => token.includes('restaurant') || token.includes('dining'));
+    register('spa', 'Spa/wellness center', Sparkles, (token) => token.includes('spa') || token.includes('wellness'));
+
+    return picks.slice(0, 3);
+}
+
 export function HorizontalHotelCard({
     hotel,
     checkin,
@@ -90,15 +127,16 @@ export function HorizontalHotelCard({
     const hotelHref = `/hotels/${hotel.hotelId}?${detailsParams.toString()}`;
     const loginHref = `/auth/login?redirect=${encodeURIComponent(hotelHref)}`;
     const nights = getNights(checkin, checkout);
-    const amenityHighlights = (hotel.amenities ?? []).slice(0, 4);
+    const amenityHighlights = getAmenityHighlights(hotel.amenities);
+    const locationLine = hotel.address?.trim() || [hotel.city, hotel.countryCode].filter(Boolean).join(', ');
+    const distanceCopy = formatDistance(hotel.distanceFromCenterKm ?? null);
 
     return (
-        <article className="group flex flex-col gap-4 rounded-2xl border border-border/70 bg-card p-4 transition-all hover:border-primary/25 hover:shadow-lg md:flex-row md:p-5">
-            {/* Image Section */}
-            <div className="relative h-52 w-full shrink-0 overflow-hidden rounded-xl md:h-auto md:w-72">
+        <article className="group rounded-[22px] border border-border/70 bg-card px-3 py-3 transition-all hover:border-primary/20 hover:shadow-[var(--surface-shadow)] md:grid md:grid-cols-[220px,minmax(0,1fr),176px] md:items-stretch md:gap-4 md:px-3.5 md:py-3.5">
+            <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-[18px] md:h-full md:min-h-[188px] md:w-[220px]">
                 <PreferenceLink href={hotelHref} aria-label={`View details for ${hotel.name}`}>
                     {hotel.imageUrl ? (
-                        <Image src={hotel.imageUrl} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, 288px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                        <Image src={hotel.imageUrl} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, 220px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
                         <div className="h-full w-full bg-muted" />
                     )}
@@ -124,95 +162,95 @@ export function HorizontalHotelCard({
                 </button>
             </div>
 
-            {/* Content Section */}
-            <div className="flex flex-1 flex-col justify-between py-1">
-                <div className="flex justify-between items-start gap-4">
-                    <div>
+            <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 py-1">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
                         <div className="flex items-center gap-1">
                             {[...Array(Math.floor(hotel.starRating || 0))].map((_, i) => (
                                 <Star key={i} className="h-3 w-3 fill-orange-400 text-orange-400" />
                             ))}
                         </div>
                         <PreferenceLink href={hotelHref} className="focus-visible:outline-none">
-                            <h3 className="mt-1 text-xl font-bold text-foreground transition-colors group-hover:text-primary">{hotel.name}</h3>
+                            <h3 className="ui-heading mt-1 line-clamp-2 text-lg font-bold text-foreground transition-colors group-hover:text-primary">{hotel.name}</h3>
                         </PreferenceLink>
-                        <PreferenceLink href={hotelHref} className="mt-1 flex items-center gap-2 text-sm text-foreground underline underline-offset-2">
-                            <span className="line-clamp-1">{hotel.city}, {hotel.countryCode}</span>
-                            <span className="text-muted-foreground no-underline">•</span>
-                            <span className="text-muted-foreground no-underline">Map view</span>
-                        </PreferenceLink>
-
-                        {/* Trust Badges */}
-                        <div className="mt-3 flex flex-wrap gap-1.5 items-center">
-                            <span className="rounded bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700 border border-green-200">
-                                Free cancellation
-                            </span>
-                            <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
-                                Reserve now, pay later
-                            </span>
+                        <div className="mt-1 space-y-1.5 text-sm text-muted-foreground">
+                            <PreferenceLink href={hotelHref} className="flex items-center gap-1.5 text-foreground/85 underline underline-offset-2">
+                                <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="line-clamp-1">{locationLine}</span>
+                            </PreferenceLink>
+                            {distanceCopy ? (
+                                <p className="flex items-center gap-1.5 text-[12px]">
+                                    <BedDouble className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    <span>{distanceCopy}</span>
+                                </p>
+                            ) : null}
                         </div>
+
                         {amenityHighlights.length > 0 ? (
                             <div className="mt-3 flex flex-wrap gap-1.5">
                                 {amenityHighlights.map((amenity) => (
-                                    <span key={amenity} className="rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-[11px] text-foreground/90">
-                                        {amenity}
+                                    <span key={amenity.key} className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-[11px] text-foreground/90">
+                                        <amenity.icon className="h-3 w-3 text-muted-foreground" />
+                                        {amenity.label}
                                     </span>
                                 ))}
                             </div>
                         ) : null}
                     </div>
 
-                    {/* Rating Badge (Right Side) */}
-                    <div className="flex flex-col items-end gap-1 shrink-0">
+                    <div className="flex shrink-0 flex-col items-end gap-1">
                         <div className="flex items-center gap-2">
-                            <div className="text-right hidden sm:block">
+                            <div className="hidden text-right sm:block">
                                 <p className="text-sm font-bold leading-none">{getReviewLabel(reviewScore)}</p>
                                 <p className="text-xs text-muted-foreground">{hotel.reviewCount} reviews</p>
                             </div>
-                            <div className={cn("flex h-10 w-10 items-center justify-center rounded-r-lg rounded-tl-lg rounded-bl-[4px] text-sm font-bold text-white shadow-sm", getReviewBadgeColor(reviewScore))}>
+                            <div className={cn('flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-bold text-white shadow-sm', getReviewBadgeColor(reviewScore))}>
                                 {reviewScore.toFixed(1)}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
-                    <div className="text-xs text-muted-foreground w-full max-w-full sm:max-w-[62%]">
-                        <p className="font-semibold text-foreground">Top highlight:</p>
-                        {reviewSnippet ? (
-                            <>
-                                <p className="line-clamp-2">&quot;{reviewSnippet.quote}&quot;</p>
-                                <p className="mt-1 text-[11px]">
-                                    {reviewSnippet.author ?? 'Verified guest'}
-                                    {typeof reviewSnippet.score === 'number' ? ` · ${reviewSnippet.score.toFixed(1)}/10` : ''}
-                                </p>
-                            </>
-                        ) : (
-                            <p className="line-clamp-2">&quot;Guests consistently praise the incredible location and seamless check-in experience.&quot;</p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col items-end gap-0 w-full sm:w-auto">
-                        <div className="text-right">
-                            <div className="flex items-baseline justify-end gap-1.5">
-                                <span className="text-sm text-muted-foreground line-through decoration-red-500/50">{formatMoney(hotel.currency, (hotel.price ?? 0) * 1.08)}</span>
-                                <span className="text-2xl font-bold text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">per night · Includes taxes and charges</p>
-                            {typeof hotel.price === 'number' ? (
-                                <p className="text-xs font-semibold text-foreground">Total {formatMoney(hotel.currency, hotel.price * nights)}</p>
-                            ) : null}
-                        </div>
-                        <PreferenceLink href={hotelHref} className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-8 font-bold text-primary-foreground shadow-none transition-all hover:bg-primary/90 hover:shadow-md sm:w-auto">
-                            See availability
-                        </PreferenceLink>
-                    </div>
+                <div className="text-xs text-muted-foreground">
+                    <p className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">Top review</p>
+                    {reviewSnippet ? (
+                        <>
+                            <p className="mt-1 line-clamp-1 text-sm text-foreground/80">&quot;{reviewSnippet.quote}&quot;</p>
+                            <p className="mt-1 text-[11px]">
+                                {reviewSnippet.author ?? 'Verified guest'}
+                                {typeof reviewSnippet.score === 'number' ? ` · ${reviewSnippet.score.toFixed(1)}/10` : ''}
+                            </p>
+                        </>
+                    ) : (
+                        <p className="mt-1 line-clamp-1 text-sm text-foreground/80">&quot;Guests consistently praise the incredible location and seamless check-in experience.&quot;</p>
+                    )}
                 </div>
+
                 {showAuthPrompt ? (
-                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                         Sign in to save stays. <a href={loginHref} className="font-semibold underline underline-offset-2">Go to login</a>
                     </p>
                 ) : null}
+            </div>
+
+            <div className="flex flex-col justify-between gap-4 border-t border-border/70 pt-4 md:border-l md:border-t-0 md:pl-1 md:pt-1">
+                <div className="space-y-2 text-right">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Actual price</p>
+                    <div className="flex items-baseline justify-end gap-1.5">
+                        <span className="numeric-tight ui-heading text-[1.75rem] font-bold text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">per night · taxes and charges included</p>
+                    {typeof hotel.price === 'number' ? (
+                        <p className="numeric-tight text-sm font-semibold text-foreground">Total {formatMoney(hotel.currency, hotel.price * nights)}</p>
+                    ) : null}
+                </div>
+
+                <div className="space-y-2">
+                    <PreferenceLink href={hotelHref} className="inline-flex h-11 w-full items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90">
+                        See availability
+                    </PreferenceLink>
+                    <p className="text-center text-[11px] text-muted-foreground">Flexible comparison, live supplier-backed rates.</p>
+                </div>
             </div>
         </article>
     );

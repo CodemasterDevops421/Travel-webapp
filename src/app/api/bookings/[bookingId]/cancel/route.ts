@@ -96,18 +96,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
 
     const nextStatus = requiresRefund ? booking.status : 'failed';
     const invoiceStatus = requiresRefund
-      ? (stripeRefundEnabled ? 'paid' : 'pending_refund')
+      ? 'pending_refund'
       : 'void';
     const cancellationOutcome = requiresRefund
       ? (stripeRefundEnabled ? 'refund_pending_webhook' : 'liteapi_refund_managed')
       : 'failed';
+    const refundPending = requiresRefund;
+    const refundManagedBy = requiresRefund && !stripeRefundEnabled ? 'liteapi' : null;
 
     const updated = await updateBookingStatusById(booking.id, nextStatus, {
       cancellationReason: reason,
       cancellationRequestedAt: new Date().toISOString(),
       cancellationOutcome,
-      ...(requiresRefund ? { refundPending: true } : {}),
-      ...(requiresRefund && !stripeRefundEnabled ? { refundManagedBy: 'liteapi' } : {}),
+      ...(refundPending ? { refundPending } : {}),
+      ...(refundManagedBy ? { refundManagedBy } : {}),
       ...(refundId ? { stripeRefundId: refundId } : {})
     });
 
@@ -126,7 +128,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
         paymentStatus: booking.payment_status,
         invoiceStatus,
         cancellationOutcome,
-        refundId
+        refundId,
+        refundPending,
+        refundManagedBy
       },
       { status: 200 }
     );

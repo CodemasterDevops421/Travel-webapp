@@ -1,0 +1,153 @@
+
+> travel-webapp@2.0.0 dev
+> next dev
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.29.168:3000
+
+ ✓ Starting...
+ ✓ Ready in 24.9s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 641ms (209 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 19.8s (1961 modules)
+ GET / 200 in 25200ms
+ ○ Compiling /search ...
+ ✓ Compiled /search in 4.5s (1959 modules)
+ GET /search?q=Andaman%20and%20Nicobar%20Islands&checkin=2026-03-10&checkout=2026-03-11&adults=2&rooms=1&language=en&currency=INR 307 in 9470ms
+ ○ Compiling /stays/[destination] ...
+ ✓ Compiled /stays/[destination] in 5.6s (2148 modules)
+ GET /stays/andaman-and-nicobar-islands?checkin=2026-03-10&checkout=2026-03-11&guests=2&rooms=1&language=en&currency=INR&view=grid&sort=popularity&page=1 200 in 11707ms
+ ✓ Compiled in 2.9s (959 modules)
+ ✓ Compiled in 2.1s (959 modules)
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+<w> [webpack.cache.PackFileCacheStrategy] Skipped not serializable cache item 'Compilation/modules|C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\node_modules\next\dist\build\webpack\loaders\css-loader\src\index.js??ruleSet[1].rules[14].oneOf[10].use[2]!C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\node_modules\next\dist\build\webpack\loaders\postcss-loader\src\index.js??ruleSet[1].rules[14].oneOf[10].use[3]!C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css': No serializer registered for PostCSSSyntaxError
+<w> while serializing webpack/lib/cache/PackFileCacheStrategy.PackContentItems -> webpack/lib/NormalModule -> webpack/lib/ModuleBuildError -> PostCSSSyntaxError
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+ ⨯ ./src/app/globals.css:143:3
+Syntax error: C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css The `bg-card/92` class does not exist. If `bg-card/92` is a custom class, make sure it is defined within a `@layer` directive.
+
+ [90m 141 | [39m
+ [90m 142 | [39m[33m.glass-panel[39m [33m{[39m
+[1m[31m>[39m[22m[90m 143 | [39m  [36m@apply[39m rounded-[33m[[39m[36mvar[39m[36m(--surface-radius)[39m[33m][39m border border-border/70 bg-card/92 backdrop-blur-2xl[33m;[39m
+ [90m     | [39m  [1m[31m^[39m[22m
+ [90m 144 | [39m  box-shadow[33m:[39m [36mvar[39m[36m(--surface-shadow-lg)[39m[33m;[39m
+ [90m 145 | [39m[33m}[39m
+<w> [webpack.cache.PackFileCacheStrategy] Skipped not serializable cache item 'Compilation/modules|C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\node_modules\next\dist\build\webpack\loaders\css-loader\src\index.js??ruleSet[1].rules[14].oneOf[10].use[2]!C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\node_modules\next\dist\build\webpack\loaders\postcss-loader\src\index.js??ruleSet[1].rules[14].oneOf[10].use[3]!C:\Users\Lenovo\Downloads\travelapp\Travel-webapp\src\app\globals.css': No serializer registered for PostCSSSyntaxError
+<w> while serializing webpack/lib/cache/PackFileCacheStrategy.PackContentItems -> webpack/lib/NormalModule -> webpack/lib/ModuleBuildError -> PostCSSSyntaxError

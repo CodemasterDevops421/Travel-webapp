@@ -40,6 +40,25 @@ describe('env parsing', () => {
     expect(() => assertProductionReadiness()).toThrow(/Production configuration invalid/i);
   });
 
+  it('allows Vercel preview deployments to skip full live-production readiness gates', async () => {
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('LITEAPI_ENV', 'sandbox');
+    vi.stubEnv('LITEAPI_API_KEY', 'sand_test_key');
+    vi.stubEnv('QUOTE_SIGNING_SECRET', '');
+    vi.stubEnv('BOOKING_VIEW_TOKEN_SECRET', '');
+    vi.stubEnv('LITEAPI_WEBHOOK_SECRET', '');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'supabase-service-role-placeholder');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    vi.stubEnv('BOOKING_API_AUTH_SECRET', '');
+    vi.stubEnv('STRICT_PERSISTENCE_MODE', 'false');
+
+    const { assertProductionReadiness } = await import('@/server/env');
+    expect(() => assertProductionReadiness()).not.toThrow();
+  });
+
   it('selects LiteAPI runtime config from environment mode', async () => {
     vi.resetModules();
     vi.stubEnv('NODE_ENV', 'test');
