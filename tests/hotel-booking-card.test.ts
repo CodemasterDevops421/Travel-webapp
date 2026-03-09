@@ -13,9 +13,19 @@ describe('hotel booking card selected-rate contract', () => {
   );
 
   it('keeps one selected-rate source of truth shared by room cards and sticky card', () => {
-    expect(roomSectionSource).toContain('onClick={() => setSelectedRateKey(rateKey)}');
+    expect(roomSectionSource).toContain('setSelectedRateKey(rateKey);');
+    expect(roomSectionSource).toContain('onChooseRate(rate);');
     expect(source).toContain('const groupedRates = useMemo(() =>');
     expect(roomSectionSource).toContain('group.offers.map((rate) =>');
+  });
+
+  it('moves booking forward directly from the chosen room row', () => {
+    const parentSource = readFileSync(resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'), 'utf8');
+    expect(roomSectionSource).toContain("isSelected ? 'Continue booking' : isRecommended ? 'Choose recommended' : 'Choose room'");
+    expect(parentSource).toContain('const router = useRouter();');
+    expect(parentSource).toContain('function handleChooseRate(rate: HotelRateWithCancellationContext)');
+    expect(parentSource).toContain('router.push(buildBookingHref(rate) as any);');
+    expect(source).toContain('onChooseRate: (rate: HotelRateWithCancellationContext) => void;');
   });
 
   it('verifies state contract matches selected props in parent', () => {

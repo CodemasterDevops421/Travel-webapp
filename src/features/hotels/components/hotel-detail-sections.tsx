@@ -29,6 +29,7 @@ type HotelDetailSectionsProps = {
   selectedRate: HotelRateWithCancellationContext | null;
   recommendedRateKey: string | null;
   setSelectedRateKey: (key: string) => void;
+  onChooseRate: (rate: HotelRateWithCancellationContext) => void;
   buildRateKey: (rate: Pick<HotelRateWithCancellationContext, 'offerId' | 'roomId'>) => string;
   getCancellationCopy: (rate: HotelRateWithCancellationContext) => CancellationCopy;
   formatMoney: (currency: string, amount: number | null, compact?: boolean) => string;
@@ -59,6 +60,7 @@ export function HotelDetailSections({
   selectedRate,
   recommendedRateKey,
   setSelectedRateKey,
+  onChooseRate,
   buildRateKey,
   getCancellationCopy,
   formatMoney,
@@ -320,6 +322,7 @@ export function HotelDetailSections({
         recommendedRateKey={recommendedRateKey}
         buildRateKey={buildRateKey}
         setSelectedRateKey={setSelectedRateKey}
+        onChooseRate={onChooseRate}
         getCancellationCopy={getCancellationCopy}
         formatMoney={formatMoney}
         onActivate={() => setActiveTab('rooms')}

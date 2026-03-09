@@ -5,11 +5,13 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { publicEnv } from '@/shared/env.public';
 import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
+import { useAuth } from '@/shared/hooks/use-auth';
 
 const formSchema = z.object({
   hotelId: z.string().trim().min(1),
@@ -274,6 +276,10 @@ async function ensurePaymentScriptLoaded(): Promise<void> {
 }
 
 export function BookingConsole({ initialValues, preferredLanguage, preferredCurrency }: BookingConsoleProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { user, isLoading: authIsLoading, error: authError } = useAuth();
   const isDevEnvironment = process.env.NODE_ENV !== 'production';
   const [prebook, setPrebook] = useState<PrebookResult | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -451,10 +457,24 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     }
   });
 
+  async function ensureSignedInForPayment(): Promise<void> {
+    if (authIsLoading) {
+      throw new Error('Checking your account before payment. Please try again.');
+    }
+
+    if (!user) {
+      const query = searchParams.toString();
+      const redirectPath = query ? `${pathname}?${query}` : pathname;
+      router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
+      throw new Error(authError ?? 'Sign in to continue to secure payment.');
+    }
+  }
+
   async function startPayment(values: FormValues, prebookPayload?: PrebookResult): Promise<void> {
     const activePrebook = prebookPayload ?? prebook;
     if (!activePrebook) return;
     setPaymentError(null);
+    await ensureSignedInForPayment();
 
     const guestDistribution = buildPrebookGuests(values.adults, values.rooms);
     const guestsPayload = guestDistribution.map((_, index) => ({
@@ -517,6 +537,14 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   }
 
   const onSubmit = form.handleSubmit(async (values) => {
+    try {
+      await ensureSignedInForPayment();
+    } catch (error: unknown) {
+      setCheckoutStep('payment');
+      setPaymentError(errorMessage(error));
+      return;
+    }
+
     if (!prebook) {
       const createdPrebook = await prebookMutation.mutateAsync(values);
       await startPayment(values, createdPrebook).catch((error: unknown) => {
@@ -615,6 +643,11 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
             <Button className="rounded-none shadow-none w-full md:w-auto px-8" type="submit" size="lg" disabled={prebookMutation.isPending}>
               {prebookMutation.isPending ? 'Securing your quote...' : !prebook ? 'Validate and launch payment' : 'Launch secure payment'}
             </Button>
+            {!user ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                You can review the booking details now. We will ask you to sign in only before payment starts.
+              </p>
+            ) : null}
           </div>
         </form>
 

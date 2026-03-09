@@ -28,6 +28,7 @@ type PropertyRoomSelectionSectionProps = {
   recommendedRateKey: string | null;
   buildRateKey: (rate: Pick<HotelRateWithCancellationContext, 'offerId' | 'roomId'>) => string;
   setSelectedRateKey: (key: string) => void;
+  onChooseRate: (rate: HotelRateWithCancellationContext) => void;
   getCancellationCopy: (rate: HotelRateWithCancellationContext) => CancellationCopy;
   formatMoney: (currency: string, amount: number | null, compact?: boolean) => string;
   onActivate: () => void;
@@ -44,6 +45,7 @@ export function PropertyRoomSelectionSection({
   recommendedRateKey,
   buildRateKey,
   setSelectedRateKey,
+  onChooseRate,
   getCancellationCopy,
   formatMoney,
   onActivate
@@ -164,7 +166,10 @@ export function PropertyRoomSelectionSection({
                             </div>
                             <button
                               type="button"
-                              onClick={() => setSelectedRateKey(rateKey)}
+                              onClick={() => {
+                                setSelectedRateKey(rateKey);
+                                onChooseRate(rate);
+                              }}
                               className={cn(
                                 'inline-flex w-full items-center justify-center rounded-full px-4.5 py-2.5 text-sm font-semibold transition-all md:w-[170px]',
                                 isSelected
@@ -172,7 +177,7 @@ export function PropertyRoomSelectionSection({
                                   : 'border border-border bg-card text-foreground hover:border-primary/40 hover:text-primary'
                               )}
                             >
-                              {isSelected ? 'Selected room' : isRecommended ? 'Choose recommended' : 'Choose room'}
+                              {isSelected ? 'Continue booking' : isRecommended ? 'Choose recommended' : 'Choose room'}
                             </button>
                           </div>
                         </div>

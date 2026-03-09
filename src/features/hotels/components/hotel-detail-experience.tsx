@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { HotelDetails, HotelRateOption } from '@/server/liteapi';
 import { useHotelDetails } from '@/features/hotels/hooks/use-hotel-details';
 import { useHotelRates, type HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
@@ -109,6 +109,7 @@ function getCancellationCopy(rate: HotelRateWithCancellationContext): { status: 
 }
 
 export function HotelDetailExperience({ hotelId, checkin, checkout, adults, rooms, hotel: initialHotel, rates: initialRates }: HotelDetailExperienceProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
@@ -185,6 +186,17 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     });
     return `/booking?${query.toString()}`;
   }, [selectedRate, hotelId, checkin, checkout, adults, rooms]);
+  const buildBookingHref = (rate: HotelRateWithCancellationContext) => {
+    const query = buildBookingQuery(rate, {
+      hotelId,
+      checkin,
+      checkout,
+      adults,
+      rooms
+    });
+
+    return `/booking?${query.toString()}`;
+  };
   const address = hotel?.address ?? `${hotel?.city ?? 'Unknown city'}${hotel?.countryCode ? `, ${hotel.countryCode}` : ''}`;
   const reviewBreakdown = hotel?.reviewBreakdown ?? [];
   const reviews = hotel?.reviews ?? [];
@@ -231,6 +243,11 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     } finally {
       setAskLoading(false);
     }
+  }
+
+  function handleChooseRate(rate: HotelRateWithCancellationContext) {
+    setSelectedRateKey(buildRateKey(rate));
+    router.push(buildBookingHref(rate) as any);
   }
 
   return (
@@ -303,6 +320,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
             selectedRate={selectedRate}
             recommendedRateKey={recommendedRateKey}
             setSelectedRateKey={setSelectedRateKey}
+            onChooseRate={handleChooseRate}
             buildRateKey={buildRateKey}
             getCancellationCopy={getCancellationCopy}
             formatMoney={formatMoney}
