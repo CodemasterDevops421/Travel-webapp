@@ -188,7 +188,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             className={cn(
                                 "w-full border-0 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-0",
                                 isCompact
-                                    ? "h-10 pl-10 text-xs font-medium leading-none md:h-11"
+                                    ? "h-10 pl-10 text-xs font-medium leading-none md:h-11 md:truncate"
                                     : "h-14 pl-14 text-sm font-medium leading-none md:h-16 md:pt-5"
                             )}
                             placeholder="Enter a destination"
@@ -240,7 +240,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     </div>
 
                     {/* Dates - Split into Check-in / Check-out */}
-                    <div className="flex flex-1 items-center border-t border-border/20 md:border-t-0 md:border-l">
+                    <div className="flex flex-1 items-center border-t border-border/20 md:flex-[0.94] md:border-t-0 md:border-l">
                         <div className="relative flex-1">
                             {isHero ? (
                                 <span className="ui-label pointer-events-none absolute left-10 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
@@ -258,7 +258,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                 className={cn(
                                 "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
                                 isCompact
-                                    ? "h-11 pl-8 pr-2 text-[11px] leading-none md:h-12"
+                                    ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
                                         : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
                                 )}
                                 value={checkIn}
@@ -278,7 +278,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                 className={cn(
                                 "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
                                 isCompact
-                                    ? "h-11 pl-8 pr-2 text-[11px] leading-none md:h-12"
+                                    ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
                                         : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
                                 )}
                                 value={checkOut}
@@ -291,7 +291,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     {/* Guests & Search Button */}
                     <div className={cn(
                         "flex flex-1 items-center justify-between border-t border-border/20 md:border-t-0 md:border-l",
-                        isCompact ? "pl-1 pb-1 pt-1 md:p-0" : "pl-2 pb-2 pt-2 md:p-0"
+                        isCompact ? "pl-1 pb-1 pt-1 md:min-w-[172px] md:flex-[0.72] md:p-0" : "pl-2 pb-2 pt-2 md:p-0"
                     )}>
                         <Popover>
                             <PopoverTrigger asChild>
@@ -315,8 +315,8 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                     )} strokeWidth={1.5} />
                                     <div className="flex flex-col">
                                         <span className={cn(
-                                            "ui-label font-semibold text-foreground",
-                                            isCompact ? "text-[11px]" : "text-xs"
+                                            "ui-label font-semibold text-foreground whitespace-nowrap",
+                                            isCompact ? "text-[10px] md:text-[10.5px]" : "text-xs"
                                         )}>{rooms} Room, {adults} Guests</span>
                                     </div>
                                 </button>

@@ -83,6 +83,38 @@ function buildBookingQuery(
   return bookingQuery;
 }
 
+function formatCancellationDeadline(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return value;
+
+  const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+  const isoCandidate = normalized.includes('T') ? normalized : normalized.replace(' ', 'T');
+  const parseCandidate = hasExplicitTimezone ? isoCandidate : `${isoCandidate}Z`;
+  const parsed = new Date(parseCandidate);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  const showTime = !/T?00:00(?::00(?:\.000)?)?(?:Z|[+-]\d{2}:?\d{2})?$/i.test(parseCandidate);
+
+  if (!showTime) {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(parsed);
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(parsed);
+}
+
 function getCancellationCopy(rate: HotelRateWithCancellationContext): { status: string; detail: string } {
   if (rate.isRefundable === false) {
     return {
@@ -93,7 +125,7 @@ function getCancellationCopy(rate: HotelRateWithCancellationContext): { status: 
   if (rate.cancellationDeadline) {
     return {
       status: 'Free cancellation',
-      detail: `Cancel until ${rate.cancellationDeadline}`
+      detail: `Cancel until ${formatCancellationDeadline(rate.cancellationDeadline)}`
     };
   }
   if (rate.isRefundable === true) {
