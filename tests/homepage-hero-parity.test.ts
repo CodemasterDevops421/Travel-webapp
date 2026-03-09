@@ -19,5 +19,8 @@ describe('homepage hero parity regression coverage', () => {
     expect(heroSearchSource).toContain('Where');
     expect(heroSearchSource).toContain('Dates');
     expect(heroSearchSource).toContain('Guests');
+    expect(heroSearchSource).toContain('function formatSearchDate(value: string): string');
+    expect(heroSearchSource).toContain('formatSearchDate(checkIn)');
+    expect(heroSearchSource).toContain('formatSearchDate(checkOut)');
   });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, LayoutGrid, ListFilter, Map as MapIcon } from 'lucide-react';
+import { ArrowUpDown, CalendarDays, ListFilter, List as ListIcon, Map as MapIcon } from 'lucide-react';
 import type { Route } from 'next';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -257,11 +257,11 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
 
   return (
     <main className="page-shell space-y-5 py-6 md:space-y-6 md:py-8">
-      <div className="surface-shell p-4">
+      <div className="surface-shell p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Search results</p>
-            <h1 className="text-xl font-heading font-bold text-foreground sm:text-2xl">{query}</h1>
+            <h1 className="ui-heading text-2xl font-bold text-foreground sm:text-[2rem]">{query}</h1>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-1">
                 <CalendarDays className="h-3.5 w-3.5" />
@@ -286,11 +286,12 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-border/70 pt-4">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
+          <div className="flex flex-wrap items-center gap-2.5">
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 lg:hidden"
+            className="gap-2 rounded-full lg:hidden"
             onClick={() => setShowMobileFilters((previous) => !previous)}
           >
             <ListFilter className="h-3.5 w-3.5" />
@@ -302,10 +303,11 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
             )}
           </Button>
 
-          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-2 text-sm">
-            <span className="hidden text-muted-foreground sm:inline">Sort by</span>
+          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-2 text-sm shadow-sm">
+            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="hidden text-muted-foreground sm:inline">Sort by:</span>
             <select
-              className="cursor-pointer bg-transparent font-semibold text-foreground outline-none"
+              className="cursor-pointer bg-transparent pr-2 font-semibold capitalize text-foreground outline-none"
               value={urlState.sort}
               onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                 updateUrlState((previous) => ({
@@ -321,8 +323,9 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               <option value="distance">distance to center</option>
             </select>
           </div>
+          </div>
 
-          <div className="flex rounded-full border border-border/70 bg-background p-1">
+          <div className="flex rounded-full border border-border/70 bg-background p-1 shadow-sm">
             <button
               onClick={() => {
                 updateUrlState((previous) => ({ ...previous, view: 'grid' }));
@@ -330,12 +333,12 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               className={cn(
                 'flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
                 urlState.view === 'grid'
-                  ? 'bg-background text-primary shadow-sm'
+                  ? 'bg-primary/8 text-primary shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <LayoutGrid className="h-3 w-3" />
-              Grid
+              <ListIcon className="h-3 w-3" />
+              List
             </button>
             <button
               onClick={() => {
@@ -344,7 +347,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               className={cn(
                 'flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
                 urlState.view === 'map'
-                  ? 'bg-background text-primary shadow-sm'
+                  ? 'bg-primary/8 text-primary shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >

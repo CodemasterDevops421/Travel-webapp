@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Heart, Star } from 'lucide-react';
+import { BedDouble, Coffee, Heart, MapPin, ParkingSquare, Sparkles, Star, UtensilsCrossed, Wifi } from 'lucide-react';
 import { PreferenceLink } from '@/components/navigation/preference-link';
 import { cn } from '@/shared/lib/utils';
 import { PropertyPreview } from '@/features/search/hooks/use-property-preview';
@@ -61,6 +61,43 @@ function getNights(checkin: string, checkout: string): number {
     return Math.max(1, Math.round(diff / 86400000));
 }
 
+function normalizeAmenityToken(value: string): string {
+    return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+}
+
+function formatDistance(distanceKm: number | null | undefined): string | null {
+    if (!Number.isFinite(distanceKm) || distanceKm === null || distanceKm === undefined || distanceKm <= 0) {
+        return null;
+    }
+    if (distanceKm < 1) {
+        return `${Math.round(distanceKm * 1000)} m from centre`;
+    }
+    return `${distanceKm.toFixed(distanceKm >= 10 ? 0 : 1)} km from centre`;
+}
+
+function getAmenityHighlights(amenities: string[] | undefined) {
+    const normalized = (amenities ?? []).map((item) => ({
+        raw: item,
+        normalized: normalizeAmenityToken(item)
+    }));
+
+    const picks: Array<{ key: string; label: string; icon: typeof Coffee }> = [];
+    const register = (key: string, label: string, icon: typeof Coffee, matcher: (token: string) => boolean) => {
+        if (picks.some((item) => item.key === key)) return;
+        const match = normalized.find((item) => matcher(item.normalized));
+        if (!match) return;
+        picks.push({ key, label, icon });
+    };
+
+    register('breakfast', 'Breakfast included', Coffee, (token) => token.includes('breakfast'));
+    register('wifi', 'WiFi available', Wifi, (token) => token.includes('wifi') || token.includes('internet'));
+    register('parking', 'Parking', ParkingSquare, (token) => token.includes('parking'));
+    register('restaurant', 'Restaurant', UtensilsCrossed, (token) => token.includes('restaurant') || token.includes('dining'));
+    register('spa', 'Spa/wellness center', Sparkles, (token) => token.includes('spa') || token.includes('wellness'));
+
+    return picks.slice(0, 3);
+}
+
 export function HorizontalHotelCard({
     hotel,
     checkin,
@@ -90,7 +127,9 @@ export function HorizontalHotelCard({
     const hotelHref = `/hotels/${hotel.hotelId}?${detailsParams.toString()}`;
     const loginHref = `/auth/login?redirect=${encodeURIComponent(hotelHref)}`;
     const nights = getNights(checkin, checkout);
-    const amenityHighlights = (hotel.amenities ?? []).slice(0, 3);
+    const amenityHighlights = getAmenityHighlights(hotel.amenities);
+    const locationLine = hotel.address?.trim() || [hotel.city, hotel.countryCode].filter(Boolean).join(', ');
+    const distanceCopy = formatDistance(hotel.distanceFromCenterKm ?? null);
 
     return (
         <article className="group rounded-[22px] border border-border/70 bg-card px-3 py-3 transition-all hover:border-primary/20 hover:shadow-[var(--surface-shadow)] md:grid md:grid-cols-[220px,minmax(0,1fr),176px] md:items-stretch md:gap-4 md:px-3.5 md:py-3.5">
@@ -134,17 +173,25 @@ export function HorizontalHotelCard({
                         <PreferenceLink href={hotelHref} className="focus-visible:outline-none">
                             <h3 className="ui-heading mt-1 line-clamp-2 text-lg font-bold text-foreground transition-colors group-hover:text-primary">{hotel.name}</h3>
                         </PreferenceLink>
-                        <PreferenceLink href={hotelHref} className="mt-1 flex items-center gap-2 text-sm text-foreground underline underline-offset-2">
-                            <span className="line-clamp-1">{hotel.city}, {hotel.countryCode}</span>
-                            <span className="text-muted-foreground no-underline">•</span>
-                            <span className="text-muted-foreground no-underline">Map view</span>
-                        </PreferenceLink>
+                        <div className="mt-1 space-y-1.5 text-sm text-muted-foreground">
+                            <PreferenceLink href={hotelHref} className="flex items-center gap-1.5 text-foreground/85 underline underline-offset-2">
+                                <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="line-clamp-1">{locationLine}</span>
+                            </PreferenceLink>
+                            {distanceCopy ? (
+                                <p className="flex items-center gap-1.5 text-[12px]">
+                                    <BedDouble className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    <span>{distanceCopy}</span>
+                                </p>
+                            ) : null}
+                        </div>
 
                         {amenityHighlights.length > 0 ? (
                             <div className="mt-3 flex flex-wrap gap-1.5">
                                 {amenityHighlights.map((amenity) => (
-                                    <span key={amenity} className="rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-[11px] text-foreground/90">
-                                        {amenity}
+                                    <span key={amenity.key} className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-[11px] text-foreground/90">
+                                        <amenity.icon className="h-3 w-3 text-muted-foreground" />
+                                        {amenity.label}
                                     </span>
                                 ))}
                             </div>

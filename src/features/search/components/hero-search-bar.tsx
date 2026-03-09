@@ -25,6 +25,16 @@ export type HeroSearchBarProps = {
     };
 };
 
+function formatSearchDate(value: string): string {
+    if (!value) return 'Select date';
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric'
+    }).format(parsed);
+}
+
 export function HeroSearchBar({ variant = 'default', className, initialValues }: HeroSearchBarProps) {
     const initialCheckIn = initialValues?.checkIn;
     const initialCheckOut = initialValues?.checkOut;
@@ -241,51 +251,95 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
                     {/* Dates - Split into Check-in / Check-out */}
                     <div className="flex flex-1 items-center border-t border-border/20 md:flex-[0.94] md:border-t-0 md:border-l">
-                        <div className="relative flex-1">
-                            {isHero ? (
-                                <span className="ui-label pointer-events-none absolute left-10 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
-                                    Dates
-                                </span>
-                            ) : null}
-                            <div className={cn(
-                                "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
-                                isCompact && "left-3"
-                            )}>
-                                <Calendar className={cn("text-primary/80", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} strokeWidth={1.5} />
-                            </div>
-                            <input
-                                type="date"
-                                className={cn(
-                                "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
-                                isCompact
-                                    ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
-                                        : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
-                                )}
-                                value={checkIn}
-                                min={today.toISOString().slice(0, 10)}
-                                onChange={(e) => setCheckIn(e.target.value)}
-                            />
-                        </div>
-                        <div className="relative flex-1 border-l border-border/20">
-                            <div className={cn(
-                                "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
-                                isCompact && "left-3"
-                            )}>
-                                <Calendar className={cn("text-primary/80", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} strokeWidth={1.5} />
-                            </div>
-                            <input
-                                type="date"
-                                className={cn(
-                                "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
-                                isCompact
-                                    ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
-                                        : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
-                                )}
-                                value={checkOut}
-                                min={checkIn}
-                                onChange={(e) => setCheckOut(e.target.value)}
-                            />
-                        </div>
+                        {isHero ? (
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <button
+                                        type="button"
+                                        className="relative grid h-14 w-full grid-cols-2 text-left md:h-16 md:pt-5"
+                                    >
+                                        <span className="ui-label pointer-events-none absolute left-10 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
+                                            Dates
+                                        </span>
+                                        <span className="relative flex items-center pl-10 pr-3 text-sm font-medium text-foreground">
+                                            <Calendar className="absolute left-4 h-4 w-4 text-primary/80" strokeWidth={1.5} />
+                                            <span className="numeric-tight whitespace-nowrap">{formatSearchDate(checkIn)}</span>
+                                        </span>
+                                        <span className="relative flex items-center border-l border-border/20 pl-10 pr-3 text-sm font-medium text-foreground">
+                                            <Calendar className="absolute left-4 h-4 w-4 text-primary/80" strokeWidth={1.5} />
+                                            <span className="numeric-tight whitespace-nowrap">{formatSearchDate(checkOut)}</span>
+                                        </span>
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[360px] rounded-[20px] border border-border bg-card p-4 shadow-[var(--surface-shadow-lg)]" align="center">
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <label className="space-y-2 text-sm">
+                                            <span className="ui-label block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Check-in</span>
+                                            <input
+                                                type="date"
+                                                className="numeric-tight h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                value={checkIn}
+                                                min={today.toISOString().slice(0, 10)}
+                                                onChange={(e) => setCheckIn(e.target.value)}
+                                            />
+                                        </label>
+                                        <label className="space-y-2 text-sm">
+                                            <span className="ui-label block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Check-out</span>
+                                            <input
+                                                type="date"
+                                                className="numeric-tight h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                value={checkOut}
+                                                min={checkIn}
+                                                onChange={(e) => setCheckOut(e.target.value)}
+                                            />
+                                        </label>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        ) : (
+                            <>
+                                <div className="relative flex-1">
+                                    <div className={cn(
+                                        "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
+                                        isCompact && "left-3"
+                                    )}>
+                                        <Calendar className={cn("text-primary/80", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} strokeWidth={1.5} />
+                                    </div>
+                                    <input
+                                        type="date"
+                                        className={cn(
+                                        "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
+                                        isCompact
+                                            ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
+                                                : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
+                                        )}
+                                        value={checkIn}
+                                        min={today.toISOString().slice(0, 10)}
+                                        onChange={(e) => setCheckIn(e.target.value)}
+                                    />
+                                </div>
+                                <div className="relative flex-1 border-l border-border/20">
+                                    <div className={cn(
+                                        "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
+                                        isCompact && "left-3"
+                                    )}>
+                                        <Calendar className={cn("text-primary/80", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} strokeWidth={1.5} />
+                                    </div>
+                                    <input
+                                        type="date"
+                                        className={cn(
+                                        "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
+                                        isCompact
+                                            ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
+                                                : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
+                                        )}
+                                        value={checkOut}
+                                        min={checkIn}
+                                        onChange={(e) => setCheckOut(e.target.value)}
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Guests & Search Button */}
