@@ -135,12 +135,17 @@
 
 /* ── Premium Glassmorphism ── */
 .glass {
-  @apply border border-border/70 bg-card/85 backdrop-blur-xl;
+  border: 1px solid hsl(var(--border) / 0.7);
+  background: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(24px);
   box-shadow: var(--surface-shadow);
 }
 
 .glass-panel {
-  @apply rounded-[var(--surface-radius)] border border-border/70 bg-card/92 backdrop-blur-2xl;
+  border: 1px solid hsl(var(--border) / 0.7);
+  background: hsl(var(--card) / 0.92);
+  border-radius: var(--surface-radius);
+  backdrop-filter: blur(40px);
   box-shadow: var(--surface-shadow-lg);
 }
 
