@@ -256,9 +256,9 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
   const mapViewActive = urlState.view === 'map';
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
-      <div className="mb-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <main className="page-shell space-y-5 py-6 md:space-y-6 md:py-8">
+      <div className="surface-shell p-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Search results</p>
             <h1 className="text-xl font-heading font-bold text-foreground sm:text-2xl">{query}</h1>
@@ -286,7 +286,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-border/70 pt-4">
           <Button
             variant="outline"
             size="sm"
@@ -302,8 +302,8 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
             )}
           </Button>
 
-          <div className="flex items-center gap-2 text-sm">
-            <span className="hidden text-muted-foreground sm:inline">Sort by:</span>
+          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-2 text-sm">
+            <span className="hidden text-muted-foreground sm:inline">Sort by</span>
             <select
               className="cursor-pointer bg-transparent font-semibold text-foreground outline-none"
               value={urlState.sort}
@@ -322,13 +322,13 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
             </select>
           </div>
 
-          <div className="flex rounded-lg border border-border/50 bg-muted/50 p-1">
+          <div className="flex rounded-full border border-border/70 bg-background p-1">
             <button
               onClick={() => {
                 updateUrlState((previous) => ({ ...previous, view: 'grid' }));
               }}
               className={cn(
-                'flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                'flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
                 urlState.view === 'grid'
                   ? 'bg-background text-primary shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -342,7 +342,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
                 updateUrlState((previous) => ({ ...previous, view: 'map' }));
               }}
               className={cn(
-                'flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-all',
+                'flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
                 urlState.view === 'map'
                   ? 'bg-background text-primary shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -367,7 +367,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
 
       <div className="flex flex-wrap items-center gap-2">
         <button
-          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={() =>
             updateUrlState((previous) => ({
               ...previous,
@@ -379,7 +379,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           Guest rating 8+ (50+ reviews)
         </button>
         <button
-          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={() =>
             updateUrlState((previous) => ({
               ...previous,
@@ -392,7 +392,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           Budget stays under $200
         </button>
         <button
-          className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={() =>
             updateUrlState((previous) => ({
               ...previous,
@@ -425,8 +425,8 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           </div>
         )}
 
-      <div className="grid gap-8 lg:grid-cols-[300px,1fr]">
-        <div className="sticky top-24 hidden self-start lg:block">
+      <div className="grid gap-5 lg:grid-cols-[286px,minmax(0,1fr)] lg:items-start">
+        <div className="sticky top-[var(--header-offset)] hidden self-start lg:block">
             <FiltersSidebar
               filters={urlState.filters}
               onFilterChange={(nextFilters: FilterState) => {
@@ -443,9 +443,9 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
             />
           </div>
 
-        <div className={cn('space-y-4', mapViewActive && 'lg:grid lg:grid-cols-[1fr,420px] lg:gap-4 lg:space-y-0')}>
+        <div className={cn('space-y-4', mapViewActive && 'lg:grid lg:grid-cols-[minmax(0,1fr),380px] lg:gap-4 lg:space-y-0')}>
           {mapViewActive && (
-            <article className="mb-4 overflow-hidden rounded-xl border border-border shadow-sm lg:order-2 lg:mb-0 lg:sticky lg:top-24 lg:h-[calc(100vh-7rem)]">
+            <article className="surface-shell-subtle mb-4 overflow-hidden lg:order-2 lg:mb-0 lg:sticky lg:top-[var(--header-offset)] lg:h-[calc(100vh-7.5rem)]">
               {deferMapRender ? (
                 <SearchResultsMap hotels={paginatedListings} />
               ) : (
@@ -459,9 +459,9 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           <div className={cn(mapViewActive && 'lg:order-1 lg:space-y-4')}>
 
           {isFetching ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[1, 2, 3].map((item) => (
-                <div key={item} className="h-48 w-full animate-pulse rounded-xl bg-gray-100 dark:bg-slate-800" />
+                <div key={item} className="h-44 w-full animate-pulse rounded-[20px] bg-gray-100 dark:bg-slate-800" />
               ))}
             </div>
           ) : listings.length > 0 ? (
@@ -487,7 +487,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               ))}
 
               {totalPages > 1 && (
-                <div className="mt-8 flex items-center justify-center gap-4">
+                <div className="mt-7 flex items-center justify-center gap-4">
                   <Button
                     variant="outline"
                     size="sm"

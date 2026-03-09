@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Image from 'next/image';
-import { CheckCircle2, ChevronLeft, ChevronRight, Coffee, MapPin, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { CheckCircle2, Coffee, MapPin, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import type { HotelDetails } from '@/server/liteapi';
 import type { HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
@@ -71,11 +71,8 @@ export function HotelDetailSections({
   askAnswer,
   askHotelAI
 }: HotelDetailSectionsProps) {
-  const reviewRailRef = useRef<HTMLDivElement | null>(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [reviewSort, setReviewSort] = useState<'top' | 'newest' | 'oldest'>('top');
-  const [isReviewRailPaused, setIsReviewRailPaused] = useState(false);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   function parseReviewDate(value: string | null): number {
     if (!value) return 0;
@@ -95,24 +92,6 @@ export function HotelDetailSections({
       year: 'numeric'
     }).format(parsed);
   }
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = () => setPrefersReducedMotion(mediaQuery.matches);
-    onChange();
-
-    if (typeof mediaQuery.addEventListener === 'function') {
-      mediaQuery.addEventListener('change', onChange);
-      return () => mediaQuery.removeEventListener('change', onChange);
-    }
-
-    mediaQuery.addListener(onChange);
-    return () => mediaQuery.removeListener(onChange);
-  }, []);
 
   const travelersQuestions = [
     {
@@ -163,26 +142,6 @@ export function HotelDetailSections({
   }, [reviewSort, reviews]);
   const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 6);
 
-  useEffect(() => {
-    if (showAllReviews || prefersReducedMotion || isReviewRailPaused || visibleReviews.length <= 1) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      const rail = reviewRailRef.current;
-      if (!rail) return;
-
-      const isAtEnd = rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 12;
-      if (isAtEnd) {
-        rail.scrollTo({ left: 0, behavior: 'smooth' });
-        return;
-      }
-
-      rail.scrollBy({ left: 360, behavior: 'smooth' });
-    }, 3200);
-
-    return () => window.clearInterval(intervalId);
-  }, [isReviewRailPaused, prefersReducedMotion, showAllReviews, visibleReviews.length]);
   const groupedRates = useMemo(() => {
     const groups = new Map<string, {
       roomId: string;
@@ -253,7 +212,7 @@ export function HotelDetailSections({
   ].filter((item): item is string => Boolean(item));
 
   return (
-    <div className="flex flex-col gap-5 pb-16">
+    <div className="page-section flex flex-col pb-16">
       <section id="overview" className="scroll-mt-24 space-y-3" onMouseEnter={() => setActiveTab('overview')}>
         {isPartialDetail ? (
           <p className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -261,7 +220,7 @@ export function HotelDetailSections({
           </p>
         ) : null}
         {smartHighlights.length > 0 ? (
-          <ul className="grid gap-2.5 md:grid-cols-3">
+          <ul className="grid gap-2.5 lg:grid-cols-3">
             {smartHighlights.slice(0, 3).map((highlight) => (
               <li key={`${highlight.source}-${highlight.title}`} className="rounded-[16px] border border-border/70 bg-card px-3.5 py-3.5 shadow-[0_12px_28px_-28px_rgba(15,23,42,0.38)]">
                 <div className="flex items-center gap-2">
@@ -282,7 +241,7 @@ export function HotelDetailSections({
         )}
 
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr),minmax(0,0.9fr)]">
-          <article className="rounded-[16px] border border-border/70 bg-card p-4 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)]">
+          <article className="surface-shell-subtle p-4">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Popular facilities</h2>
@@ -305,7 +264,7 @@ export function HotelDetailSections({
             )}
           </article>
 
-          <article className="rounded-[16px] border border-border/70 bg-card p-4 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)]">
+          <article className="surface-shell-subtle p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Review snapshot</h2>
@@ -350,7 +309,7 @@ export function HotelDetailSections({
         </div>
       </section>
 
-      <section id="rooms" className="scroll-mt-24 space-y-3.5" onMouseEnter={() => setActiveTab('rooms')}>
+      <section id="rooms" className="surface-shell scroll-mt-24 space-y-4 p-3.5 md:p-4" onMouseEnter={() => setActiveTab('rooms')}>
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/70 pb-4">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Choose your room</h2>
@@ -408,7 +367,7 @@ export function HotelDetailSections({
                         <div
                           key={`${rate.offerId}-${rate.roomId}`}
                           className={cn(
-                            'grid gap-3 rounded-[15px] border px-3.5 py-3 transition-all md:grid-cols-[minmax(0,1.4fr),138px,156px] md:items-start',
+                            'grid gap-3 rounded-[15px] border px-3.5 py-3 transition-all lg:grid-cols-[minmax(0,1.4fr),138px,156px] lg:items-start',
                             isSelected ? 'border-primary bg-primary/[0.05] shadow-[0_16px_34px_-28px_rgba(37,99,235,0.75)]' : 'border-border bg-background',
                             isRecommended && !isSelected ? 'border-primary/30' : ''
                           )}
@@ -443,21 +402,21 @@ export function HotelDetailSections({
                             <p className="text-xs leading-5 text-muted-foreground">{cancellationCopy.detail}</p>
                           </div>
 
-                          <div className="space-y-1 rounded-[14px] border border-border/70 bg-card/70 p-3 md:text-right">
+                          <div className="space-y-1 rounded-[14px] border border-border/70 bg-card/70 p-3 lg:text-right">
                             <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Total stay rate</p>
                             <p className="text-[1.6rem] font-bold leading-none text-foreground">{formatMoney(rate.currency, rate.amount, true)}</p>
                             <p className="text-[11px] text-muted-foreground">1 room · taxes & fees included</p>
                           </div>
 
-                          <div className="flex flex-col gap-2 md:items-end">
+                          <div className="flex flex-col gap-2 lg:items-end">
                             <button
                               type="button"
                               onClick={() => setSelectedRateKey(buildRateKey(rate))}
-                              className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_10px_20px_-16px_rgba(37,99,235,0.85)] transition-all hover:bg-primary/90 hover:shadow-[0_14px_24px_-16px_rgba(37,99,235,0.95)] md:w-[156px]"
+                              className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_10px_20px_-16px_rgba(37,99,235,0.85)] transition-all hover:bg-primary/90 hover:shadow-[0_14px_24px_-16px_rgba(37,99,235,0.95)] lg:w-[156px]"
                             >
                               {isSelected ? 'Selected' : isRecommended ? 'Choose recommended offer' : 'Choose room'}
                             </button>
-                            <p className="text-center text-[11px] leading-5 text-muted-foreground md:text-right">
+                            <p className="text-center text-[11px] leading-5 text-muted-foreground lg:text-right">
                               {cancellationCopy.status}
                             </p>
                           </div>
@@ -472,7 +431,7 @@ export function HotelDetailSections({
         )}
       </section>
 
-      <section id="ask-ai" className="rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)]" onMouseEnter={() => setActiveTab('rooms')}>
+      <section id="ask-ai" className="surface-shell scroll-mt-24 p-3.5 md:p-4" onMouseEnter={() => setActiveTab('rooms')}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Ask AI</p>
         <h2 className="mt-1 text-lg font-semibold">Ask about this hotel</h2>
         <p className="mt-1 text-sm text-muted-foreground">Get quick answers before selecting a room.</p>
@@ -512,7 +471,7 @@ export function HotelDetailSections({
         {askAnswer ? <p className="mt-3 rounded-xl border border-border bg-background/70 p-3 text-sm">{askAnswer}</p> : null}
       </section>
 
-      <section id="reviews" className="scroll-mt-24 rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)] md:p-4" onMouseEnter={() => setActiveTab('reviews')}>
+      <section id="reviews" className="surface-shell scroll-mt-24 p-3.5 md:p-4" onMouseEnter={() => setActiveTab('reviews')}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2">
             <h2 className="text-xl font-semibold text-foreground">Guest reviews</h2>
@@ -528,7 +487,7 @@ export function HotelDetailSections({
         </div>
 
         {reviewHighlights && !reviewHighlights.lowSignal && (reviewHighlights.positiveTopics.length > 0 || reviewHighlights.tradeoffTopics.length > 0) ? (
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
               <div className="flex flex-wrap gap-2">
                 {[...reviewHighlights.positiveTopics, ...reviewHighlights.tradeoffTopics].slice(0, 6).map((topic) => (
                   <span key={`topic-${topic.label}`} className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground">
@@ -536,7 +495,7 @@ export function HotelDetailSections({
                   </span>
                 ))}
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2 lg:col-span-2">
                 <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                   <p className="text-xs uppercase tracking-[0.16em] text-emerald-800">Loved by guests</p>
                   {reviewHighlights.positiveTopics.length > 0 ? (
@@ -570,16 +529,18 @@ export function HotelDetailSections({
         )}
 
         {reviewBreakdown.length > 0 ? (
-          <div className="mt-5 space-y-2">
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
             {reviewBreakdown.slice(0, 4).map((item) => {
               const value = item.score ? Math.max(0, Math.min(10, item.score)) : 0;
               return (
-                <div key={item.label} className="grid grid-cols-[108px,1fr,44px] items-center gap-3 text-sm">
-                  <p className="text-foreground">{item.label}</p>
-                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div key={item.label} className="rounded-xl border border-border/70 bg-background px-3 py-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <p className="text-foreground">{item.label}</p>
+                    <p className="text-right text-muted-foreground">{value.toFixed(1)}</p>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
                     <div className="h-full rounded-full bg-primary" style={{ width: `${value * 10}%` }} />
                   </div>
-                  <p className="text-right text-muted-foreground">{value.toFixed(1)}</p>
                 </div>
               );
             })}
@@ -602,66 +563,56 @@ export function HotelDetailSections({
                   <option value="newest">Newest first</option>
                   <option value="oldest">Oldest first</option>
                 </select>
-                {!showAllReviews ? (
-                  <>
-                    <button
-                      type="button"
-                      className="rounded-full border border-border bg-background p-2 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-                      onClick={() => reviewRailRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-                      aria-label="Scroll reviews left"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-full border border-border bg-background p-2 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-                      onClick={() => reviewRailRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-                      aria-label="Scroll reviews right"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </>
-                ) : null}
               </div>
             </div>
 
-            <div
-              ref={reviewRailRef}
-              className={cn(
-                'mt-3 gap-3',
-                showAllReviews
-                  ? 'grid md:grid-cols-2'
-                  : 'flex snap-x snap-mandatory overflow-x-auto pb-2 scrollbar-none'
-              )}
-              onMouseEnter={() => setIsReviewRailPaused(true)}
-              onMouseLeave={() => setIsReviewRailPaused(false)}
-              onFocusCapture={() => setIsReviewRailPaused(true)}
-              onBlurCapture={() => setIsReviewRailPaused(false)}
-            >
-              {visibleReviews.map((review, index) => (
-                <article
-                  key={`${review.author}-${review.createdAt ?? index}`}
-                  className={cn(
-                    'rounded-[18px] border border-border bg-background p-4 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.45)]',
-                    showAllReviews ? '' : 'min-w-[280px] snap-start sm:min-w-[320px]'
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">
-                      {(review.author ?? 'G').slice(0, 1).toUpperCase()}
+            <div className="mt-3 grid gap-3 xl:grid-cols-[260px,minmax(0,1fr)]">
+              <aside className="surface-shell-subtle p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Who stays here</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-1">
+                  {[
+                    { label: 'Family', value: '53%' },
+                    { label: 'Couple', value: '30%' },
+                    { label: 'Friends', value: '11%' },
+                    { label: 'Solo', value: '4%' }
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-xl border border-border bg-background px-3 py-2">
+                      <p className="text-xs text-muted-foreground">{item.label}</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
                     </div>
-                    <div>
-                      <p className="font-semibold text-foreground">{review.author ?? 'Guest'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {review.travelerType}
-                        {review.score ? ` · ${review.score.toFixed(1)}` : ''}
-                        {formatReviewDate(review.createdAt) ? ` · ${formatReviewDate(review.createdAt)}` : ''}
-                      </p>
+                  ))}
+                </div>
+              </aside>
+
+              <div className="grid gap-3">
+                {visibleReviews.map((review, index) => (
+                  <article
+                    key={`${review.author}-${review.createdAt ?? index}`}
+                    className="rounded-[18px] border border-border bg-background p-4 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.18)]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">
+                          {(review.author ?? 'G').slice(0, 1).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">{review.author ?? 'Guest'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {review.travelerType}
+                            {formatReviewDate(review.createdAt) ? ` · ${formatReviewDate(review.createdAt)}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      {review.score ? (
+                        <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">
+                          {review.score.toFixed(1)}
+                        </span>
+                      ) : null}
                     </div>
-                  </div>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{review.comment}</p>
-                </article>
-              ))}
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{review.comment}</p>
+                  </article>
+                ))}
+              </div>
             </div>
 
             {sortedReviews.length > 6 ? (
@@ -681,7 +632,7 @@ export function HotelDetailSections({
         )}
       </section>
 
-      <section id="amenities" className="scroll-mt-24 rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)] md:p-4" onMouseEnter={() => setActiveTab('amenities')}>
+      <section id="amenities" className="surface-shell scroll-mt-24 p-3.5 md:p-4" onMouseEnter={() => setActiveTab('amenities')}>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-xl font-semibold">Amenities</h2>
           <span className="text-xs text-muted-foreground">Supplier-backed data</span>
@@ -701,7 +652,7 @@ export function HotelDetailSections({
         )}
       </section>
 
-      <section id="policies" className="scroll-mt-24 rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)] md:p-4" onMouseEnter={() => setActiveTab('policies')}>
+      <section id="policies" className="surface-shell scroll-mt-24 p-3.5 md:p-4" onMouseEnter={() => setActiveTab('policies')}>
         <h2 className="text-xl font-semibold">Policies</h2>
         <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <p className="rounded-xl border border-border bg-background p-3">
@@ -734,7 +685,7 @@ export function HotelDetailSections({
         </div>
       </section>
 
-      <section id="description" className="rounded-[16px] border border-border/70 bg-card p-3.5 shadow-[0_12px_26px_-28px_rgba(15,23,42,0.32)] md:p-4" onMouseEnter={() => setActiveTab('policies')}>
+      <section id="description" className="surface-shell p-3.5 md:p-4" onMouseEnter={() => setActiveTab('overview')}>
         <h2 className="text-xl font-semibold">More about this stay</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <article className="rounded-xl border border-border bg-background p-4">

@@ -38,9 +38,9 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
       <section className="space-y-3">
         {photos[0] ? (
           <>
-            <div className="overflow-hidden rounded-[22px] border border-border/60 bg-card shadow-[0_20px_54px_-42px_rgba(15,23,42,0.42)]">
+            <div className="overflow-hidden rounded-[20px] border border-border/60 bg-card shadow-[var(--surface-shadow)]">
               <div className="relative md:hidden">
-                <button type="button" className="group relative block h-[320px] w-full overflow-hidden bg-muted sm:h-[360px]" onClick={() => onOpen(mobileIndex)}>
+                <button type="button" className="group relative block h-[280px] w-full overflow-hidden bg-muted sm:h-[340px]" onClick={() => onOpen(mobileIndex)}>
                   <Image
                     src={photos[mobileIndex]}
                     alt={`${hotelName} view ${mobileIndex + 1}`}
@@ -48,13 +48,13 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
                     sizes="100vw"
                     className="object-cover transition-transform duration-700 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none"
                   />
-                  <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
-                  <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur">
+                  <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/72 via-black/18 to-transparent" />
+                  <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/35 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur">
                     <Images className="h-3.5 w-3.5" />
                     Main view
                   </div>
                   <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4 text-white">
-                    <div className="min-w-0 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 backdrop-blur">
+                    <div className="min-w-0 rounded-2xl border border-white/15 bg-black/28 px-4 py-3 backdrop-blur">
                       <p className="text-[10px] uppercase tracking-[0.2em] text-white/75">Property gallery</p>
                       <p className="mt-1 text-sm font-semibold">See the stay before you book</p>
                     </div>
@@ -92,7 +92,7 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
                       key={`${photo}-${index}-thumb`}
                       type="button"
                       onClick={() => setMobileIndex(index)}
-                      className={`relative h-20 w-24 flex-none overflow-hidden rounded-2xl border transition-all ${mobileIndex === index ? 'border-primary shadow-[0_10px_24px_-18px_rgba(37,99,235,0.95)]' : 'border-border/70 opacity-80'}`}
+                      className={`relative h-20 w-24 flex-none overflow-hidden rounded-2xl border transition-all ${mobileIndex === index ? 'border-primary shadow-[var(--surface-shadow)]' : 'border-border/70 opacity-80'}`}
                     >
                       <Image src={photo} alt={`${hotelName} thumbnail ${index + 1}`} fill sizes="96px" className="object-cover" />
                     </button>
@@ -100,15 +100,15 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
                 </div>
               ) : null}
 
-              <div className="hidden h-[430px] grid-cols-[minmax(0,1.75fr),minmax(260px,0.95fr)] gap-1.5 p-1.5 md:grid lg:h-[460px]">
+              <div className="hidden h-[390px] grid-cols-[minmax(0,1.6fr),minmax(250px,0.95fr)] gap-1.5 p-1.5 md:grid lg:h-[430px]">
                 <button type="button" className="group relative h-full overflow-hidden rounded-[18px] bg-muted" onClick={() => onOpen(0)}>
                   <Image src={photos[0]} alt={hotelName} fill sizes="(max-width: 1024px) 65vw, 720px" className="object-cover transition-transform duration-700 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none" />
-                  <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-95 transition-opacity duration-300 group-hover:opacity-100" />
-                  <div className="absolute left-4 top-4 rounded-full border border-white/25 bg-black/35 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                  <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/72 via-black/18 to-transparent opacity-95 transition-opacity duration-300 group-hover:opacity-100" />
+                  <div className="absolute left-4 top-4 rounded-full border border-white/25 bg-black/30 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
                     Main view
                   </div>
                   <div className="absolute bottom-4 left-4">
-                    <div className="rounded-2xl border border-white/20 bg-black/35 px-4 py-3 text-left text-white backdrop-blur">
+                    <div className="rounded-2xl border border-white/20 bg-black/28 px-4 py-3 text-left text-white backdrop-blur">
                       <p className="text-[10px] uppercase tracking-[0.2em] text-white/75">Property gallery</p>
                       <p className="mt-1 text-sm font-semibold">See the stay before you book</p>
                     </div>
@@ -133,13 +133,13 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
                           sizes="(max-width: 1024px) 24vw, 220px"
                           className="object-cover transition-transform duration-700 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/38 via-transparent to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
                         {isLastTile && remainingCount > 0 ? (
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-sm font-semibold text-white">
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm font-semibold text-white">
                             +{remainingCount} more photos
                           </span>
                         ) : (
-                          <span className="absolute bottom-3 left-3 rounded-full border border-white/30 bg-black/35 px-3 py-1 text-[11px] font-semibold text-white opacity-0 backdrop-blur transition-opacity duration-300 group-hover:opacity-100">
+                          <span className="absolute bottom-3 left-3 rounded-full border border-white/30 bg-black/28 px-3 py-1 text-[11px] font-semibold text-white opacity-0 backdrop-blur transition-opacity duration-300 group-hover:opacity-100">
                             View photo
                           </span>
                         )}
@@ -162,17 +162,7 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
         )}
       </section>
 
-      {photos.length > 0 ? (
-        <div className="mt-2 flex justify-end">
-          <button
-            type="button"
-            className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted/50"
-            onClick={() => onOpen(0)}
-          >
-            Show all {photos.length} photos
-          </button>
-        </div>
-      ) : null}
+      {photos.length > 0 ? null : null}
 
       {lightboxIndex !== null && photos[lightboxIndex] ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">

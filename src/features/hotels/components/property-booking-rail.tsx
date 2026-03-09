@@ -22,7 +22,7 @@ type PropertyBookingRailProps = {
 
 export function PropertyBookingRail(props: PropertyBookingRailProps) {
   return (
-    <div className="lg:w-[272px] lg:max-w-[272px]">
+    <div className="w-full">
       <HotelBookingSidebar {...props} />
     </div>
   );

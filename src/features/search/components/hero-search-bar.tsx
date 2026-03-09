@@ -163,10 +163,10 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="relative w-full">
                 <div
                     className={cn(
-                        "flex w-full flex-col transition-all border border-border/60 bg-card/95 md:flex-row md:items-stretch",
+                        "flex w-full flex-col border border-border/70 bg-card/96 transition-all md:flex-row md:items-stretch",
                         isCompact
-                            ? "rounded-2xl md:rounded-full px-2 py-2 shadow-sm"
-                            : "rounded-2xl md:rounded-full px-2 py-2 shadow-xl"
+                            ? "rounded-[18px] px-2 py-2 shadow-[var(--surface-shadow)] md:rounded-full"
+                            : "rounded-[22px] px-2 py-2 shadow-[var(--surface-shadow-lg)] md:rounded-full"
                     )}
                 >
 
@@ -182,7 +182,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             className={cn(
                                 "w-full border-0 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-0",
                                 isCompact
-                                    ? "h-11 pl-10 text-xs font-medium md:h-12"
+                                    ? "h-10 pl-10 text-xs font-medium md:h-11"
                                     : "h-14 pl-14 text-sm font-medium md:h-16"
                             )}
                             placeholder="Enter a destination"
@@ -204,7 +204,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                         {/* Autocomplete Dropdown */}
                         {isSuggestionsOpen && (
                             <div
-                                className="absolute left-0 right-0 top-full mt-2 rounded-xl border border-border bg-card p-2 shadow-2xl"
+                                className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-border bg-card p-2 shadow-[var(--surface-shadow-lg)]"
                                 style={{ zIndex: 9999 }}
                             >
                                 {isFetching ? (
@@ -305,7 +305,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                     </div>
                                 </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-80 border-border shadow-editorial-md p-6 z-[100] rounded-xl" align="end">
+                            <PopoverContent className="z-[100] w-80 rounded-2xl border-border p-6 shadow-[var(--surface-shadow-lg)]" align="end">
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between">
                                         <div>
@@ -337,10 +337,10 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             type="submit"
                             disabled={!canSearch}
                             className={cn(
-                                "shrink-0 rounded-full bg-primary flex items-center justify-center p-0 text-primary-foreground transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:shadow-none",
+                                "flex shrink-0 items-center justify-center rounded-full bg-primary p-0 text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:shadow-none",
                                 isCompact
-                                    ? "mr-1 h-10 w-10 shadow-md shadow-primary/20 md:mr-0"
-                                    : "mr-2 h-12 w-12 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 md:mr-0"
+                                    ? "mr-1 h-10 w-10 shadow-[0_14px_24px_-16px_rgba(189,47,241,0.78)] md:mr-0"
+                                    : "mr-2 h-12 w-12 shadow-[0_18px_30px_-18px_rgba(189,47,241,0.8)] md:mr-0"
                             )}
                         >
                             <Search className={cn(isCompact ? "h-4 w-4" : "h-5 w-5")} strokeWidth={2.5} />

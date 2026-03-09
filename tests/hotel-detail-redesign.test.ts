@@ -27,10 +27,10 @@ describe('hotel detail redesign regression coverage', () => {
     expect(experienceSource).not.toContain("{ id: 'location', label: 'Location' }");
   });
 
-  it('uses six reviews in collapsed rail mode and respects reduced-motion preferences', () => {
+  it('uses six reviews in collapsed mode and removes the legacy carousel rail', () => {
     expect(sectionsSource).toContain('const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 6);');
-    expect(sectionsSource).toContain("window.matchMedia('(prefers-reduced-motion: reduce)')");
-    expect(sectionsSource).toContain('const [isReviewRailPaused, setIsReviewRailPaused] = useState(false);');
+    expect(sectionsSource).not.toContain('reviewRailRef');
+    expect(sectionsSource).not.toContain('snap-x snap-mandatory');
   });
 
   it('keeps facilities and review snapshot in the overview flow before room inventory', () => {
@@ -52,5 +52,11 @@ describe('hotel detail redesign regression coverage', () => {
     expect(gallerySource).toContain('group-hover:scale-110');
     expect(gallerySource).toContain('Main view');
     expect(gallerySource).toContain('View photo');
+  });
+
+  it('keeps booking summary inline in the main page flow', () => {
+    expect(experienceSource).toContain('<PropertyBookingRail');
+    expect(experienceSource).not.toContain('lg:grid lg:grid-cols-[minmax(0,1fr),272px]');
+    expect(experienceSource).toContain('section className="page-section relative flex flex-col"');
   });
 });

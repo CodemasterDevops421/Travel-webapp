@@ -31,68 +31,65 @@ export function HotelBookingSidebar({
   selectedBookingHref,
   formatMoney
 }: HotelBookingSidebarProps) {
+  const nightlyRate = formatMoney(selectedRate?.currency ?? currency, selectedRate?.amount ?? lowestRate, true);
+
   return (
-    <aside className="lg:sticky lg:top-24 lg:self-start">
-      <div className="overflow-hidden rounded-[18px] border border-border/60 bg-card shadow-[0_18px_42px_-34px_rgba(15,23,42,0.34)] lg:rounded-[20px]">
-        <div className="border-b border-border/60 bg-muted/20 px-4 py-3 lg:px-3.5 lg:py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Selected stay</p>
-              <p className="mt-1 text-[1.85rem] font-bold leading-none text-foreground lg:text-[1.55rem]">{formatMoney(selectedRate?.currency ?? currency, selectedRate?.amount ?? lowestRate, true)}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">per night, taxes and fees included</p>
-            </div>
-            <div className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-              {adults} adults
-            </div>
+    <aside className="surface-shell overflow-hidden">
+      <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1.1fr),minmax(0,0.9fr),auto] md:items-center md:p-5">
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Selected stay</p>
+          <div className="flex flex-wrap items-end gap-2">
+            <p className="text-[2rem] font-bold leading-none text-foreground">{nightlyRate}</p>
+            <p className="pb-1 text-xs text-muted-foreground">per night, taxes and fees included</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full border border-border bg-background px-2.5 py-1">{checkin}</span>
+            <span className="rounded-full border border-border bg-background px-2.5 py-1">to</span>
+            <span className="rounded-full border border-border bg-background px-2.5 py-1">{checkout}</span>
+            <span className="rounded-full border border-border bg-background px-2.5 py-1">{adults} adults</span>
           </div>
         </div>
 
-        <div className="space-y-2.5 p-3.5 lg:p-3">
-          {selectedRate ? (
-            <div className="rounded-2xl border border-border bg-background p-3 lg:rounded-[16px] lg:p-2.5">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Selected room</p>
-              <p className="mt-1 text-sm font-semibold leading-5 text-foreground">{selectedRate.roomName}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedRate.boardName}</p>
-            </div>
-          ) : null}
-
-          <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-3 lg:rounded-[16px] lg:p-2.5">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Booking clarity</p>
-            <p className="mt-2 text-sm font-semibold text-foreground">{selectedCancellation?.status ?? 'Select a room to view policy'}</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedCancellation?.detail ?? 'Cancellation details will follow the selected room.'}</p>
+        <div className="grid gap-3 md:grid-cols-2 md:gap-2">
+          <div className="surface-shell-subtle px-3 py-3">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Selected room</p>
+            <p className="mt-1 text-sm font-semibold leading-5 text-foreground">
+              {selectedRate?.roomName ?? 'Choose a room below'}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {selectedRate?.boardName ?? 'Room and board details appear once you select an offer.'}
+            </p>
           </div>
+          <div className="rounded-[var(--surface-radius-sm)] border border-emerald-200/80 bg-emerald-50/70 px-3 py-3">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Booking clarity</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">
+              {selectedCancellation?.status ?? 'Select a room to view policy'}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {selectedCancellation?.detail ?? 'Cancellation details will follow the selected room.'}
+            </p>
+          </div>
+        </div>
 
+        <div className="flex flex-col gap-2 md:items-end">
           {selectedBookingHref ? (
-            <PreferenceLink href={selectedBookingHref} className="flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_12px_22px_-18px_rgba(37,99,235,0.85)] transition-all hover:bg-primary/90 hover:shadow-[0_16px_26px_-18px_rgba(37,99,235,0.95)] lg:px-4 lg:py-2.5">
+            <PreferenceLink
+              href={selectedBookingHref}
+              className="flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 md:w-auto md:min-w-[178px]"
+            >
               Reserve selected room
             </PreferenceLink>
           ) : (
-            <a href="#rooms" className="flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_12px_22px_-18px_rgba(37,99,235,0.85)] transition-all hover:bg-primary/90 hover:shadow-[0_16px_26px_-18px_rgba(37,99,235,0.95)] lg:px-4 lg:py-2.5">
+            <a
+              href="#rooms"
+              className="flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 md:w-auto md:min-w-[178px]"
+            >
               See availability
             </a>
           )}
-
-          <div className="rounded-2xl border border-border bg-background p-3 lg:rounded-[16px] lg:p-2.5">
-            <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Stay facts</p>
-            <div className="mt-2 space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Check-in</span>
-                <span className="font-medium text-foreground">{checkin}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Check-out</span>
-                <span className="font-medium text-foreground">{checkout}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Guests</span>
-                <span className="font-medium text-foreground">{adults} adults</span>
-              </div>
-            </div>
-            <div className="mt-3 h-px bg-border" />
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">
-              You will receive confirmation details immediately after payment completes and the selected room is finalized.
-            </p>
-          </div>
+          <p className="max-w-[240px] text-xs leading-5 text-muted-foreground md:text-right">
+            Booking stays inline so you can compare rooms, cancellation details, and reviews before checkout.
+          </p>
         </div>
       </div>
     </aside>

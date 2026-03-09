@@ -234,7 +234,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   }
 
   return (
-    <main className="hotel-detail-page mx-auto max-w-[1160px] space-y-4 px-4 py-4 md:space-y-5 md:py-6">
+    <main className="hotel-detail-page page-shell space-y-4 py-4 md:space-y-5 md:py-6">
       <PropertyHero
         browseHotelsHref={browseHotelsHref}
         hotelName={hotel?.name ?? 'Hotel'}
@@ -272,8 +272,20 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
 
       <PropertyTabNav activeTab={activeTab} tabs={SECTION_TABS} onTabChange={setActiveTab} />
 
-      <section className="relative lg:grid lg:grid-cols-[minmax(0,1fr),272px] lg:items-start lg:gap-6">
-        <div className="min-w-0">
+      <section className="page-section relative flex flex-col">
+        <div className="space-y-4">
+          <PropertyBookingRail
+            checkin={checkin}
+            checkout={checkout}
+            adults={adults}
+            currency={currency}
+            lowestRate={lowestRate}
+            selectedRate={selectedRate}
+            selectedCancellation={selectedCancellation}
+            selectedBookingHref={selectedBookingHref}
+            formatMoney={formatMoney}
+          />
+
           <PropertyContentSections
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -302,19 +314,6 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
             askLoading={askLoading}
             askAnswer={askAnswer}
             askHotelAI={askHotelAI}
-          />
-        </div>
-        <div className="mt-5 hidden lg:mt-0 lg:block">
-          <PropertyBookingRail
-            checkin={checkin}
-            checkout={checkout}
-            adults={adults}
-            currency={currency}
-            lowestRate={lowestRate}
-            selectedRate={selectedRate}
-            selectedCancellation={selectedCancellation}
-            selectedBookingHref={selectedBookingHref}
-            formatMoney={formatMoney}
           />
         </div>
       </section>
