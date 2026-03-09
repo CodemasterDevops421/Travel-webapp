@@ -21,4 +21,10 @@ describe('checkout conversion UI contract', () => {
     expect(source).toContain('Your booking is protected');
     expect(source).toContain('Selected rate locked');
   });
+
+  it('adds booking-review policy and terms content before payment', () => {
+    expect(source).toContain('Cancellation policy');
+    expect(source).toContain('Terms and booking conditions');
+    expect(source).toContain('I accept the cancellation policy and terms for this booking.');
+  });
 });

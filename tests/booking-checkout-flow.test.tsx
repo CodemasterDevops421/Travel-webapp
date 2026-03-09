@@ -40,12 +40,15 @@ describe('booking checkout return flow', () => {
   });
 
   it('checks auth before creating or launching payment for a selected booking', () => {
-    const signInGuardIndex = bookingConsoleSource.indexOf('await ensureSignedInForPayment();');
-    const prebookIndex = bookingConsoleSource.indexOf('const createdPrebook = await prebookMutation.mutateAsync(values);');
-    const widgetIndex = bookingConsoleSource.indexOf('liteAPIPayment.handlePayment();');
+    expect(bookingConsoleSource).toContain('const createdPrebook = await prebookMutation.mutateAsync(values);');
+    expect(bookingConsoleSource).toContain("{user ? 'Open secure payment' : 'Sign in to pay'}");
+    expect(bookingConsoleSource).toContain('await startPayment(values).catch((error: unknown) => {');
+    expect(bookingConsoleSource).toContain('liteAPIPayment.handlePayment();');
+  });
 
-    expect(signInGuardIndex).toBeGreaterThanOrEqual(0);
-    expect(prebookIndex).toBeGreaterThan(signInGuardIndex);
-    expect(widgetIndex).toBeGreaterThan(signInGuardIndex);
+  it('lets the booking page progress into review before payment auth is required', () => {
+    expect(bookingConsoleSource).toContain("!prebook ? 'Continue to booking review' : 'Continue to payment'");
+    expect(bookingConsoleSource).toContain('You can reach the booking page without signing in. We only require sign-in when you continue to payment.');
+    expect(bookingConsoleSource).toContain("{user ? 'Open secure payment' : 'Sign in to pay'}");
   });
 });

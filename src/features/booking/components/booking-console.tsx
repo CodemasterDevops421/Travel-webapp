@@ -287,6 +287,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const [promoDiscount, setPromoDiscount] = useState<number | null>(null);
   const [promoError, setPromoError] = useState('');
   const [promoLoading, setPromoLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('guest_details');
 
   const defaultValues: FormValues = {
@@ -537,20 +538,14 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   }
 
   const onSubmit = form.handleSubmit(async (values) => {
-    try {
-      await ensureSignedInForPayment();
-    } catch (error: unknown) {
-      setCheckoutStep('payment');
-      setPaymentError(errorMessage(error));
-      return;
-    }
-
     if (!prebook) {
       const createdPrebook = await prebookMutation.mutateAsync(values);
-      await startPayment(values, createdPrebook).catch((error: unknown) => {
-        setCheckoutStep('payment');
-        setPaymentError(errorMessage(error));
-      });
+      setPrebook(createdPrebook);
+      setCheckoutStep('payment');
+      return;
+    }
+    if (!termsAccepted) {
+      setPaymentError('Please accept the cancellation policy and terms before continuing to payment.');
       return;
     }
     await startPayment(values).catch((error: unknown) => {
@@ -584,6 +579,10 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
 
       <div className="grid gap-8 lg:grid-cols-[1.5fr,1fr]">
         <form className="space-y-6" onSubmit={onSubmit}>
+          <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+            All fields marked in your booking details are used only to prepare the stay. You will be asked to sign in only when you continue to payment.
+          </div>
+
           {hasSelectedRate ? (
             <div className="border border-border bg-muted/30 p-6">
               <p className="text-xs font-bold uppercase tracking-widest text-foreground">Selected stay</p>
@@ -630,22 +629,63 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
             </>
           )}
 
-          <div className="space-y-4 pt-4">
-            <h2 className="font-heading text-2xl font-light">Guest Details</h2>
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-2xl font-light">Your details</h2>
+                <p className="mt-1 text-sm text-muted-foreground">We use these details to prepare the booking and send confirmation updates.</p>
+              </div>
+              {!user ? (
+                <Link href="/auth/login" className="text-sm font-semibold text-primary underline underline-offset-2">
+                  Sign in
+                </Link>
+              ) : null}
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input className="rounded-none border-border bg-background" aria-label="First name" placeholder="First name" {...form.register('firstName')} />
               <Input className="rounded-none border-border bg-background" aria-label="Last name" placeholder="Last name" {...form.register('lastName')} />
             </div>
-            <Input className="rounded-none border-border bg-background" aria-label="Email" placeholder="Email" type="email" {...form.register('email')} />
+            <Input className="mt-4 rounded-none border-border bg-background" aria-label="Email" placeholder="Email" type="email" {...form.register('email')} />
           </div>
 
-          <div className="pt-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Cancellation policy</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{cancellationSummary}</p>
+              </div>
+              <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground">
+                {liveValues.isRefundable === 'false' ? 'Non-refundable' : liveValues.isRefundable === 'true' ? 'Flexible' : 'Supplier policy'}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h3 className="text-lg font-semibold text-foreground">Terms and booking conditions</h3>
+            <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+              <p>Your booking is confirmed only after payment is authorized and supplier inventory remains available.</p>
+              <p>Taxes, fees, and cancellation rules shown here are the terms tied to the selected supplier rate.</p>
+              <label className="flex items-start gap-3 text-foreground">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(event) => setTermsAccepted(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border border-border"
+                />
+                <span className="text-sm">
+                  I accept the cancellation policy and terms for this booking.
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="pt-2">
             <Button className="rounded-none shadow-none w-full md:w-auto px-8" type="submit" size="lg" disabled={prebookMutation.isPending}>
-              {prebookMutation.isPending ? 'Securing your quote...' : !prebook ? 'Validate and launch payment' : 'Launch secure payment'}
+              {prebookMutation.isPending ? 'Preparing your booking...' : !prebook ? 'Continue to booking review' : 'Continue to payment'}
             </Button>
             {!user ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                You can review the booking details now. We will ask you to sign in only before payment starts.
+                You can reach the booking page without signing in. We only require sign-in when you continue to payment.
               </p>
             ) : null}
           </div>
@@ -677,6 +717,15 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
           <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-800">Cancellation summary</p>
             <p className="mt-2 text-sm font-medium text-foreground">{cancellationSummary}</p>
+          </div>
+
+          <div className="mt-6 rounded-xl border border-border bg-background p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Booking terms</p>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>Supplier cancellation rules apply to the selected room and rate.</li>
+              <li>Prices shown include taxes and fees attached to the current quote.</li>
+              <li>Payment is processed only after you continue from the booking review step.</li>
+            </ul>
           </div>
 
           {/* Promo Code Section */}
@@ -771,13 +820,36 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       )}
 
       <section className={`rounded-2xl border border-border bg-background p-4 ${prebook ? '' : 'hidden'}`}>
-        <h2 className="mb-2 text-sm font-semibold">Payment</h2>
-        <p className="mb-2 text-xs text-muted-foreground">
-          {isDevEnvironment
-            ? 'Sandbox test card: `4242 4242 4242 4242` with any valid future date/CVV.'
-            : 'Secure payment form is loaded below.'}
-        </p>
-        <div id="liteapi-payment-target" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="mb-1 text-sm font-semibold">Payment</h2>
+            <p className="text-xs text-muted-foreground">
+              {isDevEnvironment
+                ? 'Sandbox test card: `4242 4242 4242 4242` with any valid future date/CVV.'
+                : 'Secure payment form is loaded below after you continue to payment.'}
+            </p>
+          </div>
+          <Button
+            type="button"
+            className="rounded-none shadow-none px-8"
+            disabled={!termsAccepted}
+            onClick={() => {
+              void form.handleSubmit(async (values) => {
+                if (!termsAccepted) {
+                  setPaymentError('Please accept the cancellation policy and terms before continuing to payment.');
+                  return;
+                }
+                await startPayment(values).catch((error: unknown) => {
+                  setCheckoutStep('payment');
+                  setPaymentError(errorMessage(error));
+                });
+              })();
+            }}
+          >
+            {user ? 'Open secure payment' : 'Sign in to pay'}
+          </Button>
+        </div>
+        <div className="mt-4" id="liteapi-payment-target" />
       </section>
 
       {prebookMutation.error && <p className="text-sm text-red-600">{errorMessage(prebookMutation.error)}</p>}
