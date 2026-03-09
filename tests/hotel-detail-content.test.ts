@@ -15,6 +15,10 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
     resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-sections.tsx'),
     'utf8'
   );
+  const guestReviewsSource = readFileSync(
+    resolve(process.cwd(), 'src/features/hotels/components/property-guest-reviews-section.tsx'),
+    'utf8'
+  );
 
   const liteApiSource = readFileSync(
     resolve(process.cwd(), 'src/server/liteapi.ts'),
@@ -41,7 +45,7 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
     expect(sectionsSource).toContain('Amenities data is currently unavailable from the supplier for this property.');
     expect(sectionsSource).toContain('Cancellation policy details are currently unavailable from the supplier.');
     expect(sectionsSource).toContain('Address details are currently unavailable from the supplier.');
-    expect(sectionsSource).toContain('Detailed guest comments are currently unavailable from the supplier.');
+    expect(guestReviewsSource).toContain('Detailed guest comments are currently unavailable from the supplier.');
     expect(sectionsSource).toContain('Pros and cons summaries are currently unavailable from supplier reviews.');
   });
 
@@ -54,10 +58,9 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
 
   it('renders deterministic review highlights and low-signal fallback states', () => {
     expect(sectionsSource).toContain('const reviewHighlights = hotel?.reviewHighlights;');
-    expect(sectionsSource).toContain('Loved by guests');
-    expect(sectionsSource).toContain('Consider before booking');
-    expect(sectionsSource).toContain('mentioned in {topic.mentions} reviews');
-    expect(sectionsSource).toContain("Not enough verified review volume to generate stable topic highlights yet.");
+    expect(guestReviewsSource).toContain('const topicChips = reviewHighlights && !reviewHighlights.lowSignal');
+    expect(guestReviewsSource).toContain('Top comments from travelers');
+    expect(guestReviewsSource).toContain("Not enough verified review volume to generate stable topic highlights yet.");
   });
 
   it('enforces description hierarchy and sectioned narrative rendering', () => {

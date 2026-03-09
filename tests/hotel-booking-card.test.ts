@@ -7,11 +7,15 @@ describe('hotel booking card selected-rate contract', () => {
     resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-sections.tsx'),
     'utf8'
   );
+  const roomSectionSource = readFileSync(
+    resolve(process.cwd(), 'src/features/hotels/components/property-room-selection-section.tsx'),
+    'utf8'
+  );
 
   it('keeps one selected-rate source of truth shared by room cards and sticky card', () => {
-    expect(source).toContain('onClick={() => setSelectedRateKey(buildRateKey(rate))}');
+    expect(roomSectionSource).toContain('onClick={() => setSelectedRateKey(rateKey)}');
     expect(source).toContain('const groupedRates = useMemo(() =>');
-    expect(source).toContain('group.offers.map((rate) =>');
+    expect(roomSectionSource).toContain('group.offers.map((rate) =>');
   });
 
   it('verifies state contract matches selected props in parent', () => {
@@ -55,9 +59,9 @@ describe('hotel booking card selected-rate contract', () => {
     expect(parentSource).toContain('function pickRecommendedRate<T extends Pick<HotelRateOption, \'offerId\' | \'roomId\' | \'amount\'>>(rates: T[]): T | null {');
 
     expect(source).toContain('recommendedRateKey: string | null;');
-    expect(source).toContain('const isRecommended = recommendedRateKey === buildRateKey(rate);');
-    expect(source).toContain('Recommended value');
-    expect(source).toContain('Choose recommended offer');
-    expect(source).toContain('every available room option remains visible below');
+    expect(roomSectionSource).toContain('const isRecommended = recommendedRateKey === rateKey;');
+    expect(roomSectionSource).toContain('Recommended value');
+    expect(roomSectionSource).toContain('Choose recommended');
+    expect(roomSectionSource).toContain('We surface the clearest offer first, then keep the rest visible in the same booking flow.');
   });
 });
