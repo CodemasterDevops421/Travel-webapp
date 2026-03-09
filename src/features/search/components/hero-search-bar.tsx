@@ -65,6 +65,24 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
         }
     }, [checkIn, checkOut]);
 
+    useEffect(() => {
+        if (typeof initialValues?.query === 'string' && initialValues.query !== query) {
+            setQuery(initialValues.query);
+        }
+        if (typeof initialValues?.checkIn === 'string' && initialValues.checkIn !== checkIn) {
+            setCheckIn(initialValues.checkIn);
+        }
+        if (typeof initialValues?.checkOut === 'string' && initialValues.checkOut !== checkOut) {
+            setCheckOut(initialValues.checkOut);
+        }
+        if (typeof initialValues?.adults === 'number' && initialValues.adults !== adults) {
+            setAdults(initialValues.adults);
+        }
+        if (typeof initialValues?.rooms === 'number' && initialValues.rooms !== rooms) {
+            setRooms(initialValues.rooms);
+        }
+    }, [adults, checkIn, checkOut, initialValues, query, rooms]);
+
     const router = useRouter();
     const language = useSearchUIStore((state) => state.language);
     const currency = useSearchUIStore((state) => state.currency);

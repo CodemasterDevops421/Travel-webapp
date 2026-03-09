@@ -18,6 +18,7 @@ import { cn } from '@/shared/lib/utils';
 import { useWishlist } from '@/shared/hooks/use-wishlist';
 import { FiltersSidebar, type FilterState } from './filters-sidebar';
 import { HorizontalHotelCard } from './horizontal-hotel-card';
+import { ListingDiscoveryToolbar } from './listing-discovery-toolbar';
 
 const SearchResultsMap = dynamic(
   () => import('./search-results-map').then((module) => module.SearchResultsMap),
@@ -43,6 +44,8 @@ type SearchResultsPageProps = {
 };
 
 const ITEMS_PER_PAGE = 10;
+const DEFAULT_MAX_PRICE = DEFAULT_LISTING_FILTERS.maxPrice;
+const QUICK_FILTER_DISTANCE_KM = 5;
 
 function normalizeToken(value: string): string {
   return value
@@ -63,6 +66,12 @@ function inferPropertyType(name: string): string {
 
 function computePopularityScore(price: number | null, reviewScore: number | null | undefined, starRating: number | null) {
   return (reviewScore ?? 0) * 12 + (starRating ?? 0) * 6 - (price ?? 0) / 120;
+}
+
+function applyAmenitySelection(currentAmenities: string[], amenity: string) {
+  return currentAmenities.includes(amenity)
+    ? currentAmenities.filter((item) => item !== amenity)
+    : [...currentAmenities, amenity].sort();
 }
 
 export function SearchResultsPage({ query, mode, checkin, checkout, adults, rooms, language, currency }: SearchResultsPageProps) {
@@ -241,8 +250,96 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
     urlState.filters.amenities.length +
     urlState.filters.propertyTypes.length;
 
+  const quickFilters = useMemo(
+    () => ({
+      topRated: urlState.filters.minGuestRating >= 8.5,
+      luxury: urlState.filters.minStars >= 5,
+      budget: urlState.filters.maxPrice <= 250,
+      freeCancellation: urlState.filters.amenities.includes('free-cancellation'),
+      breakfast: urlState.filters.amenities.includes('breakfast-included'),
+      pool: urlState.filters.amenities.includes('swimming-pool'),
+      nearCenter: urlState.filters.maxDistanceKm <= QUICK_FILTER_DISTANCE_KM
+    }),
+    [urlState.filters]
+  );
+
+  const toggleQuickFilter = useCallback(
+    (
+      key:
+        | 'topRated'
+        | 'luxury'
+        | 'budget'
+        | 'freeCancellation'
+        | 'breakfast'
+        | 'pool'
+        | 'nearCenter'
+    ) => {
+      updateUrlState((previous) => {
+        const nextFilters = { ...previous.filters };
+        switch (key) {
+          case 'topRated':
+            nextFilters.minGuestRating = previous.filters.minGuestRating >= 8.5 ? 0 : 8.5;
+            break;
+          case 'luxury':
+            nextFilters.minStars = previous.filters.minStars >= 5 ? 0 : 5;
+            break;
+          case 'budget':
+            nextFilters.maxPrice = previous.filters.maxPrice <= 250 ? DEFAULT_MAX_PRICE : 250;
+            nextFilters.minPrice = Math.min(nextFilters.minPrice, nextFilters.maxPrice);
+            break;
+          case 'freeCancellation':
+            nextFilters.amenities = applyAmenitySelection(previous.filters.amenities, 'free-cancellation');
+            break;
+          case 'breakfast':
+            nextFilters.amenities = applyAmenitySelection(previous.filters.amenities, 'breakfast-included');
+            break;
+          case 'pool':
+            nextFilters.amenities = applyAmenitySelection(previous.filters.amenities, 'swimming-pool');
+            break;
+          case 'nearCenter':
+            nextFilters.maxDistanceKm =
+              previous.filters.maxDistanceKm <= QUICK_FILTER_DISTANCE_KM
+                ? DEFAULT_LISTING_FILTERS.maxDistanceKm
+                : QUICK_FILTER_DISTANCE_KM;
+            break;
+        }
+
+        return {
+          ...previous,
+          page: 1,
+          filters: nextFilters
+        };
+      });
+    },
+    [updateUrlState]
+  );
+
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
+      <ListingDiscoveryToolbar
+        query={query}
+        checkin={checkin}
+        checkout={checkout}
+        adults={adults}
+        rooms={rooms}
+        language={language}
+        currency={currency}
+        currentView={urlState.view}
+        activeFilterCount={activeFilterCount}
+        quickFilters={quickFilters}
+        onToggleQuickFilter={toggleQuickFilter}
+        onResetFilters={() => {
+          updateUrlState((previous) => ({
+            ...previous,
+            page: 1,
+            filters: { ...DEFAULT_LISTING_FILTERS }
+          }));
+        }}
+        onToggleView={(view) => {
+          updateUrlState((previous) => ({ ...previous, view }));
+        }}
+      />
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 bg-white p-3 shadow-sm dark:bg-card">
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           {isFetching ? (

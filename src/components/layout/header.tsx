@@ -3,16 +3,18 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Heart, Moon, Sun, UserCircle, LogOut, Menu, X, Bookmark, LayoutDashboard } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { LanguageCurrencyChooser } from '@/components/home/language-currency-chooser';
 import { Button } from '@/components/ui/button';
 import { HeroSearchBar } from '@/features/search/components/hero-search-bar';
+import { parseDiscoveryQuery } from '@/features/search/lib/discovery-query';
 import { useAuth } from '@/shared/hooks/use-auth';
 
 export function Header() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isHomePage = pathname === '/';
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -37,6 +39,7 @@ export function Header() {
   }, []);
 
   const isDark = mounted && resolvedTheme === 'dark';
+  const compactSearchInitialValues = parseDiscoveryQuery(Object.fromEntries(searchParams.entries()));
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-white/20 dark:border-white/10 shadow-premium-sm transition-all duration-300">
@@ -155,7 +158,17 @@ export function Header() {
       {!isHomePage && (
         <div className="hidden border-t border-border/40 bg-background/85 px-4 py-3 md:block">
           <div className="mx-auto max-w-7xl">
-            <HeroSearchBar variant="compact" className="mx-auto max-w-5xl border border-border/60 bg-card/95 shadow-sm" />
+            <HeroSearchBar
+              variant="compact"
+              className="mx-auto max-w-5xl border border-border/60 bg-card/95 shadow-sm"
+              initialValues={{
+                query: compactSearchInitialValues.destination,
+                checkIn: compactSearchInitialValues.checkin,
+                checkOut: compactSearchInitialValues.checkout,
+                adults: compactSearchInitialValues.guests,
+                rooms: compactSearchInitialValues.rooms
+              }}
+            />
           </div>
         </div>
       )}
@@ -166,7 +179,17 @@ export function Header() {
           <nav className="mx-auto max-w-7xl space-y-1 p-4">
             {!isHomePage && (
               <div className="pb-3">
-                <HeroSearchBar variant="compact" className="shadow-none border border-border/50" />
+                <HeroSearchBar
+                  variant="compact"
+                  className="shadow-none border border-border/50"
+                  initialValues={{
+                    query: compactSearchInitialValues.destination,
+                    checkIn: compactSearchInitialValues.checkin,
+                    checkOut: compactSearchInitialValues.checkout,
+                    adults: compactSearchInitialValues.guests,
+                    rooms: compactSearchInitialValues.rooms
+                  }}
+                />
               </div>
             )}
 
