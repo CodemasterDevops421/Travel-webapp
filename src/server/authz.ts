@@ -90,10 +90,6 @@ export async function assertAdminAuthorized(
     throw new HttpError(401, 'Unauthorized');
   }
 
-  if (hasAdminClaim(user)) {
-    return;
-  }
-
   const cachedDecision = getAdminAuthzCache(user.id);
   if (cachedDecision === true) {
     return;
@@ -112,9 +108,14 @@ export async function assertAdminAuthorized(
     throw new HttpError(403, 'Forbidden');
   }
 
-  const isActive = data?.is_active === true;
+  const isActive = data?.is_active !== false;
   const role = typeof data?.role === 'string' ? data.role.toLowerCase() : '';
   const allowed = ADMIN_ROLES.has(role);
+  const claimSaysAdmin = hasAdminClaim(user);
+
+  if (claimSaysAdmin && !allowed) {
+    throw new HttpError(403, 'Forbidden');
+  }
 
   if (!isActive || !allowed) {
     setAdminAuthzCache(user.id, false);

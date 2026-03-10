@@ -6,8 +6,10 @@ describe('admin RBAC enforcement', () => {
     vi.clearAllMocks();
   });
 
-  it('allows users with admin claim without database lookup', async () => {
-    const maybeSingle = vi.fn();
+  it('requires admin_users membership even when admin claim exists', async () => {
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { user_id: 'admin-user', role: 'admin', is_active: true }, error: null });
     const supabase = {
       from: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -26,7 +28,31 @@ describe('admin RBAC enforcement', () => {
       })
     ).resolves.toBeUndefined();
 
-    expect(supabase.from).not.toHaveBeenCalled();
+    expect(supabase.from).toHaveBeenCalledWith('admin_users');
+  });
+
+  it('rejects users when admin claim exists but admin_users row is missing', async () => {
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: null });
+    const supabase = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({ maybeSingle })
+        })
+      })
+    } as any;
+
+    const { assertAdminAuthorized, __unsafeResetAdminAuthzCacheForTests } = await import('@/server/authz');
+    __unsafeResetAdminAuthzCacheForTests();
+
+    await expect(
+      assertAdminAuthorized(supabase, {
+        id: 'claimed-admin',
+        app_metadata: { role: 'admin' },
+        user_metadata: {}
+      })
+    ).rejects.toThrow('Forbidden');
   });
 
   it('caches db-backed admin allow decision to reduce repeated lookups', async () => {

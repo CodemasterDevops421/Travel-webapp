@@ -52,7 +52,9 @@ const envSchema = z.object({
   OPENAI_MODEL: emptyStringToUndefined(z.string().optional()),
   PRICE_MARKUP_PERCENT: z.coerce.number().min(0).max(40).default(12),
   DEFAULT_CURRENCY: z.string().length(3).default('USD'),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info')
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  TRUST_X_FORWARDED_FOR: z.coerce.boolean().default(false),
+  LITEAPI_SUPPORT_FORWARD_ALLOWLIST: emptyStringToUndefined(z.string().optional())
 });
 
 const parsedEnv = envSchema.parse(process.env);

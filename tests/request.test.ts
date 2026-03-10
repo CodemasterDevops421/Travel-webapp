@@ -3,21 +3,29 @@ import { NextRequest } from 'next/server';
 import { getClientIp, getCorrelationId, sanitizeRecord } from '@/server/request';
 
 describe('request helpers', () => {
-  it('extracts first forwarded IP and prefers x-real-ip', () => {
+  it('uses platform-provided IP headers by default and ignores forwarded chain', () => {
+    const edgeReq = new NextRequest('https://example.com/api/test', {
+      headers: {
+        'x-vercel-ip': '8.8.8.8',
+        'x-forwarded-for': '1.2.3.4, 5.6.7.8'
+      }
+    });
+    expect(getClientIp(edgeReq)).toBe('8.8.8.8');
+
     const forwardedReq = new NextRequest('https://example.com/api/test', {
       headers: {
         'x-forwarded-for': '1.2.3.4, 5.6.7.8'
       }
     });
-    expect(getClientIp(forwardedReq)).toBe('1.2.3.4');
+    expect(getClientIp(forwardedReq)).toBe('anonymous');
 
-    const realReq = new NextRequest('https://example.com/api/test', {
+    const cloudflareReq = new NextRequest('https://example.com/api/test', {
       headers: {
-        'x-real-ip': '9.9.9.9',
-        'x-forwarded-for': '1.2.3.4'
+        'cf-connecting-ip': '9.9.9.9',
+        'x-forwarded-for': '1.2.3.4, 5.6.7.8'
       }
     });
-    expect(getClientIp(realReq)).toBe('9.9.9.9');
+    expect(getClientIp(cloudflareReq)).toBe('9.9.9.9');
   });
 
   it('uses request correlation id headers or generates one', () => {

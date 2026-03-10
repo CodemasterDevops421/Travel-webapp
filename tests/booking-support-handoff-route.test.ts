@@ -70,8 +70,7 @@ describe('booking support handoff route', () => {
 
     expect(response.status).toBe(200);
     expect(body.ok).toBe(true);
-    expect(body.supportPacket.provider).toBe('liteapi');
-    expect(body.supportPacket.transactionId).toBe('tx_1');
+    expect(body.supportPacket).toBeUndefined();
     expect(updateBookingStatusById).toHaveBeenCalledWith(
       'booking_1',
       'confirmed',
@@ -121,6 +120,7 @@ describe('booking support handoff route', () => {
     vi.stubEnv('LITEAPI_SUPPORT_AUTO_FORWARD', 'true');
     vi.stubEnv('LITEAPI_SUPPORT_FORWARD_URL', 'https://support-bridge.example.com/handoff');
     vi.stubEnv('LITEAPI_SUPPORT_FORWARD_TOKEN', 'bridge-token');
+    vi.stubEnv('LITEAPI_SUPPORT_FORWARD_ALLOWLIST', 'support-bridge.example.com');
 
     const getBookingById = vi.fn().mockResolvedValue({
       id: 'booking_1',
@@ -180,5 +180,51 @@ describe('booking support handoff route', () => {
       'confirmed',
       expect.objectContaining({ supportForwarded: true })
     );
+  });
+
+  it('rejects auto-forward when bridge host is not allowlisted', async () => {
+    vi.stubEnv('LITEAPI_SUPPORT_AUTO_FORWARD', 'true');
+    vi.stubEnv('LITEAPI_SUPPORT_FORWARD_URL', 'https://unknown.example.com/handoff');
+    vi.stubEnv('LITEAPI_SUPPORT_FORWARD_ALLOWLIST', 'support-bridge.example.com');
+
+    vi.doMock('@/server/ratelimit', () => ({
+      assertRateLimit: vi.fn().mockResolvedValue(undefined)
+    }));
+    vi.doMock('@/server/request', () => ({
+      getClientIp: vi.fn().mockReturnValue('127.0.0.1')
+    }));
+    vi.doMock('@/server/authz', async () => {
+      const { HttpError } = await import('@/server/errors');
+      return {
+        assertBookingApiAuthorized: vi.fn(() => {
+          throw new HttpError(401, 'Unauthorized booking API request.');
+        })
+      };
+    });
+    vi.doMock('@/server/booking/repository', () => ({
+      getBookingById: vi.fn().mockResolvedValue({
+        id: 'booking_1',
+        liteapi_booking_id: 'lite_1',
+        status: 'confirmed',
+        payment_status: 'captured',
+        metadata: { holder: { email: 'guest@example.com' } }
+      }),
+      updateBookingStatusById: vi.fn().mockResolvedValue(true)
+    }));
+
+    const { signBookingViewToken } = await import('@/server/booking-view-token');
+    const { POST } = await import('@/app/api/support/liteapi/route');
+    const request = {
+      headers: new Headers({
+        'x-booking-view-token': signBookingViewToken({ bookingId: 'booking_1' })
+      }),
+      json: async () => ({ bookingId: 'booking_1', channel: 'chat' })
+    } as unknown as Request;
+
+    const response = await POST(request as never);
+    const body = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(body.error).toMatch(/allowlisted/i);
   });
 });

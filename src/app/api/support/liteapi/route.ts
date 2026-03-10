@@ -20,12 +20,34 @@ function readMetadataString(metadata: Record<string, unknown> | null | undefined
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function isHostAllowlisted(urlValue: string): boolean {
+  const allowlist = (env.LITEAPI_SUPPORT_FORWARD_ALLOWLIST ?? '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (allowlist.length === 0) {
+    return false;
+  }
+
+  try {
+    const host = new URL(urlValue).hostname.toLowerCase();
+    return allowlist.includes(host);
+  } catch {
+    return false;
+  }
+}
+
 async function forwardToSupportBridge(packet: Record<string, unknown>): Promise<{ forwarded: boolean; error?: string }> {
   if (!env.LITEAPI_SUPPORT_FORWARD_URL) {
     if (env.LITEAPI_SUPPORT_AUTO_FORWARD) {
       return { forwarded: false, error: 'LITEAPI_SUPPORT_FORWARD_URL is not configured' };
     }
     return { forwarded: false };
+  }
+
+  if (!isHostAllowlisted(env.LITEAPI_SUPPORT_FORWARD_URL)) {
+    return { forwarded: false, error: 'LITEAPI_SUPPORT_FORWARD_URL host is not allowlisted' };
   }
 
   try {
@@ -119,16 +141,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Support handoff could not be persisted' }, { status: 409 });
     }
 
-    return NextResponse.json(
-      {
+    const responsePayload = tokenAuthorized && !apiAuthorized
+      ? {
+        ok: true,
+        supportRequestId,
+        supportForwarded: forwardResult.forwarded,
+        instructions: 'Support request submitted successfully.'
+      }
+      : {
         ok: true,
         supportRequestId,
         supportPacket,
         supportForwarded: forwardResult.forwarded,
         instructions: 'Share this support packet with LiteAPI/Nuitee 24/7 support channels.'
-      },
-      { status: 200 }
-    );
+      };
+
+    return NextResponse.json(responsePayload, { status: 200 });
   } catch (error) {
     const httpError = toHttpError(error);
     return NextResponse.json({ error: httpError.message }, { status: httpError.status });

@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { HttpError } from '@/server/errors';
+import { env } from '@/server/env';
 
 function normalizeIp(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -11,6 +12,20 @@ function normalizeIp(value: string | null | undefined): string | null {
 }
 
 export function getClientIp(request: Pick<Request, 'headers'> | NextRequest): string {
+  const vercelIp = normalizeIp(request.headers.get('x-vercel-ip'));
+  if (vercelIp) {
+    return vercelIp;
+  }
+
+  const cloudflareIp = normalizeIp(request.headers.get('cf-connecting-ip'));
+  if (cloudflareIp) {
+    return cloudflareIp;
+  }
+
+  if (!env.TRUST_X_FORWARDED_FOR) {
+    return 'anonymous';
+  }
+
   const xRealIp = normalizeIp(request.headers.get('x-real-ip'));
   if (xRealIp) {
     return xRealIp;
