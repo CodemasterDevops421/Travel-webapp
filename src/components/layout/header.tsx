@@ -14,6 +14,8 @@ import { useAuth } from '@/shared/hooks/use-auth';
 export function Header() {
   const pathname = usePathname();
   const isHomePage = pathname === '/';
+  const isCheckoutPage = pathname.startsWith('/booking');
+  const showInlineDesktopSearch = !isHomePage;
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -37,31 +39,32 @@ export function Header() {
   }, []);
 
   const isDark = mounted && resolvedTheme === 'dark';
-  const headerClassName = isHomePage
-    ? 'sticky top-0 z-50 w-full border-b border-border/70 bg-background/88 backdrop-blur-2xl transition-all duration-300'
-    : 'sticky top-0 z-50 w-full border-b border-border/80 bg-background shadow-[0_10px_28px_-26px_rgba(15,23,42,0.42)] transition-all duration-300';
+
+  if (isCheckoutPage) {
+    return null;
+  }
 
   return (
-    <header className={headerClassName}>
-      <div className="page-shell flex h-[var(--header-height)] items-center gap-3 md:gap-5">
+    <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-white/20 dark:border-white/10 shadow-premium-sm transition-all duration-300">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 md:h-20">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2 premium-hover group">
-          <span className="display-heading text-xl font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary md:text-2xl">
+          <span className="text-2xl font-heading font-extrabold tracking-tight text-primary transition-colors group-hover:text-primary/80">
             Hostel Stays
           </span>
         </Link>
 
-        {!isHomePage && (
+        {showInlineDesktopSearch && (
           <div className="hidden min-w-0 flex-1 md:block">
             <HeroSearchBar
               variant="compact"
-              className="mx-auto max-w-3xl"
+              className="mx-auto w-full max-w-3xl border border-border/60 bg-card/95 shadow-sm"
             />
           </div>
         )}
 
         {/* Desktop Actions */}
-        <div className="ml-auto hidden shrink-0 items-center gap-2 md:flex">
+        <div className="hidden shrink-0 items-center gap-2 md:flex md:ml-auto">
           <LanguageCurrencyChooser />
           <Button
             variant="ghost"
@@ -135,7 +138,7 @@ export function Header() {
             </div>
           ) : (
             <Link href="/auth/login">
-              <Button variant="default" size="sm" className="gap-2 px-4">
+              <Button variant="default" size="sm" className="gap-2">
                 <UserCircle className="h-4 w-4" />
                 Sign in
               </Button>
@@ -144,7 +147,7 @@ export function Header() {
         </div>
 
         {/* Mobile: hamburger menu */}
-        <div className="ml-auto flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 md:hidden">
           <Button
             variant="ghost"
             size="icon"
@@ -166,8 +169,8 @@ export function Header() {
 
       {/* Mobile slide-out menu */}
       {mobileMenuOpen && (
-        <div className="border-t border-border/60 bg-background/96 backdrop-blur-sm md:hidden">
-          <nav className="page-shell space-y-1 py-4">
+        <div className="border-t border-border/40 bg-card/95 backdrop-blur-sm md:hidden">
+          <nav className="mx-auto max-w-7xl space-y-1 p-4">
             {!isHomePage && (
               <div className="pb-3">
                 <HeroSearchBar variant="compact" className="shadow-none border border-border/50" />
