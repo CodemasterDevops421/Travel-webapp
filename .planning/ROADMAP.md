@@ -71,6 +71,16 @@ Plans:
 - [x] 02.2-03-PLAN.md - Polish the header and shared search shell without regressing usability
 - [x] 02.2-04-PLAN.md - Close search-shell interaction coverage gaps for keyboard, touch, and reduced-motion safety
 
+### Phase 02.3: Homepage Navigation and Detail Shell Regression Closure (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 2
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 02.3 to break down)
+
 ### Phase 3: Hotel Detail and User Workspace
 **Goal**: Travelers can confidently evaluate properties and manage saved stays in their account workspace.
 **Depends on**: Phase 2
@@ -178,6 +188,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 1. Platform Foundation and Security | 0/4 | Complete    | 2026-02-23 |
 | 2. Search and Discovery Experience | 0/4 | Not started | - |
 | 02.2. Home and Search Motion Audit | 4/4 | Complete   | 2026-03-11 |
+| 02.3. Homepage Navigation and Detail Shell Regression Closure | 0/0 | Not planned | - |
 | 3. Hotel Detail and User Workspace | 4/4 | Complete | 2026-02-25 |
 | 4. Checkout and Booking Lifecycle Integrity | 0/4 | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |

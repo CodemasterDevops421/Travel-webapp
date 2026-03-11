@@ -88,6 +88,7 @@ Progress: Phase 02.2 complete and re-verified with executable keyboard, reduced-
 ### Roadmap Evolution
 
 - Phase 02.2 inserted after Phase 2: Home and Search Motion Audit (URGENT)
+- Phase 02.3 inserted after Phase 2: Homepage Navigation and Detail Shell Regression Closure (URGENT)
 
 ### Decisions
 
