@@ -9,9 +9,16 @@ describe('homepage hero parity regression coverage', () => {
     'utf8'
   );
 
-  it('keeps a lighter hero overlay so the homepage search remains visible', () => {
-    expect(pageSource).toContain('rgba(11,37,69,0.18)');
+  it('keeps a lighter hero overlay and an explicit safe-motion marker on the homepage shell', () => {
+    expect(pageSource).toContain('data-home-motion="safe"');
+    expect(pageSource).toContain('rgba(11,37,69,0.14)');
     expect(pageSource).toContain("bg-gradient-to-t from-[#0B2545] via-[#0B2545]/45 to-transparent");
+  });
+
+  it('keeps rotating value language readable with a static reduced-motion fallback', () => {
+    expect(pageSource).toContain('motion-reduce:inline');
+    expect(pageSource).toContain('hero-word hero-word-delay-2');
+    expect(pageSource).toContain('hero-word hero-word-delay-3');
   });
 
   it('renders the default homepage search shell as a solid high-contrast surface', () => {

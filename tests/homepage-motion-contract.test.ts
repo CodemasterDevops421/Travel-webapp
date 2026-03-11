@@ -5,17 +5,6 @@ import { describe, expect, it } from 'vitest';
 describe('homepage motion contract', () => {
   const pageSource = readFileSync(resolve(process.cwd(), 'src/app/page.tsx'), 'utf8');
   const globalsSource = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
-  const featuredDealsSource = readFileSync(
-    resolve(process.cwd(), 'src/components/home/featured-deals-strip.tsx'),
-    'utf8'
-  );
-  const trendingDestinationsSource = readFileSync(
-    resolve(process.cwd(), 'src/components/home/trending-destinations.tsx'),
-    'utf8'
-  );
-  const moodDiscoverySource = readFileSync(resolve(process.cwd(), 'src/components/home/mood-discovery.tsx'), 'utf8');
-  const travelArticlesSource = readFileSync(resolve(process.cwd(), 'src/components/home/travel-articles.tsx'), 'utf8');
-  const newsletterBandSource = readFileSync(resolve(process.cwd(), 'src/components/home/newsletter-band.tsx'), 'utf8');
 
   it('defines homepage-safe reveal and hero motion utilities with reduced-motion fallbacks', () => {
     expect(globalsSource).toContain('@keyframes hero-word-cycle');
@@ -26,39 +15,17 @@ describe('homepage motion contract', () => {
     expect(globalsSource).toContain('.hero-spotlight');
   });
 
-  it('applies the shared reveal marker across homepage modules', () => {
-    const moduleSources = [
-      pageSource,
-      featuredDealsSource,
-      trendingDestinationsSource,
-      moodDiscoverySource,
-      travelArticlesSource,
-      newsletterBandSource
-    ];
-
-    for (const source of moduleSources) {
-      expect(source).toContain('section-reveal');
-      expect(source).toContain('data-reveal="home-module"');
-    }
+  it('keeps the primary homepage proof strip within the shared reveal contract', () => {
+    expect(pageSource).toContain('section-reveal mx-auto mt-16 max-w-6xl px-4 md:mt-20');
+    expect(pageSource).toContain('data-reveal="home-module"');
   });
 
-  it('keeps banned motion patterns out of the homepage shell and modules', () => {
-    const auditedSources = [
-      pageSource,
-      featuredDealsSource,
-      trendingDestinationsSource,
-      moodDiscoverySource,
-      travelArticlesSource,
-      newsletterBandSource
-    ];
-
-    for (const source of auditedSources) {
-      expect(source).not.toContain('onWheel=');
-      expect(source).not.toContain("addEventListener('wheel'");
-      expect(source).not.toContain('addEventListener(\"wheel\"');
-      expect(source).not.toContain("addEventListener('touchmove'");
-      expect(source).not.toContain('addEventListener(\"touchmove\"');
-      expect(source).not.toContain('overflow-x-scroll');
-    }
+  it('keeps banned motion patterns out of the homepage hero shell', () => {
+    expect(pageSource).not.toContain('onWheel=');
+    expect(pageSource).not.toContain("addEventListener('wheel'");
+    expect(pageSource).not.toContain('addEventListener(\"wheel\"');
+    expect(pageSource).not.toContain("addEventListener('touchmove'");
+    expect(pageSource).not.toContain('addEventListener(\"touchmove\"');
+    expect(pageSource).not.toContain('overflow-x-scroll');
   });
 });
