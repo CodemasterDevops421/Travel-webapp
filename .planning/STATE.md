@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: "Completed 02.2-01-PLAN.md"
-last_updated: "2026-03-11T12:16:01.396Z"
-last_activity: 2026-03-11 - Completed 02.2-01-PLAN.md
+stopped_at: "Completed 02.2-03-PLAN.md"
+last_updated: "2026-03-11T12:25:13.091Z"
+last_activity: 2026-03-11 - Completed 02.2-03-PLAN.md
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 20
-  completed_plans: 26
+  completed_plans: 27
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Phase 02.2 motion audit is in progress; Wave 2 implementation now has a locked design and validation contract.
+**Current focus:** Phase 02.2 motion audit remains in progress with plans 01 and 03 completed; the remaining homepage hero rebuild is still pending in plan 02.
 
 ## Current Position
 
 Phase: 02.2-home-and-search-motion-audit
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 plans completed in current phase
 Status: In Progress
-Last activity: 2026-03-11 - Completed 02.2-01-PLAN.md
+Last activity: 2026-03-11 - Completed 02.2-03-PLAN.md
 
-Progress: Phase 02.2 plan 1/3 complete
+Progress: Phase 02.2 plans 2/3 complete
 
 ## Performance Metrics
 
@@ -79,7 +79,8 @@ Progress: Phase 02.2 plan 1/3 complete
 | Phase 07-canonical-data-wiring-and-observability-closure P01 | 1 min | 3 tasks | 10 files |
 | Phase 07 P02 | 5 min | 3 tasks | 10 files |
 | Phase 07 P03 | 4 min | 2 tasks | 6 files |
-| Phase 02.2-home-and-search-motion-audit P01 | 6 | 2 tasks | 4 files |
+| Phase 02.2-home-and-search-motion-audit P01 | 6 min | 2 tasks | 4 files |
+| Phase 02.2-home-and-search-motion-audit P03 | 4 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -161,10 +162,13 @@ Recent decisions affecting current work:
 - [Phase 02.2-home-and-search-motion-audit]: Discovery-shell motion is locked to polished, restrained patterns and explicitly bans scroll-jacking plus wheel/touch interception.
 - [Phase 02.2-home-and-search-motion-audit]: Reduced motion is mandatory for all non-essential homepage and search-shell motion before Wave 2 implementation ships.
 - [Phase 02.2-home-and-search-motion-audit]: Baseline regression coverage stays source-contract oriented and protects hero/search/header boundaries before new motion components are introduced.
+- [Phase 02.2-home-and-search-motion-audit]: Kept the non-home desktop compact search inline in the header while only polishing the shell surface and transitions.
+- [Phase 02.2-home-and-search-motion-audit]: Used reduced-motion-aware framer-motion props and transform/opacity-only transitions for shared search shell polish.
+- [Phase 02.2-home-and-search-motion-audit]: Protected the motion contract with source-level tests that ban wheel/touch interception and layout animation patterns.
 
 ### Pending Todos
 
-- None - phase execution complete.
+- None.
 
 ### Blockers/Concerns
 
@@ -172,6 +176,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:16:01.388Z
-Stopped at: Completed 02.2-01-PLAN.md
+Last session: 2026-03-11T12:25:13.081Z
+Stopped at: Completed 02.2-03-PLAN.md
 Resume file: None
