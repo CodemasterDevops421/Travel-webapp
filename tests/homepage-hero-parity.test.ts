@@ -10,8 +10,8 @@ describe('homepage hero parity regression coverage', () => {
   );
 
   it('keeps a lighter hero overlay so the homepage search remains visible', () => {
-    expect(pageSource).toContain('rgba(17,12,40,0.08)');
-    expect(pageSource).toContain('bg-gradient-to-t from-black/18 via-transparent to-white/8');
+    expect(pageSource).toContain('rgba(11,37,69,0.18)');
+    expect(pageSource).toContain("bg-gradient-to-t from-[#0B2545] via-[#0B2545]/45 to-transparent");
   });
 
   it('renders the default homepage search shell as a solid high-contrast surface', () => {
