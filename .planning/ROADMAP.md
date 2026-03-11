@@ -58,6 +58,16 @@ Plans:
 - [ ] 02-03-PLAN.md - Implement cache-backed supplier search envelope with degraded-state truthfulness
 - [ ] 02-04-PLAN.md - Deliver URL-synced filters/sort/map browsing and mobile performance hardening
 
+### Phase 02.2: Home and Search Motion Audit (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 2
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 02.2 to break down)
+
 ### Phase 3: Hotel Detail and User Workspace
 **Goal**: Travelers can confidently evaluate properties and manage saved stays in their account workspace.
 **Depends on**: Phase 2

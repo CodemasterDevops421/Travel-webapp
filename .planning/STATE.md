@@ -82,6 +82,10 @@ Progress: [##########] 100%
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 02.2 inserted after Phase 2: Home and Search Motion Audit (URGENT)
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
