@@ -30,43 +30,40 @@ export function FeaturedDealsStrip() {
     <section className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-primary font-semibold">Featured deals</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">Featured deals</p>
           <h2 className="mt-1 text-3xl font-heading font-bold tracking-tight">Limited-time rates curated by our concierge</h2>
         </div>
         <PreferenceLink
           href="/search"
-          className="text-sm font-semibold text-primary hover:underline underline-offset-4 transition-colors"
+          className="text-sm font-semibold text-accent hover:underline underline-offset-4 transition-colors"
         >
           View all deals →
         </PreferenceLink>
       </div>
       <div className="grid gap-5 md:grid-cols-3">
         {deals.map((deal) => (
-          <PreferenceLink
+          <article
             key={deal.city}
-            href={`/search?q=${encodeURIComponent(deal.city)}`}
-            className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="group flex h-full cursor-pointer flex-col justify-between gap-4 rounded-[28px] border border-border/70 bg-card p-6 shadow-premium-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-premium-md hover:border-accent/20"
           >
-            <article className="flex h-full flex-col justify-between gap-4 rounded-2xl border border-border/60 bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
-                    <BadgePercent className="h-3.5 w-3.5" />
-                    {deal.tag}
-                  </span>
-                </div>
-                <h3 className="text-xl font-bold">{deal.city}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{deal.detail}</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F4B544]/30 bg-[#F4B544]/16 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#8A5A00]">
+                  <BadgePercent className="h-3.5 w-3.5" />
+                  {deal.tag}
+                </span>
               </div>
-              <div className="flex items-center justify-between border-t border-border/40 pt-4 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPinned className="h-4 w-4 text-primary/70" />
-                  {deal.dates}
-                </div>
-                <span className="text-lg font-bold text-foreground">{deal.price}</span>
+              <h3 className="text-xl font-bold">{deal.city}</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">{deal.detail}</p>
+            </div>
+            <div className="flex items-center justify-between border-t border-border/40 pt-4 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPinned className="h-4 w-4 text-accent/70" />
+                {deal.dates}
               </div>
-            </article>
-          </PreferenceLink>
+              <span className="text-lg font-bold text-foreground">{deal.price}</span>
+            </div>
+          </article>
         ))}
       </div>
     </section>

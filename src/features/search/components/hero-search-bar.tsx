@@ -25,16 +25,6 @@ export type HeroSearchBarProps = {
     };
 };
 
-function formatSearchDate(value: string): string {
-    if (!value) return 'Select date';
-    const parsed = new Date(`${value}T00:00:00`);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric'
-    }).format(parsed);
-}
-
 export function HeroSearchBar({ variant = 'default', className, initialValues }: HeroSearchBarProps) {
     const initialCheckIn = initialValues?.checkIn;
     const initialCheckOut = initialValues?.checkOut;
@@ -85,8 +75,6 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     const suggestions = data ?? [];
     const isSuggestionsOpen = query.length > 2 && showSuggestions;
     const canSearch = query.trim().length >= 3 && checkIn.length > 0 && checkOut.length > 0 && checkOut > checkIn;
-    const isCompact = variant === 'compact';
-    const isHero = variant === 'default';
 
     useEffect(() => {
         setHighlightedIndex(-1);
@@ -171,254 +159,150 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                 className
             )}
         >
-            <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="relative w-full">
-                <div
-                    className={cn(
-                        "flex w-full flex-col transition-all md:flex-row md:items-stretch",
-                        isCompact
-                            ? "rounded-[18px] border border-border/80 bg-card px-2 py-2 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.28)] md:rounded-full"
-                            : "rounded-[24px] border border-white/85 bg-white px-2 py-2 shadow-[0_32px_60px_-34px_rgba(17,12,40,0.6)] md:rounded-full"
-                    )}
-                >
+            <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="flex flex-col md:flex-row md:items-stretch transition-all rounded-2xl md:rounded-full bg-transparent">
 
-                    {/* Destination Input */}
-                    <div className="relative z-50 flex-[1.5]">
-                        {isHero ? (
-                            <span className="ui-label pointer-events-none absolute left-14 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
-                                Where
-                            </span>
-                        ) : null}
-                        <div className={cn(
-                            "absolute top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
-                            isCompact ? "left-4" : "left-6"
-                        )}>
-                            <MapPin className={cn("text-primary/80", isCompact ? "h-4 w-4" : "h-5 w-5")} strokeWidth={1.5} />
-                        </div>
-                        <Input
-                            className={cn(
-                                "w-full border-0 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-0",
-                                isCompact
-                                    ? "h-10 pl-10 text-xs font-medium leading-none md:h-11 md:truncate"
-                                    : "h-14 pl-14 text-sm font-medium leading-none md:h-16 md:pt-5"
-                            )}
-                            placeholder="Enter a destination"
-                            value={query}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                if (!hasTrackedSearchInput.current && val.trim().length > 0) {
-                                    hasTrackedSearchInput.current = true;
-                                    trackFunnelEvent({ name: 'search_input_started', step: 'discovery' });
-                                }
-                                setQuery(val);
-                                setShowSuggestions(true);
-                            }}
-                            onFocus={() => setShowSuggestions(true)}
-                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                            onKeyDown={onAutocompleteKeyDown}
-                        />
-
-                        {/* Autocomplete Dropdown */}
-                        {isSuggestionsOpen && (
-                            <div
-                                className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-border bg-card p-2 shadow-[var(--surface-shadow-lg)]"
-                                style={{ zIndex: 9999 }}
-                            >
-                                {isFetching ? (
-                                    <div className="p-4 text-sm text-muted-foreground">Searching...</div>
-                                ) : suggestions.length === 0 ? (
-                                    <div className="p-4 text-sm text-muted-foreground">No destinations found.</div>
-                                ) : (
-                                    <ul className="max-h-[300px] overflow-y-auto py-2">
-                                        {suggestions.map((item, idx) => (
-                                            <li
-                                                key={item.id}
-                                                className={cn(
-                                                    "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-accent",
-                                                    highlightedIndex === idx && "bg-accent"
-                                                )}
-                                                onMouseDown={(e) => { e.preventDefault(); onPickSuggestion(item.name); }}
-                                                onMouseEnter={() => setHighlightedIndex(idx)}
-                                            >
-                                                <span className="font-medium text-foreground">{item.name}</span>
-                                                <span className="text-xs capitalize text-muted-foreground">{item.source}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        )}
+                {/* Destination Input */}
+                <div className="relative z-50 flex-1">
+                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+                        <MapPin className="h-5 w-5 text-primary/80" strokeWidth={1.5} />
                     </div>
+                    <Input
+                        className="h-14 w-full border-0 bg-transparent pl-14 text-base font-medium text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-0 md:h-16"
+                        placeholder="Where are you going?"
+                        value={query}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (!hasTrackedSearchInput.current && val.trim().length > 0) {
+                                hasTrackedSearchInput.current = true;
+                                trackFunnelEvent({ name: 'search_input_started', step: 'discovery' });
+                            }
+                            setQuery(val);
+                            setShowSuggestions(true);
+                        }}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        onKeyDown={onAutocompleteKeyDown}
+                    />
 
-                    {/* Dates - Split into Check-in / Check-out */}
-                    <div className="flex flex-1 items-center border-t border-border/20 md:flex-[0.94] md:border-t-0 md:border-l">
-                        {isHero ? (
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <button
-                                        type="button"
-                                        className="relative grid h-14 w-full grid-cols-2 text-left md:h-16 md:pt-5"
-                                    >
-                                        <span className="ui-label pointer-events-none absolute left-10 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
-                                            Dates
-                                        </span>
-                                        <span className="relative flex items-center pl-10 pr-3 text-sm font-medium text-foreground">
-                                            <Calendar className="absolute left-4 h-4 w-4 text-primary/80" strokeWidth={1.5} />
-                                            <span className="numeric-tight whitespace-nowrap">{formatSearchDate(checkIn)}</span>
-                                        </span>
-                                        <span className="relative flex items-center border-l border-border/20 pl-10 pr-3 text-sm font-medium text-foreground">
-                                            <Calendar className="absolute left-4 h-4 w-4 text-primary/80" strokeWidth={1.5} />
-                                            <span className="numeric-tight whitespace-nowrap">{formatSearchDate(checkOut)}</span>
-                                        </span>
-                                    </button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[360px] rounded-[20px] border border-border bg-card p-4 shadow-[var(--surface-shadow-lg)]" align="center">
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        <label className="space-y-2 text-sm">
-                                            <span className="ui-label block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Check-in</span>
-                                            <input
-                                                type="date"
-                                                className="numeric-tight h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                                                value={checkIn}
-                                                min={today.toISOString().slice(0, 10)}
-                                                onChange={(e) => setCheckIn(e.target.value)}
-                                            />
-                                        </label>
-                                        <label className="space-y-2 text-sm">
-                                            <span className="ui-label block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Check-out</span>
-                                            <input
-                                                type="date"
-                                                className="numeric-tight h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                                                value={checkOut}
-                                                min={checkIn}
-                                                onChange={(e) => setCheckOut(e.target.value)}
-                                            />
-                                        </label>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                        ) : (
-                            <>
-                                <div className="relative flex-1">
-                                    <div className={cn(
-                                        "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
-                                        isCompact && "left-3"
-                                    )}>
-                                        <Calendar className={cn("text-primary/80", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} strokeWidth={1.5} />
-                                    </div>
-                                    <input
-                                        type="date"
-                                        className={cn(
-                                        "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
-                                        isCompact
-                                            ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
-                                                : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
-                                        )}
-                                        value={checkIn}
-                                        min={today.toISOString().slice(0, 10)}
-                                        onChange={(e) => setCheckIn(e.target.value)}
-                                    />
-                                </div>
-                                <div className="relative flex-1 border-l border-border/20">
-                                    <div className={cn(
-                                        "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
-                                        isCompact && "left-3"
-                                    )}>
-                                        <Calendar className={cn("text-primary/80", isCompact ? "h-3.5 w-3.5" : "h-4 w-4")} strokeWidth={1.5} />
-                                    </div>
-                                    <input
-                                        type="date"
-                                        className={cn(
-                                        "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
-                                        isCompact
-                                            ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
-                                                : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
-                                        )}
-                                        value={checkOut}
-                                        min={checkIn}
-                                        onChange={(e) => setCheckOut(e.target.value)}
-                                    />
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    {/* Guests & Search Button */}
-                    <div className={cn(
-                        "flex flex-1 items-center justify-between border-t border-border/20 md:border-t-0 md:border-l",
-                        isCompact ? "pl-1 pb-1 pt-1 md:min-w-[172px] md:flex-[0.72] md:p-0" : "pl-2 pb-2 pt-2 md:p-0"
-                    )}>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <button
-                                    type="button"
-                                    className={cn(
-                                        "group relative flex flex-1 items-center text-left transition-colors outline-none focus-visible:bg-primary/5 hover:bg-primary/5",
-                                        isCompact
-                                            ? "h-11 gap-2 px-3 rounded-l-xl md:h-12 md:rounded-xl"
-                                            : "h-14 gap-3 px-4 rounded-l-xl md:h-16 md:rounded-xl md:pt-5"
-                                    )}
-                                >
-                                    {isHero ? (
-                                        <span className="ui-label pointer-events-none absolute left-12 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
-                                            Guests
-                                        </span>
-                                    ) : null}
-                                    <Users className={cn(
-                                        "text-muted-foreground transition-colors group-hover:text-primary",
-                                        isCompact ? "h-4 w-4" : "h-5 w-5"
-                                    )} strokeWidth={1.5} />
-                                    <div className="flex flex-col">
-                                        <span className={cn(
-                                            "ui-label font-semibold text-foreground whitespace-nowrap",
-                                            isCompact ? "text-[10px] md:text-[10.5px]" : "text-xs"
-                                        )}>{rooms} Room, {adults} Guests</span>
-                                    </div>
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="z-[100] w-80 rounded-2xl border-border p-6 shadow-[var(--surface-shadow-lg)]" align="end">
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <span className="block text-sm font-semibold">Adults</span>
-                                            <span className="text-xs text-muted-foreground">Ages 13 or above</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setAdults(Math.max(1, adults - 1))}>-</Button>
-                                            <span className="w-4 text-center text-sm font-medium">{adults}</span>
-                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setAdults(Math.min(10, adults + 1))}>+</Button>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <span className="block text-sm font-semibold">Rooms</span>
-                                            <span className="text-xs text-muted-foreground">Max 5 per booking</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setRooms(Math.max(1, rooms - 1))}>-</Button>
-                                            <span className="w-4 text-center text-sm font-medium">{rooms}</span>
-                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setRooms(Math.min(5, rooms + 1))}>+</Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-
-                        <Button
-                            type="submit"
-                            disabled={!canSearch}
-                            className={cn(
-                                "flex shrink-0 items-center justify-center rounded-full bg-primary p-0 text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:shadow-none",
-                                isCompact
-                                    ? "mr-1 h-10 w-10 shadow-[0_14px_24px_-16px_rgba(189,47,241,0.78)] md:mr-0"
-                                    : "mr-2 h-12 w-12 shadow-[0_18px_30px_-18px_rgba(189,47,241,0.8)] md:mr-0"
-                            )}
+                    {/* Autocomplete Dropdown */}
+                    {isSuggestionsOpen && (
+                        <div
+                            className="absolute left-0 right-0 top-full mt-3 rounded-[24px] border border-border/80 bg-card p-2 shadow-premium-lg"
+                            style={{ zIndex: 9999 }}
                         >
-                            <Search className={cn(isCompact ? "h-4 w-4" : "h-5 w-5")} strokeWidth={2.5} />
-                        </Button>
+                            {isFetching ? (
+                                <div className="p-4 text-sm text-muted-foreground">Searching...</div>
+                            ) : suggestions.length === 0 ? (
+                                <div className="p-4 text-sm text-muted-foreground">No destinations found.</div>
+                            ) : (
+                                <ul className="max-h-[300px] overflow-y-auto py-2">
+                                    {suggestions.map((item, idx) => (
+                                        <li
+                                            key={item.id}
+                                            className={cn(
+                                                "flex cursor-pointer items-center justify-between rounded-2xl px-4 py-3 text-sm transition-colors hover:bg-secondary",
+                                                highlightedIndex === idx && "bg-secondary"
+                                            )}
+                                            onMouseDown={(e) => { e.preventDefault(); onPickSuggestion(item.name); }}
+                                            onMouseEnter={() => setHighlightedIndex(idx)}
+                                        >
+                                            <span className="font-medium text-foreground">{item.name}</span>
+                                            <span className="text-xs capitalize text-muted-foreground">{item.source}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Dates - Split into Check-in / Check-out */}
+                <div className="flex flex-1 items-center border-t border-border/50 md:border-t-0 md:border-l md:border-border/50">
+                    <div className="relative flex-1">
+                        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+                            <Calendar className="h-4 w-4 text-primary/80" strokeWidth={1.5} />
+                        </div>
+                        <input
+                            type="date"
+                            className="h-14 w-full cursor-pointer bg-transparent pl-12 pr-2 text-sm font-medium text-foreground focus:outline-none md:h-16"
+                            value={checkIn}
+                            min={today.toISOString().slice(0, 10)}
+                            onChange={(e) => setCheckIn(e.target.value)}
+                        />
+                    </div>
+                    <div className="relative flex-1 border-l border-border/30">
+                        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+                            <Calendar className="h-4 w-4 text-primary/80" strokeWidth={1.5} />
+                        </div>
+                        <input
+                            type="date"
+                            className="h-14 w-full cursor-pointer bg-transparent pl-12 pr-2 text-sm font-medium text-foreground focus:outline-none md:h-16"
+                            value={checkOut}
+                            min={checkIn}
+                            onChange={(e) => setCheckOut(e.target.value)}
+                        />
                     </div>
                 </div>
 
+                {/* Guests & Search Button */}
+                <div className="flex flex-1 items-stretch border-t border-border/50 md:border-t-0 md:border-l md:border-border/50">
+                    <Popover>
+                    <PopoverTrigger asChild>
+                            <button type="button" className="flex flex-1 items-center gap-3 px-6 text-left transition-colors hover:bg-secondary/70 md:h-16 group outline-none focus-visible:bg-secondary/70">
+                                <Users className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" strokeWidth={1.5} />
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-semibold text-foreground">{adults} Guests</span>
+                                    <span className="text-xs text-muted-foreground">{rooms} Room{rooms > 1 ? 's' : ''}</span>
+                                </div>
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="z-[100] w-80 rounded-[24px] border border-border/80 p-6 shadow-premium-lg" align="end">
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <span className="block text-sm font-semibold">Adults</span>
+                                        <span className="text-xs text-muted-foreground">Ages 13 or above</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setAdults(Math.max(1, adults - 1))}>-</Button>
+                                        <span className="w-4 text-center text-sm font-medium">{adults}</span>
+                                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setAdults(Math.min(10, adults + 1))}>+</Button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <span className="block text-sm font-semibold">Rooms</span>
+                                        <span className="text-xs text-muted-foreground">Max 5 per booking</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setRooms(Math.max(1, rooms - 1))}>-</Button>
+                                        <span className="w-4 text-center text-sm font-medium">{rooms}</span>
+                                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setRooms(Math.min(5, rooms + 1))}>+</Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
+                    <Button
+                        type="submit"
+                        size="lg"
+                        disabled={!canSearch}
+                        className="rounded-full px-8 text-base font-semibold shadow-premium-md md:h-14 disabled:opacity-50 disabled:shadow-none"
+                    >
+                        Search
+                    </Button>
+                </div>
+
             </form>
+            {!canSearch ? (
+                <p className={cn(
+                    'mt-2 text-xs font-medium md:text-right',
+                    variant === 'default' ? 'text-slate-500' : 'text-muted-foreground'
+                )}>
+                    Select destination, check-in, and check-out to enable search.
+                </p>
+            ) : null}
         </motion.div>
     );
 }

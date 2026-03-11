@@ -1,7 +1,7 @@
 'use client';
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowUpDown, CalendarDays, ListFilter, List as ListIcon, Map as MapIcon } from 'lucide-react';
+import { Compass, ListFilter, Map as MapIcon, SlidersHorizontal } from 'lucide-react';
 import type { Route } from 'next';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -24,7 +24,7 @@ const SearchResultsMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[320px] items-center justify-center bg-slate-100 text-sm text-muted-foreground dark:bg-slate-800">
+      <div className="flex h-[360px] items-center justify-center rounded-[28px] bg-secondary text-sm text-muted-foreground">
         Preparing map view...
       </div>
     )
@@ -129,7 +129,6 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
     const filtered = source.filter((hotel) => {
       const price = hotel.price ?? 0;
       const review = hotel.reviewScore ?? 0;
-      const reviewCount = hotel.reviewCount ?? 0;
       const stars = hotel.starRating ?? 0;
       const name = (hotel.name ?? '').toLowerCase();
 
@@ -140,9 +139,6 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
         return false;
       }
       if (urlState.filters.minGuestRating > 0 && review < urlState.filters.minGuestRating) {
-        return false;
-      }
-      if (urlState.filters.minReviewCount > 0 && reviewCount < urlState.filters.minReviewCount) {
         return false;
       }
       if (urlState.filters.minStars > 0 && stars < urlState.filters.minStars) {
@@ -183,13 +179,6 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
       }
       if (urlState.sort === 'rating') {
         return (b.reviewScore ?? 0) - (a.reviewScore ?? 0);
-      }
-      if (urlState.sort === 'distance') {
-        const distanceA = Number((a as { distanceFromCenterKm?: unknown }).distanceFromCenterKm);
-        const distanceB = Number((b as { distanceFromCenterKm?: unknown }).distanceFromCenterKm);
-        const normalizedA = Number.isFinite(distanceA) ? distanceA : Number.MAX_SAFE_INTEGER;
-        const normalizedB = Number.isFinite(distanceB) ? distanceB : Number.MAX_SAFE_INTEGER;
-        return normalizedA - normalizedB;
       }
       return (
         computePopularityScore(b.price, b.reviewScore, b.starRating) -
@@ -247,67 +236,53 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
     (urlState.filters.minPrice > 0 ? 1 : 0) +
     (urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? 1 : 0) +
     (urlState.filters.minGuestRating > 0 ? 1 : 0) +
-    (urlState.filters.minReviewCount > 0 ? 1 : 0) +
     (urlState.filters.minStars > 0 ? 1 : 0) +
     (urlState.filters.maxDistanceKm < DEFAULT_LISTING_FILTERS.maxDistanceKm ? 1 : 0) +
     urlState.filters.amenities.length +
     urlState.filters.propertyTypes.length;
 
-  const mapViewActive = urlState.view === 'map';
-
   return (
-    <main className="page-shell space-y-5 py-6 md:space-y-6 md:py-8">
-      <div className="surface-shell p-4 md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Search results</p>
-            <h1 className="ui-heading text-2xl font-bold text-foreground sm:text-[2rem]">{query}</h1>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2.5 py-1">
-                <CalendarDays className="h-3.5 w-3.5" />
-                {checkin} to {checkout}
-              </span>
-              <span>{adults} guests</span>
-              <span>•</span>
-              <span>{rooms} room{rooms > 1 ? 's' : ''}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            {isFetching ? (
-              <>
-                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                Getting the best deals...
-              </>
-            ) : (
-              <>
-                <span className="font-semibold text-foreground">{listings.length}</span> properties found
-              </>
-            )}
-          </div>
+    <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
+      <div className="surface-panel mb-4 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border-border/70 px-4 py-4">
+        <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
+          {isFetching ? (
+            <>
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              Getting the best deals...
+            </>
+          ) : (
+            <>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent">
+                <Compass className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">{listings.length} properties found</p>
+                <p className="text-xs text-muted-foreground">Curated around your selected dates and travel profile.</p>
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
-          <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 rounded-full lg:hidden"
+            className="gap-2 lg:hidden"
             onClick={() => setShowMobileFilters((previous) => !previous)}
           >
-            <ListFilter className="h-3.5 w-3.5" />
+            <SlidersHorizontal className="h-3.5 w-3.5" />
             Filters
             {activeFilterCount > 0 && (
-              <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
                 {activeFilterCount}
               </span>
             )}
           </Button>
 
-          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background px-3 py-2 text-sm shadow-sm">
-            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="hidden text-muted-foreground sm:inline">Sort by:</span>
+          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-secondary/60 px-4 py-2 text-sm">
+            <span className="hidden text-muted-foreground sm:inline">Sort by</span>
             <select
-              className="cursor-pointer bg-transparent pr-2 font-semibold capitalize text-foreground outline-none"
+              className="cursor-pointer bg-transparent font-semibold text-foreground outline-none"
               value={urlState.sort}
               onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                 updateUrlState((previous) => ({
@@ -320,34 +295,32 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               <option value="popularity">popularity</option>
               <option value="price">price</option>
               <option value="rating">guest rating</option>
-              <option value="distance">distance to center</option>
             </select>
           </div>
-          </div>
 
-          <div className="flex rounded-full border border-border/70 bg-background p-1 shadow-sm">
+          <div className="flex rounded-full border border-border/70 bg-secondary/60 p-1">
             <button
               onClick={() => {
                 updateUrlState((previous) => ({ ...previous, view: 'grid' }));
               }}
               className={cn(
-                'flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
+                'flex items-center gap-1 rounded-full px-4 py-2 text-xs font-medium transition-all',
                 urlState.view === 'grid'
-                  ? 'bg-primary/8 text-primary shadow-sm'
+                  ? 'bg-card text-accent shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <ListIcon className="h-3 w-3" />
-              List
+              <ListFilter className="h-3 w-3" />
+              Grid
             </button>
             <button
               onClick={() => {
                 updateUrlState((previous) => ({ ...previous, view: 'map' }));
               }}
               className={cn(
-                'flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
+                'flex items-center gap-1 rounded-full px-4 py-2 text-xs font-medium transition-all',
                 urlState.view === 'map'
-                  ? 'bg-primary/8 text-primary shadow-sm'
+                  ? 'bg-card text-accent shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -359,7 +332,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
       </div>
 
       {previewEnvelope?.degraded && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
           <p className="font-semibold">Live inventory is partially degraded</p>
           <p>
             Showing {previewEnvelope.freshness} results as of {new Date(previewEnvelope.asOf).toLocaleString()}.
@@ -367,46 +340,6 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           </p>
         </div>
       )}
-
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          className="rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onClick={() =>
-            updateUrlState((previous) => ({
-              ...previous,
-              filters: { ...previous.filters, minGuestRating: 8, minReviewCount: Math.max(previous.filters.minReviewCount, 50) },
-              page: 1
-            }))
-          }
-        >
-          Guest rating 8+ (50+ reviews)
-        </button>
-        <button
-          className="rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onClick={() =>
-            updateUrlState((previous) => ({
-              ...previous,
-              filters: { ...previous.filters, maxPrice: Math.min(previous.filters.maxPrice, 200) },
-              sort: 'price',
-              page: 1
-            }))
-          }
-        >
-          Budget stays under $200
-        </button>
-        <button
-          className="rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onClick={() =>
-            updateUrlState((previous) => ({
-              ...previous,
-              filters: { ...previous.filters, minStars: Math.max(previous.filters.minStars, 4) },
-              page: 1
-            }))
-          }
-        >
-          4-star and above
-        </button>
-      </div>
 
       {showMobileFilters && (
         <div className="lg:hidden">
@@ -428,43 +361,41 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
           </div>
         )}
 
-      <div className="grid gap-5 lg:grid-cols-[286px,minmax(0,1fr)] lg:items-start">
-        <div className="sticky top-[var(--header-offset)] hidden self-start lg:block">
-            <FiltersSidebar
-              filters={urlState.filters}
-              onFilterChange={(nextFilters: FilterState) => {
-                updateUrlState((previous) => ({
-                  ...previous,
-                  filters: nextFilters,
-                  page: 1
-                }));
-              }}
-              onShowMap={() => {
-                updateUrlState((previous) => ({ ...previous, view: 'map' }));
-              }}
-              query={query}
-            />
-          </div>
+      <div className="grid gap-8 lg:grid-cols-[300px,1fr]">
+        <div className="sticky top-24 hidden self-start lg:block">
+          <FiltersSidebar
+            filters={urlState.filters}
+            onFilterChange={(nextFilters: FilterState) => {
+              updateUrlState((previous) => ({
+                ...previous,
+                filters: nextFilters,
+                page: 1
+              }));
+            }}
+            onShowMap={() => {
+              updateUrlState((previous) => ({ ...previous, view: 'map' }));
+            }}
+            query={query}
+          />
+        </div>
 
-        <div className={cn('space-y-4', mapViewActive && 'lg:grid lg:grid-cols-[minmax(0,1fr),380px] lg:gap-4 lg:space-y-0')}>
-          {mapViewActive && (
-            <article className="surface-shell-subtle mb-4 overflow-hidden lg:order-2 lg:mb-0 lg:sticky lg:top-[var(--header-offset)] lg:h-[calc(100vh-7.5rem)]">
+        <div className="space-y-4">
+          {urlState.view === 'map' && (
+            <article className="mb-4 overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-premium-sm">
               {deferMapRender ? (
                 <SearchResultsMap hotels={paginatedListings} />
               ) : (
-                <div className="flex h-[320px] items-center justify-center bg-slate-100 text-sm text-muted-foreground dark:bg-slate-800 lg:h-full">
+                <div className="flex h-[360px] items-center justify-center bg-secondary text-sm text-muted-foreground">
                   Preparing map view...
                 </div>
               )}
             </article>
           )}
 
-          <div className={cn(mapViewActive && 'lg:order-1 lg:space-y-4')}>
-
           {isFetching ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {[1, 2, 3].map((item) => (
-                <div key={item} className="h-44 w-full animate-pulse rounded-[20px] bg-gray-100 dark:bg-slate-800" />
+                <div key={item} className="h-60 w-full animate-pulse rounded-[28px] bg-secondary" />
               ))}
             </div>
           ) : listings.length > 0 ? (
@@ -490,7 +421,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               ))}
 
               {totalPages > 1 && (
-                <div className="mt-7 flex items-center justify-center gap-4">
+                <div className="mt-8 flex items-center justify-center gap-4">
                   <Button
                     variant="outline"
                     size="sm"
@@ -526,7 +457,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               )}
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-border bg-slate-50 p-12 text-center text-muted-foreground dark:bg-slate-900">
+            <div className="rounded-[28px] border border-dashed border-border/80 bg-secondary/60 p-12 text-center text-muted-foreground">
               <p className="mb-2 text-lg font-medium text-foreground">No properties found</p>
               <p className="text-sm">Try adjusting your filters or search criteria.</p>
               <Button
@@ -544,7 +475,6 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               </Button>
             </div>
           )}
-          </div>
         </div>
       </div>
     </main>
