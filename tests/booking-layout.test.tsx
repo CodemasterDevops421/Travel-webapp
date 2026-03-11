@@ -17,8 +17,11 @@ describe('booking layout chrome suppression', () => {
 
   it('keeps the compact hero search inline in the desktop header on non-home routes', () => {
     expect(headerSource).toContain("const showInlineDesktopSearch = !isHomePage;");
+    expect(headerSource).toContain("const headerSurfaceClassName = isHomePage");
     expect(headerSource).toContain('{showInlineDesktopSearch && (');
-    expect(headerSource).toContain('className="hidden min-w-0 flex-1 md:block"');
+    expect(headerSource).toContain('hidden min-w-0 flex-1 md:block motion-safe:animate-in');
+    expect(headerSource).toContain('transition-[background-color,border-color,box-shadow] duration-300');
+    expect(headerSource).toContain('bg-white/88 dark:bg-slate-950/82');
     expect(headerSource).not.toContain('border-t border-border/40 bg-background/85');
   });
 
