@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: "Phase
-last_updated: "2026-03-11T11:37:01.121Z"
-last_activity: 2026-03-04 - Completed 07-03-PLAN.md
+status: in_progress
+stopped_at: "Completed 02.2-01-PLAN.md"
+last_updated: "2026-03-11T12:16:01.396Z"
+last_activity: 2026-03-11 - Completed 02.2-01-PLAN.md
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 3
-  total_plans: 16
-  completed_plans: 24
+  total_plans: 20
+  completed_plans: 26
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Milestone complete - all planned phases executed
+**Current focus:** Phase 02.2 motion audit is in progress; Wave 2 implementation now has a locked design and validation contract.
 
 ## Current Position
 
-Phase: 07-canonical-data-wiring-and-observability-closure
-Plan: 3 of 3 in current phase
-Status: Complete
-Last activity: 2026-03-11 - Completed 02-05-PLAN.md
+Phase: 02.2-home-and-search-motion-audit
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-11 - Completed 02.2-01-PLAN.md
 
-Progress: [##########] 100%
+Progress: Phase 02.2 plan 1/3 complete
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Progress: [##########] 100%
 | Phase 07-canonical-data-wiring-and-observability-closure P01 | 1 min | 3 tasks | 10 files |
 | Phase 07 P02 | 5 min | 3 tasks | 10 files |
 | Phase 07 P03 | 4 min | 2 tasks | 6 files |
+| Phase 02.2-home-and-search-motion-audit P01 | 6 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -157,6 +158,9 @@ Recent decisions affecting current work:
 - [Phase 07]: Redact payload/body-shaped telemetry metadata keys before centralized capture to prevent supplier blob leakage.
 - [Phase 07]: Use httpError.safeMessage at booking and webhook response boundaries while retaining detailed telemetry context.
 - [Phase 07]: Include webhook event and transaction identifiers in centralized catch-path capture metadata for faster triage.
+- [Phase 02.2-home-and-search-motion-audit]: Discovery-shell motion is locked to polished, restrained patterns and explicitly bans scroll-jacking plus wheel/touch interception.
+- [Phase 02.2-home-and-search-motion-audit]: Reduced motion is mandatory for all non-essential homepage and search-shell motion before Wave 2 implementation ships.
+- [Phase 02.2-home-and-search-motion-audit]: Baseline regression coverage stays source-contract oriented and protects hero/search/header boundaries before new motion components are introduced.
 
 ### Pending Todos
 
@@ -168,6 +172,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-11T11:37:01.107Z
-Stopped at: "Phase
-Resume file: ".planning/phases/02-search-and-discovery-experience/02-CONTEXT.md"
+Last session: 2026-03-11T12:16:01.388Z
+Stopped at: Completed 02.2-01-PLAN.md
+Resume file: None

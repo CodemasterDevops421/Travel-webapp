@@ -60,13 +60,15 @@ Plans:
 
 ### Phase 02.2: Home and Search Motion Audit (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Lock the homepage, header, and search-shell motion direction before UI implementation so later polish work stays accessible, search-safe, and visually coherent.
+**Requirements**: DISC-01, DISC-06
 **Depends on:** Phase 2
-**Plans:** 0 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 02.2 to break down)
+- [x] 02.2-01-PLAN.md - Create discovery-shell audit, motion contract, and validation guardrails
+- [ ] 02.2-02-PLAN.md - Rebuild the homepage hero around polished travel motion
+- [ ] 02.2-03-PLAN.md - Polish the header and shared search shell without regressing usability
 
 ### Phase 3: Hotel Detail and User Workspace
 **Goal**: Travelers can confidently evaluate properties and manage saved stays in their account workspace.
@@ -174,6 +176,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 |-------|----------------|--------|-----------|
 | 1. Platform Foundation and Security | 0/4 | Complete    | 2026-02-23 |
 | 2. Search and Discovery Experience | 0/4 | Not started | - |
+| 02.2. Home and Search Motion Audit | 1/3 | In Progress | - |
 | 3. Hotel Detail and User Workspace | 4/4 | Complete | 2026-02-25 |
 | 4. Checkout and Booking Lifecycle Integrity | 0/4 | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |
