@@ -286,10 +286,33 @@ const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN ? Redis
 type DetailedFetchResult<T> = {
   data: T | null;
   degradedReason: Exclude<SupplierDegradedReason, 'partial'> | null;
+  status: number | null;
+  statusText: string | null;
+  bodySnippet: string | null;
 };
 
 function isTimeoutLikeError(error: unknown): boolean {
   return error instanceof Error && (error.name === 'AbortError' || /timeout|aborted/i.test(error.message));
+}
+
+function maskApiKey(value?: string | null): string | null {
+  if (!value) return null;
+  if (value.length <= 8) return '***';
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
+function safeSnippet(value: unknown, maxLength = 1200): string {
+  try {
+    const raw = typeof value === 'string' ? value : JSON.stringify(value);
+    if (!raw) return '';
+    return raw.length > maxLength ? `${raw.slice(0, maxLength)}...` : raw;
+  } catch {
+    return '[unserializable]';
+  }
+}
+
+function logLiteApiDebug(event: string, payload: Record<string, unknown>) {
+  logger.info({ liteapiEvent: event, ...payload }, 'LiteAPI debug');
 }
 
 async function fetchJsonWithBackoffDetailed<T>(
@@ -324,12 +347,18 @@ async function fetchJsonWithBackoffDetailed<T>(
       );
       return {
         data: null,
-        degradedReason: 'unavailable'
+        degradedReason: 'unavailable',
+        status: response.status,
+        statusText: response.statusText,
+        bodySnippet: safeSnippet(text)
       };
     }
     return {
       data: JSON.parse(text) as T,
-      degradedReason: null
+      degradedReason: null,
+      status: response.status,
+      statusText: response.statusText,
+      bodySnippet: null
     };
   } catch (error) {
     if (retries > 0) {
@@ -340,7 +369,10 @@ async function fetchJsonWithBackoffDetailed<T>(
     logger.warn({ error, url }, 'LiteAPI request errored');
     return {
       data: null,
-      degradedReason: isTimeoutLikeError(error) ? 'timeout' : 'unavailable'
+      degradedReason: isTimeoutLikeError(error) ? 'timeout' : 'unavailable',
+      status: null,
+      statusText: null,
+      bodySnippet: safeSnippet(error instanceof Error ? error.message : error)
     };
   } finally {
     if (timeoutHandle) {
@@ -1279,6 +1311,28 @@ async function searchRates(
     }
   }
 
+  logLiteApiDebug('rates_request', {
+    liteApiEnv: runtime.mode,
+    url: `${runtime.baseUrl}/hotels/rates`,
+    hasApiKey: Boolean(runtime.apiKey),
+    apiKey: maskApiKey(runtime.apiKey),
+    timeoutMs: env.LITEAPI_TIMEOUT_MS,
+    payload: {
+      checkin: payload.checkin,
+      checkout: payload.checkout,
+      currency: payload.currency,
+      guestNationality: payload.guestNationality,
+      occupancies: payload.occupancies,
+      placeId: payload.placeId,
+      cityName: payload.cityName,
+      aiSearch: payload.aiSearch,
+      timeoutSeconds: payload.timeout,
+      minRating: payload.minRating,
+      starRating: payload.starRating,
+      limit: payload.limit
+    }
+  });
+
   const response = await fetchJsonWithBackoffDetailed<LiteApiResponse<Array<Record<string, unknown>>>>(`${runtime.baseUrl}/hotels/rates`, {
     method: 'POST',
     headers: {
@@ -1290,6 +1344,14 @@ async function searchRates(
     next: { revalidate: 300 }
   });
 
+  logLiteApiDebug('rates_response', {
+    status: response.status,
+    statusText: response.statusText,
+    ok: Boolean(response.data),
+    degradedReason: response.degradedReason,
+    bodySnippet: response.bodySnippet
+  });
+
   if (!response.data) {
     return {
       items: [],
@@ -1298,6 +1360,11 @@ async function searchRates(
   }
 
   const mapped = mapRatesResponse(response.data, fallbackCity);
+  logLiteApiDebug('rates_response_summary', {
+    upstreamHotelsCount: Array.isArray(response.data.hotels) ? response.data.hotels.length : 0,
+    upstreamDataCount: Array.isArray(response.data.data) ? response.data.data.length : 0,
+    mappedCount: mapped.length
+  });
   if (redis && cacheKey && mapped.length > 0) {
     try {
       await redis.set(cacheKey, mapped, { ex: 300 });
@@ -1849,8 +1916,23 @@ export async function searchPropertyPreviews(
     asOf,
     freshness: degradedReason ? 'stale' : 'fresh'
   });
+  const logDegradedFallback = (reason: SupplierDegradedReason, context: Record<string, unknown> = {}) => {
+    logLiteApiDebug('property_preview_degraded', {
+      degradedReason: reason,
+      fallbackCount: fallbackProperties.length,
+      query,
+      language,
+      currency,
+      checkin,
+      checkout,
+      adults,
+      rooms,
+      ...context
+    });
+  };
 
   if (!hasConfiguredLiteApiKey(runtime.apiKey)) {
+    logDegradedFallback('unavailable', { reasonSource: 'missing_api_key' });
     return toResult(fallbackProperties, 'unavailable');
   }
 
@@ -1966,7 +2048,9 @@ export async function searchPropertyPreviews(
         }
       }
 
-      return toResult(paginate(fallbackProperties), degradedReason ?? 'unavailable');
+      const fallbackReason = degradedReason ?? 'unavailable';
+      logDegradedFallback(fallbackReason, { searchMode, reasonSource: 'vibe_fallback' });
+      return toResult(paginate(fallbackProperties), fallbackReason);
     }
 
     if (trimmedBrief) {
@@ -2075,7 +2159,9 @@ export async function searchPropertyPreviews(
     const fallbackPlaceResponse = (await placeRes.json()) as { data?: Array<{ id?: string }> };
     const fallbackPlaceId = fallbackPlaceResponse?.data?.[0]?.id;
     if (!fallbackPlaceId) {
-      return toResult(paginate(fallbackProperties), degradedReason ?? 'unavailable');
+      const fallbackReason = degradedReason ?? 'unavailable';
+      logDegradedFallback(fallbackReason, { reasonSource: 'missing_fallback_place_id' });
+      return toResult(paginate(fallbackProperties), fallbackReason);
     }
 
     const ratesRes = await fetch(`${runtime.baseUrl}/hotels/rates`, {
@@ -2109,10 +2195,17 @@ export async function searchPropertyPreviews(
       return toResult(paginate(mapped), degradedReason === null ? null : 'partial');
     }
 
-    return toResult(paginate(fallbackProperties), degradedReason ?? 'unavailable');
+    const fallbackReason = degradedReason ?? 'unavailable';
+    logDegradedFallback(fallbackReason, { reasonSource: 'empty_fallback_rates_result' });
+    return toResult(paginate(fallbackProperties), fallbackReason);
   } catch (error) {
     logger.warn({ error }, 'LiteAPI property preview search failed');
-    return toResult(fallbackProperties, isTimeoutLikeError(error) ? 'timeout' : 'unavailable');
+    const fallbackReason = isTimeoutLikeError(error) ? 'timeout' : 'unavailable';
+    logDegradedFallback(fallbackReason, {
+      reasonSource: 'search_exception',
+      error: safeSnippet(error instanceof Error ? error.message : error)
+    });
+    return toResult(fallbackProperties, fallbackReason);
   }
 }
 
