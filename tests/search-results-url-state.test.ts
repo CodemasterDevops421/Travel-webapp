@@ -10,6 +10,8 @@ import {
   getActiveFilterCount as getSearchResultsActiveFilterCount,
   sortListings as sortSearchResultsListings
 } from '@/features/search/components/search-results-page';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const sampleListings: PropertyPreview[] = [
   {
@@ -51,6 +53,11 @@ const sampleListings: PropertyPreview[] = [
 ];
 
 describe('search results URL state contract', () => {
+  const sidebarSource = readFileSync(
+    resolve(process.cwd(), 'src/features/search/components/filters-sidebar.tsx'),
+    'utf8'
+  );
+
   it('serializes discovery controls in deterministic order', () => {
     const params = serializeListingSearchParams({
       query: {
@@ -180,5 +187,11 @@ describe('search results URL state contract', () => {
     };
 
     expect(getSearchResultsActiveFilterCount(filters)).toBe(1);
+  });
+
+  it('keeps the sidebar clear-all affordance visible for legacy minReviewCount URLs', () => {
+    expect(sidebarSource).toContain('filters.minReviewCount > 0 ||');
+    expect(sidebarSource).toContain('{hasActiveFilters && (');
+    expect(sidebarSource).toContain('Clear all');
   });
 });

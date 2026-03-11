@@ -88,6 +88,7 @@ export function FiltersSidebar({ filters, onFilterChange, query, onShowMap }: Fi
         filters.minPrice > 0 ||
         filters.maxPrice < 1000 ||
         filters.minGuestRating > 0 ||
+        filters.minReviewCount > 0 ||
         filters.minStars > 0 ||
         filters.maxDistanceKm < 30 ||
         filters.amenities.length > 0 ||

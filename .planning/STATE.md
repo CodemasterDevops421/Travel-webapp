@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 07-canonical-data-wiring-and-observability-closure
 Plan: 3 of 3 in current phase
 Status: Complete
-Last activity: 2026-03-04 - Completed 07-03-PLAN.md
+Last activity: 2026-03-11 - Completed 02-05-PLAN.md
 
 Progress: [##########] 100%
 
@@ -105,6 +105,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Recovered search results after supplier failures are labeled partial/stale rather than fresh.
 - [Phase 02]: Use a shared destination slug allowlist to enforce canonical destination routing and metadata consistency.
 - [Phase 02]: Redirect legacy /search requests to /stays/{destination} while preserving normalized discovery query params.
+- [Phase 02]: Search-result cards now route through PreferenceLink so stored language and currency preferences persist into hotel detail.
+- [Phase 02]: Search merchandising removes unsupported benefit and comparison-price claims unless current listing data can prove them.
+- [Phase 02]: Legacy minReviewCount-only URLs remain visibly filtered because sidebar clear-all affordances now treat that field as active state.
 - [Phase 03]: HotelDetails now uses explicit null/array defaults so missing supplier fields are deterministic across API, SSR, and UI.
 - [Phase 03]: Hotel detail API returns additive degraded metadata (degraded/degradedReason/asOf) without breaking existing payload consumers.
 - [Phase 03]: Hotel UI removed synthetic amenity defaults and now shows explicit per-section unavailable messaging.

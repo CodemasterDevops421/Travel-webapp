@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { Heart, MapPin, Star } from 'lucide-react';
+import { PreferenceLink } from '@/components/navigation/preference-link';
 import { cn } from '@/shared/lib/utils';
 import { PropertyPreview } from '@/features/search/hooks/use-property-preview';
 
@@ -94,13 +95,13 @@ export function HorizontalHotelCard({
     return (
         <article className="group flex flex-col gap-4 rounded-[28px] border border-border/70 bg-card p-4 shadow-premium-sm transition-all hover:-translate-y-[2px] hover:border-accent/18 hover:shadow-premium-md md:flex-row md:gap-5">
             <div className="relative h-52 w-full shrink-0 overflow-hidden rounded-[24px] md:h-auto md:w-[308px]">
-                <a href={hotelHref}>
+                <PreferenceLink href={hotelHref}>
                     {hotel.imageUrl ? (
                         <Image src={hotel.imageUrl} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, 288px" className="object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
                         <div className="h-full w-full bg-slate-100" />
                     )}
-                </a>
+                </PreferenceLink>
                 <button
                     type="button"
                     onClick={() => {
@@ -130,27 +131,15 @@ export function HorizontalHotelCard({
                                 <Star key={i} className="h-3.5 w-3.5 fill-[#F4B544] text-[#F4B544]" />
                             ))}
                         </div>
-                        <a href={hotelHref}>
+                        <PreferenceLink href={hotelHref}>
                             <h3 className="mt-2 text-[22px] font-bold leading-tight text-foreground transition-colors group-hover:text-accent">{hotel.name}</h3>
-                        </a>
-                        <a href={hotelHref} className="mt-2 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                        </PreferenceLink>
+                        <PreferenceLink href={hotelHref} className="mt-2 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
                             <MapPin className="h-4 w-4 text-accent/75" />
                             <span className="line-clamp-1">{hotel.city}, {hotel.countryCode}</span>
                             <span className="text-muted-foreground no-underline">•</span>
                             <span className="text-accent no-underline">Map view</span>
-                        </a>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-emerald-600/15 bg-emerald-600/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">
-                                Free cancellation
-                            </span>
-                            <span className="rounded-full border border-accent/15 bg-accent/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
-                                Reserve now, pay later
-                            </span>
-                            <span className="rounded-full border border-[#F4B544]/30 bg-[#F4B544]/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8A5A00]">
-                                Limited supply for your dates
-                            </span>
-                        </div>
+                        </PreferenceLink>
                         {amenityHighlights.length > 0 ? (
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {amenityHighlights.map((amenity) => (
@@ -192,14 +181,9 @@ export function HorizontalHotelCard({
                     </div>
 
                     <div className="w-full sm:w-auto">
-                        <div className="mb-2 flex items-center justify-end gap-2">
-                            <span className="rounded-full border border-[#F4B544]/30 bg-[#F4B544]/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8A5A00]">
-                                Early booker deal
-                            </span>
-                        </div>
                         <div className="text-right">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Actual price</p>
                             <div className="flex items-baseline justify-end gap-1.5">
-                                <span className="text-sm text-muted-foreground line-through decoration-primary/40">{formatMoney(hotel.currency, (hotel.price ?? 0) * 1.08)}</span>
                                 <span className="text-2xl font-bold text-foreground">{formatMoney(hotel.currency, hotel.price)}</span>
                             </div>
                             <p className="mt-0.5 text-[11px] text-muted-foreground">{nights} night{nights > 1 ? 's' : ''} · Includes taxes and charges</p>
@@ -207,9 +191,9 @@ export function HorizontalHotelCard({
                                 <p className="text-xs font-semibold text-foreground">Total {formatMoney(hotel.currency, hotel.price * nights)}</p>
                             ) : null}
                         </div>
-                        <a href={hotelHref} className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-full bg-primary px-8 font-bold text-primary-foreground shadow-premium-sm transition-all hover:bg-primary/95 hover:shadow-premium-md sm:w-auto">
+                        <PreferenceLink href={hotelHref} className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-full bg-primary px-8 font-bold text-primary-foreground shadow-premium-sm transition-all hover:bg-primary/95 hover:shadow-premium-md sm:w-auto">
                             See availability
-                        </a>
+                        </PreferenceLink>
                     </div>
                 </div>
                 {showAuthPrompt ? (
