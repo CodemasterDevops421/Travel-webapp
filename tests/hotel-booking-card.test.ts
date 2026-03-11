@@ -44,9 +44,9 @@ describe('hotel booking default-offer regression coverage', () => {
     expect(parentSource).toContain('const initialDefaultRate = useMemo(() => pickLowestActionableRate(initialRates), [initialRates]);');
     expect(parentSource).toContain('const defaultRate = useMemo(() => pickLowestActionableRate(rates), [rates]);');
     expect(parentSource).toContain('initialDefaultRate ? buildRateKey(initialDefaultRate) : null');
-    expect(parentSource).toContain('return defaultRate ? buildRateKey(defaultRate) : null;');
-    expect(parentSource).toContain('const lowestRate = defaultRate?.amount ?? null;');
+    expect(parentSource).toContain('return defaultRate ? buildRateKey(defaultRate) : buildRateKey(rates[0]);');
+    expect(parentSource).toContain('const lowestRate = defaultRate?.amount ?? rates.reduce<number | null>');
     expect(parentSource).toContain("const currency = defaultRate?.currency ?? rates[0]?.currency ?? 'USD';");
-    expect(parentSource).toContain('() => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? defaultRate ?? null,');
+    expect(parentSource).toContain('() => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? defaultRate ?? rates[0] ?? null,');
   });
 });

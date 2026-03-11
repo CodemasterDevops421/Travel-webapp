@@ -6,18 +6,15 @@ describe('booking layout chrome suppression', () => {
   const headerSource = readFileSync(resolve(process.cwd(), 'src/components/layout/header.tsx'), 'utf8');
 
   it('suppresses the global header for checkout routes', () => {
-    expect(headerSource).toContain("const isBookingFlow = pathname.startsWith('/booking');");
-    expect(headerSource).toContain('if (isBookingFlow) {');
+    expect(headerSource).toContain("const isCheckoutPage = pathname.startsWith('/booking');");
+    expect(headerSource).toContain('if (isCheckoutPage) {');
     expect(headerSource).toContain('return null;');
   });
 
-  it('keeps the compact hero search outside the checkout boundary', () => {
-    const bookingFlowGuardIndex = headerSource.indexOf("const isBookingFlow = pathname.startsWith('/booking');");
-    const compactSearchIndex = headerSource.indexOf("<HeroSearchBar variant=\"compact\"");
-    const nullReturnIndex = headerSource.indexOf('return null;');
-
-    expect(bookingFlowGuardIndex).toBeGreaterThanOrEqual(0);
-    expect(nullReturnIndex).toBeGreaterThan(bookingFlowGuardIndex);
-    expect(compactSearchIndex).toBeGreaterThan(nullReturnIndex);
+  it('keeps the compact hero search inline in the desktop header on non-home routes', () => {
+    expect(headerSource).toContain("const showInlineDesktopSearch = !isHomePage;");
+    expect(headerSource).toContain('{showInlineDesktopSearch && (');
+    expect(headerSource).toContain('className="hidden min-w-0 flex-1 md:block"');
+    expect(headerSource).not.toContain('border-t border-border/40 bg-background/85');
   });
 });
