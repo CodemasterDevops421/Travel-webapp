@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: "Completed 02.2-03-PLAN.md"
-last_updated: "2026-03-11T12:25:13.091Z"
-last_activity: 2026-03-11 - Completed 02.2-03-PLAN.md
+stopped_at: "Completed 02.2-02-PLAN.md"
+last_updated: "2026-03-11T12:30:00.000Z"
+last_activity: 2026-03-11 - Completed 02.2-02-PLAN.md
 progress:
   total_phases: 9
   completed_phases: 3
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Phase 02.2 motion audit remains in progress with plans 01 and 03 completed; the remaining homepage hero rebuild is still pending in plan 02.
+**Current focus:** Phase 02.2 motion audit is complete; the homepage hero and discovery modules now match the locked motion contract with reduced-motion-safe behavior.
 
 ## Current Position
 
 Phase: 02.2-home-and-search-motion-audit
-Plan: 2 of 3 plans completed in current phase
-Status: In Progress
-Last activity: 2026-03-11 - Completed 02.2-03-PLAN.md
+Plan: 3 of 3 plans completed in current phase
+Status: Completed
+Last activity: 2026-03-11 - Completed 02.2-02-PLAN.md
 
-Progress: Phase 02.2 plans 2/3 complete
+Progress: Phase 02.2 complete
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ Progress: Phase 02.2 plans 2/3 complete
 | Phase 07 P03 | 4 min | 2 tasks | 6 files |
 | Phase 02.2-home-and-search-motion-audit P01 | 6 min | 2 tasks | 4 files |
 | Phase 02.2-home-and-search-motion-audit P03 | 4 min | 2 tasks | 5 files |
+| Phase 02.2-home-and-search-motion-audit P02 | 11 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -165,6 +166,8 @@ Recent decisions affecting current work:
 - [Phase 02.2-home-and-search-motion-audit]: Kept the non-home desktop compact search inline in the header while only polishing the shell surface and transitions.
 - [Phase 02.2-home-and-search-motion-audit]: Used reduced-motion-aware framer-motion props and transform/opacity-only transitions for shared search shell polish.
 - [Phase 02.2-home-and-search-motion-audit]: Protected the motion contract with source-level tests that ban wheel/touch interception and layout animation patterns.
+- [Phase 02.2-home-and-search-motion-audit]: Homepage hero motion stays decorative and CSS-scoped so the search shell remains stable, server-rendered, and conversion-first.
+- [Phase 02.2-home-and-search-motion-audit]: Homepage discovery modules share one reveal contract (`section-reveal` plus `data-reveal="home-module"`) instead of bespoke section animations.
 
 ### Pending Todos
 
@@ -176,6 +179,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:25:13.081Z
-Stopped at: Completed 02.2-03-PLAN.md
+Last session: 2026-03-11T12:30:00.000Z
+Stopped at: Completed 02.2-02-PLAN.md
 Resume file: None
