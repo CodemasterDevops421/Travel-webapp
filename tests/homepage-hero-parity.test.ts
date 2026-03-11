@@ -23,4 +23,17 @@ describe('homepage hero parity regression coverage', () => {
     expect(heroSearchSource).toContain('formatSearchDate(checkIn)');
     expect(heroSearchSource).toContain('formatSearchDate(checkOut)');
   });
+
+  it('keeps the homepage discovery shell free of scroll-jacking hooks', () => {
+    expect(pageSource).not.toContain('onWheel=');
+    expect(pageSource).not.toContain("addEventListener('wheel'");
+    expect(pageSource).not.toContain('addEventListener(\"wheel\"');
+    expect(pageSource).not.toContain("addEventListener('touchmove'");
+    expect(pageSource).not.toContain('addEventListener(\"touchmove\"');
+    expect(heroSearchSource).not.toContain('onWheel=');
+    expect(heroSearchSource).not.toContain("addEventListener('wheel'");
+    expect(heroSearchSource).not.toContain('addEventListener(\"wheel\"');
+    expect(heroSearchSource).not.toContain("addEventListener('touchmove'");
+    expect(heroSearchSource).not.toContain('addEventListener(\"touchmove\"');
+  });
 });
