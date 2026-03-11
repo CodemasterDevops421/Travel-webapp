@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest';
 describe('homepage motion contract', () => {
   const pageSource = readFileSync(resolve(process.cwd(), 'src/app/page.tsx'), 'utf8');
   const globalsSource = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
+  const heroSearchInteractionSource = readFileSync(
+    resolve(process.cwd(), 'tests/hero-search-bar-interactions.test.tsx'),
+    'utf8'
+  );
   const featuredDealsSource = readFileSync(
     resolve(process.cwd(), 'src/components/home/featured-deals-strip.tsx'),
     'utf8'
@@ -60,5 +64,13 @@ describe('homepage motion contract', () => {
       expect(source).not.toContain('addEventListener(\"touchmove\"');
       expect(source).not.toContain('overflow-x-scroll');
     }
+  });
+
+  it('anchors search-shell motion safety to executable interaction coverage', () => {
+    expect(heroSearchInteractionSource).toContain("describe('HeroSearchBar interaction coverage'");
+    expect(heroSearchInteractionSource).toContain("{ArrowDown}{ArrowDown}{Enter}");
+    expect(heroSearchInteractionSource).toContain("useReducedMotionMock.mockReturnValue(true)");
+    expect(heroSearchInteractionSource).toContain("getByRole('button', { name: 'Dates' })");
+    expect(heroSearchInteractionSource).toContain("getByRole('button', { name: 'Guests and rooms' })");
   });
 });
