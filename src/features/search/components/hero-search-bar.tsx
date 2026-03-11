@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Calendar, MapPin, Search, Users } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
 import { parseDiscoveryQuery, serializeDiscoveryQuery } from '@/features/search/lib/discovery-query';
@@ -76,6 +76,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     }, [checkIn, checkOut]);
 
     const router = useRouter();
+    const reduceMotion = useReducedMotion();
     const language = useSearchUIStore((state) => state.language);
     const currency = useSearchUIStore((state) => state.currency);
     const activeMood = useSearchUIStore((state) => state.activeMood);
@@ -87,6 +88,21 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     const canSearch = query.trim().length >= 3 && checkIn.length > 0 && checkOut.length > 0 && checkOut > checkIn;
     const isCompact = variant === 'compact';
     const isHero = variant === 'default';
+    const shellMotionProps = reduceMotion
+        ? { initial: false, animate: { opacity: 1, y: 0, scale: 1 }, transition: { duration: 0.01 } }
+        : {
+            initial: { opacity: 0, y: 10, scale: 0.985 },
+            animate: { opacity: 1, y: 0, scale: 1 },
+            transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] }
+        };
+    const panelMotionProps = reduceMotion
+        ? { initial: false, animate: { opacity: 1, y: 0, scale: 1 }, exit: { opacity: 1, y: 0, scale: 1 }, transition: { duration: 0.01 } }
+        : {
+            initial: { opacity: 0, y: 8, scale: 0.985 },
+            animate: { opacity: 1, y: 0, scale: 1 },
+            exit: { opacity: 0, y: 4, scale: 0.99 },
+            transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] }
+        };
 
     useEffect(() => {
         setHighlightedIndex(-1);
@@ -164,7 +180,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+            {...shellMotionProps}
             className={cn(
                 "relative z-20 mx-auto w-full",
                 variant === 'default' ? "max-w-full" : "max-w-7xl",
@@ -174,10 +190,10 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="relative w-full">
                 <div
                     className={cn(
-                        "flex w-full flex-col transition-all md:flex-row md:items-stretch",
+                        "flex w-full flex-col transition-[background-color,border-color,box-shadow,transform,opacity] duration-300 md:flex-row md:items-stretch",
                         isCompact
-                            ? "rounded-[18px] border border-border/80 bg-card px-2 py-2 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.28)] md:rounded-full"
-                            : "rounded-[24px] border border-white/85 bg-white px-2 py-2 shadow-[0_32px_60px_-34px_rgba(17,12,40,0.6)] md:rounded-full"
+                            ? "rounded-[18px] border border-border/80 bg-card px-2 py-2 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.28)] supports-[backdrop-filter]:bg-card/95 md:rounded-full"
+                            : "rounded-[24px] border border-white/85 bg-white px-2 py-2 shadow-[0_32px_60px_-34px_rgba(17,12,40,0.6)] supports-[backdrop-filter]:bg-white/96 md:rounded-full"
                     )}
                 >
 
@@ -219,8 +235,9 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
                         {/* Autocomplete Dropdown */}
                         {isSuggestionsOpen && (
-                            <div
-                                className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-border bg-card p-2 shadow-[var(--surface-shadow-lg)]"
+                            <motion.div
+                                {...panelMotionProps}
+                                className="absolute left-0 right-0 top-full mt-2 origin-top rounded-2xl border border-border bg-card/98 p-2 shadow-[var(--surface-shadow-lg)] backdrop-blur-xl"
                                 style={{ zIndex: 9999 }}
                             >
                                 {isFetching ? (
@@ -233,7 +250,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                             <li
                                                 key={item.id}
                                                 className={cn(
-                                                    "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-accent",
+                                                    "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-[background-color,transform] duration-200 hover:bg-accent motion-safe:hover:translate-x-0.5",
                                                     highlightedIndex === idx && "bg-accent"
                                                 )}
                                                 onMouseDown={(e) => { e.preventDefault(); onPickSuggestion(item.name); }}
@@ -245,7 +262,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         ))}
                                     </ul>
                                 )}
-                            </div>
+                            </motion.div>
                         )}
                     </div>
 
@@ -271,7 +288,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         </span>
                                     </button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-[360px] rounded-[20px] border border-border bg-card p-4 shadow-[var(--surface-shadow-lg)]" align="center">
+                                <PopoverContent className="w-[360px] rounded-[20px] border border-border bg-card/98 p-4 shadow-[var(--surface-shadow-lg)] backdrop-blur-xl" align="center">
                                     <div className="grid gap-3 sm:grid-cols-2">
                                         <label className="space-y-2 text-sm">
                                             <span className="ui-label block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Check-in</span>
@@ -375,7 +392,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                     </div>
                                 </button>
                             </PopoverTrigger>
-                            <PopoverContent className="z-[100] w-80 rounded-2xl border-border p-6 shadow-[var(--surface-shadow-lg)]" align="end">
+                            <PopoverContent className="z-[100] w-80 rounded-2xl border-border bg-card/98 p-6 shadow-[var(--surface-shadow-lg)] backdrop-blur-xl" align="end">
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between">
                                         <div>
@@ -407,7 +424,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             type="submit"
                             disabled={!canSearch}
                             className={cn(
-                                "flex shrink-0 items-center justify-center rounded-full bg-primary p-0 text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:shadow-none",
+                                "flex shrink-0 items-center justify-center rounded-full bg-primary p-0 text-primary-foreground transition-[transform,box-shadow,filter] duration-200 hover:brightness-110 motion-safe:hover:-translate-y-0.5 disabled:opacity-50 disabled:shadow-none",
                                 isCompact
                                     ? "mr-1 h-10 w-10 shadow-[0_14px_24px_-16px_rgba(189,47,241,0.78)] md:mr-0"
                                     : "mr-2 h-12 w-12 shadow-[0_18px_30px_-18px_rgba(189,47,241,0.8)] md:mr-0"
