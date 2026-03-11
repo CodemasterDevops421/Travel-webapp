@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: "Completed 02.2-02-PLAN.md"
-last_updated: "2026-03-11T12:30:00.000Z"
-last_activity: 2026-03-11 - Completed 02.2-02-PLAN.md
+stopped_at: "Verification found remaining 02.2 search-shell interaction coverage gap"
+last_updated: "2026-03-11T13:05:00.000Z"
+last_activity: 2026-03-11 - Planned 02.2 gap closure for search-shell interaction coverage
 progress:
   total_phases: 9
   completed_phases: 3
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Phase 02.2 motion audit is complete; the homepage hero and discovery modules now match the locked motion contract with reduced-motion-safe behavior.
+**Current focus:** Phase 02.2 gap closure is planned to finish the missing keyboard/touch/reduced-motion regression coverage for the shared search shell.
 
 ## Current Position
 
 Phase: 02.2-home-and-search-motion-audit
-Plan: 3 of 3 plans completed in current phase
-Status: Completed
-Last activity: 2026-03-11 - Completed 02.2-02-PLAN.md
+Plan: 3 of 4 plans completed in current phase
+Status: Gap closure planned
+Last activity: 2026-03-11 - Planned 02.2 search-shell interaction coverage gap closure
 
-Progress: Phase 02.2 complete
+Progress: Phase 02.2 awaiting one focused gap-closure plan before re-verification
 
 ## Performance Metrics
 
