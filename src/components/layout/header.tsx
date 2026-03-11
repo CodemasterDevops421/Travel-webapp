@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
-import { Heart, Moon, Sun, UserCircle, LogOut, Menu, X, Bookmark, LayoutDashboard, Compass, ShieldCheck } from 'lucide-react';
+import { Heart, Moon, Sun, UserCircle, LogOut, Menu, X, Bookmark, LayoutDashboard } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { LanguageCurrencyChooser } from '@/components/home/language-currency-chooser';
 import { Button } from '@/components/ui/button';
@@ -44,32 +44,17 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/88 backdrop-blur-xl transition-all duration-300">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 md:h-20">
-        <Link href="/" className="group flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-accent/15 bg-accent/10 text-accent shadow-sm">
-            <Compass className="h-4.5 w-4.5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-heading text-xl font-extrabold tracking-[-0.04em] text-foreground transition-colors group-hover:text-accent md:text-2xl">
-              Hostel Stays
-            </span>
-            <span className="hidden text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground md:block">
-              Curated travel rates
-            </span>
-          </div>
+    <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-white/20 dark:border-white/10 shadow-premium-sm transition-all duration-300">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:h-20">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2 premium-hover group">
+          <span className="text-2xl font-heading font-extrabold tracking-tight text-primary transition-colors group-hover:text-primary/80">
+            Hostel Stays
+          </span>
         </Link>
 
+        {/* Desktop Actions */}
         <div className="hidden items-center gap-2 md:flex">
-          <nav className="mr-4 flex items-center gap-2 rounded-full border border-border/80 bg-card p-1 shadow-sm">
-            <Link href="/" className="rounded-full px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary">
-              Explore
-            </Link>
-            <Link href={'/search?query=trending' as Route} className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-              Destinations
-            </Link>
-          </nav>
-
           <LanguageCurrencyChooser />
           <Button
             variant="ghost"
@@ -90,13 +75,14 @@ export function Header() {
             </Link>
           )}
 
+          {/* Auth section */}
           {isLoading ? (
             <div className="h-9 w-20 animate-pulse rounded-lg bg-muted" />
           ) : user ? (
             <div className="relative" ref={menuRef}>
               <Button
-                variant="outline"
-                className="gap-2 border-border/80 bg-card text-foreground shadow-sm"
+                variant="ghost"
+                className="gap-2 text-muted-foreground"
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
               >
                 <UserCircle className="h-5 w-5" />
@@ -106,15 +92,15 @@ export function Header() {
               </Button>
 
               {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-3 w-64 rounded-[24px] border border-border/80 bg-card p-2 shadow-premium-lg">
-                  <div className="mb-2 rounded-[18px] border border-border/60 bg-secondary/55 px-4 py-3">
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-border/60 bg-card p-1.5 shadow-lg backdrop-blur-sm">
+                  <div className="px-3 py-2 border-b border-border/40 mb-1">
                     <p className="text-sm font-medium truncate">{user.user_metadata?.full_name || 'Traveler'}</p>
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
                   <Link
                     href={'/wishlist' as Route}
                     onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <Bookmark className="h-4 w-4" />
                     My Wishlist
@@ -122,7 +108,7 @@ export function Header() {
                   <Link
                     href={'/admin' as Route}
                     onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <LayoutDashboard className="h-4 w-4" />
                     Admin Dashboard
@@ -132,7 +118,7 @@ export function Header() {
                       setUserMenuOpen(false);
                       signOut();
                     }}
-                    className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign out
@@ -150,6 +136,7 @@ export function Header() {
           )}
         </div>
 
+        {/* Mobile: hamburger menu */}
         <div className="flex items-center gap-2 md:hidden">
           <Button
             variant="ghost"
@@ -160,7 +147,7 @@ export function Header() {
             {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
@@ -171,49 +158,34 @@ export function Header() {
       </div>
 
       {!isHomePage && (
-        <div className="hidden border-t border-border/50 bg-background/92 px-4 py-4 md:block">
+        <div className="hidden border-t border-border/40 bg-background/85 px-4 py-3 md:block">
           <div className="mx-auto max-w-7xl">
-            <div className="surface-panel mx-auto max-w-5xl overflow-visible rounded-full px-2 py-2">
-              <HeroSearchBar variant="compact" className="mx-auto max-w-5xl border-none bg-transparent shadow-none" />
-            </div>
+            <HeroSearchBar variant="compact" className="mx-auto max-w-5xl border border-border/60 bg-card/95 shadow-sm" />
           </div>
         </div>
       )}
 
+      {/* Mobile slide-out menu */}
       {mobileMenuOpen && (
-        <div className="border-t border-border/50 bg-background/96 backdrop-blur-sm md:hidden">
-          <nav className="mx-auto max-w-7xl space-y-3 p-4">
-            <div className="surface-subtle rounded-[24px] p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent">
-                  <ShieldCheck className="h-4.5 w-4.5" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">Book with confidence</p>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    Verified rates, transparent totals, and secure checkout across every stay.
-                  </p>
-                </div>
-              </div>
-            </div>
-
+        <div className="border-t border-border/40 bg-card/95 backdrop-blur-sm md:hidden">
+          <nav className="mx-auto max-w-7xl space-y-1 p-4">
             {!isHomePage && (
-              <div className="surface-panel rounded-[24px] p-2">
-                <HeroSearchBar variant="compact" className="shadow-none border-none bg-transparent" />
+              <div className="pb-3">
+                <HeroSearchBar variant="compact" className="shadow-none border border-border/50" />
               </div>
             )}
 
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-2xl px-4 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
+              className="block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
             >
               Home
             </Link>
             <Link
               href="/search?query=trending"
               onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-2xl px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary"
+              className="block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
             >
               Explore
             </Link>
@@ -223,19 +195,19 @@ export function Header() {
                 <Link
                   href={'/wishlist' as Route}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
                 >
                   <Heart className="h-4 w-4" /> Wishlist
                 </Link>
                 <Link
                   href={'/admin' as Route}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
                 >
                   <LayoutDashboard className="h-4 w-4" /> Dashboard
                 </Link>
-                <div className="surface-subtle rounded-[24px] p-4">
-                  <div className="px-1 pb-3">
+                <div className="border-t border-border/40 pt-2 mt-2">
+                  <div className="px-3 py-2">
                     <p className="text-sm font-medium">{user.user_metadata?.full_name || 'Traveler'}</p>
                     <p className="text-xs text-muted-foreground">{user.email}</p>
                   </div>
@@ -244,14 +216,14 @@ export function Header() {
                       setMobileMenuOpen(false);
                       signOut();
                     }}
-                    className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10"
                   >
                     <LogOut className="h-4 w-4" /> Sign out
                   </button>
                 </div>
               </>
             ) : (
-              <div className="surface-subtle rounded-[24px] p-4">
+              <div className="border-t border-border/40 pt-3 mt-2">
                 <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)}>
                   <Button className="w-full gap-2">
                     <UserCircle className="h-4 w-4" />
@@ -261,7 +233,7 @@ export function Header() {
               </div>
             )}
 
-            <div className="surface-subtle rounded-[24px] p-4">
+            <div className="border-t border-border/40 pt-3 mt-2">
               <LanguageCurrencyChooser />
             </div>
           </nav>

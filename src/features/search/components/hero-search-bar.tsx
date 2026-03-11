@@ -187,7 +187,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     {/* Autocomplete Dropdown */}
                     {isSuggestionsOpen && (
                         <div
-                            className="absolute left-0 right-0 top-full mt-3 rounded-[24px] border border-border/80 bg-card p-2 shadow-premium-lg"
+                            className="absolute left-0 right-0 top-full mt-2 rounded-xl border border-slate-200 bg-card p-2 shadow-2xl dark:border-slate-700"
                             style={{ zIndex: 9999 }}
                         >
                             {isFetching ? (
@@ -200,8 +200,8 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         <li
                                             key={item.id}
                                             className={cn(
-                                                "flex cursor-pointer items-center justify-between rounded-2xl px-4 py-3 text-sm transition-colors hover:bg-secondary",
-                                                highlightedIndex === idx && "bg-secondary"
+                                                "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-accent",
+                                                highlightedIndex === idx && "bg-accent"
                                             )}
                                             onMouseDown={(e) => { e.preventDefault(); onPickSuggestion(item.name); }}
                                             onMouseEnter={() => setHighlightedIndex(idx)}
@@ -247,8 +247,8 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                 {/* Guests & Search Button */}
                 <div className="flex flex-1 items-stretch border-t border-border/50 md:border-t-0 md:border-l md:border-border/50">
                     <Popover>
-                    <PopoverTrigger asChild>
-                            <button type="button" className="flex flex-1 items-center gap-3 px-6 text-left transition-colors hover:bg-secondary/70 md:h-16 group outline-none focus-visible:bg-secondary/70">
+                        <PopoverTrigger asChild>
+                            <button type="button" className="flex flex-1 items-center gap-3 hover:bg-primary/5 px-6 text-left transition-colors md:h-16 group outline-none focus-visible:bg-primary/5">
                                 <Users className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" strokeWidth={1.5} />
                                 <div className="flex flex-col">
                                     <span className="text-sm font-semibold text-foreground">{adults} Guests</span>
@@ -256,7 +256,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                 </div>
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent className="z-[100] w-80 rounded-[24px] border border-border/80 p-6 shadow-premium-lg" align="end">
+                        <PopoverContent className="w-80 border-border shadow-editorial-md p-6 z-[100] rounded-xl" align="end">
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <div>
@@ -288,7 +288,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                         type="submit"
                         size="lg"
                         disabled={!canSearch}
-                        className="rounded-full px-8 text-base font-semibold shadow-premium-md md:h-14 disabled:opacity-50 disabled:shadow-none"
+                        className="rounded-full bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 px-8 text-base font-semibold text-white shadow-lg shadow-purple-500/25 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:brightness-110 active:scale-95 md:h-14 disabled:opacity-50 disabled:shadow-none"
                     >
                         Search
                     </Button>

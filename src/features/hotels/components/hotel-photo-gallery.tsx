@@ -15,38 +15,38 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
 
   return (
     <>
-      <section className="grid gap-2 rounded-[32px] md:h-[520px] md:grid-cols-[2fr,1fr] md:overflow-hidden">
+      <section className="grid gap-1 md:h-[500px] md:grid-cols-[2fr,1fr] md:overflow-hidden">
         {photos[0] ? (
           <button
             type="button"
-            className="group relative aspect-[4/3] min-h-[240px] w-full overflow-hidden rounded-[28px] bg-muted md:h-full md:min-h-0 md:aspect-auto"
+            className="group relative aspect-[4/3] min-h-[240px] w-full overflow-hidden bg-muted md:h-full md:min-h-0 md:aspect-auto"
             onClick={() => onOpen(0)}
           >
             <Image src={photos[0]} alt={hotelName} fill sizes="(max-width: 768px) 100vw, 66vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />
           </button>
         ) : (
-          <article className="flex aspect-[4/3] min-h-[240px] w-full items-center justify-center rounded-[28px] bg-muted md:h-full md:min-h-0 md:aspect-auto">
+          <article className="flex min-h-[240px] w-full items-center justify-center bg-muted md:h-full md:min-h-0">
             <p className="text-sm text-muted-foreground">Photos unavailable</p>
           </article>
         )}
-        <div className="grid grid-cols-2 gap-2 md:h-full md:grid-rows-2">
+        <div className="grid grid-cols-2 gap-1 md:h-full md:grid-rows-2">
           {photos.slice(1, 5).map((photo, index) => {
             const isLastTile = index === 3;
             return (
-              <button
-                key={`${photo}-${index}`}
-                type="button"
-                className="group relative aspect-square w-full overflow-hidden rounded-[24px] bg-muted md:h-full md:aspect-auto"
-                onClick={() => onOpen(index + 1)}
-              >
-                <Image src={photo} alt={`${hotelName} view ${index + 2}`} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />
-                {isLastTile && remainingCount > 0 ? (
-                  <span className="absolute inset-0 flex items-center justify-center bg-[#0B2545]/58 text-sm font-semibold text-white">
-                    +{remainingCount} more photos
-                  </span>
-                ) : null}
-              </button>
-            );
+            <button
+              key={`${photo}-${index}`}
+              type="button"
+              className="group relative aspect-square w-full overflow-hidden bg-muted md:h-full md:aspect-auto"
+              onClick={() => onOpen(index + 1)}
+            >
+              <Image src={photo} alt={`${hotelName} view ${index + 2}`} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />
+              {isLastTile && remainingCount > 0 ? (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-sm font-semibold text-white">
+                  +{remainingCount} more photos
+                </span>
+              ) : null}
+            </button>
+          );
           })}
           {!photos[1] && (
             <article className="col-span-2 flex min-h-[180px] items-center justify-center rounded-2xl border border-border bg-card/70 md:h-[210px] md:min-h-0">
@@ -60,7 +60,7 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
         <div className="mt-2 flex justify-end">
           <button
             type="button"
-            className="rounded-full border border-border/80 bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-sm"
+            className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground"
             onClick={() => onOpen(0)}
           >
             Show all {photos.length} photos
@@ -70,10 +70,10 @@ export function HotelPhotoGallery({ photos, hotelName, lightboxIndex, onOpen, on
 
       {lightboxIndex !== null && photos[lightboxIndex] ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
-          <button type="button" className="absolute right-5 top-5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-foreground" onClick={onClose}>
+          <button type="button" className="absolute right-5 top-5 rounded-full bg-white px-3 py-1 text-sm font-semibold" onClick={onClose}>
             Close
           </button>
-          <div className="relative h-[85vh] w-[85vw] max-w-5xl overflow-hidden rounded-[28px]">
+          <div className="relative h-[85vh] w-[85vw] max-w-5xl overflow-hidden rounded-xl">
             <Image src={photos[lightboxIndex]} alt={`${hotelName} enlarged`} fill className="object-contain" />
           </div>
           {photos.length > 1 ? (

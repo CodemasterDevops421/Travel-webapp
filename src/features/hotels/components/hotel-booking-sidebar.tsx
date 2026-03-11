@@ -33,12 +33,12 @@ export function HotelBookingSidebar({
 }: HotelBookingSidebarProps) {
   return (
     <aside className="lg:sticky lg:top-24 lg:self-start">
-      <div className="rounded-[32px] border border-border/70 bg-card p-6 shadow-premium-lg">
-        <div className="mb-6 flex items-start gap-3 rounded-[20px] border border-[#F4B544]/25 bg-[#F4B544]/12 p-4">
-          <span className="mt-0.5 flex h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-[#F4B544]"></span>
+      <div className="border border-border bg-card p-6 shadow-editorial-md">
+        <div className="mb-6 flex items-start gap-3 rounded border border-red-100 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
+          <span className="mt-0.5 flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-red-500"></span>
           <div>
-            <p className="text-sm font-bold text-[#8A5A00]">In high demand</p>
-            <p className="text-xs text-[#8A5A00]/80">Prices may increase soon.</p>
+            <p className="text-sm font-bold text-red-700 dark:text-red-400">In high demand</p>
+            <p className="text-xs text-red-600/80 dark:text-red-400/70">Prices may increase soon.</p>
           </div>
         </div>
 
@@ -46,14 +46,14 @@ export function HotelBookingSidebar({
         <p className="mt-2 text-4xl font-bold text-foreground">{formatMoney(selectedRate?.currency ?? currency, selectedRate?.amount ?? lowestRate, true)}</p>
 
         {selectedRate ? (
-          <div className="mt-4 rounded-[20px] border border-border/70 bg-secondary/50 p-4">
+          <div className="mt-4 rounded-xl border border-border bg-background/70 p-3">
             <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Selected room</p>
             <p className="mt-1 text-sm font-semibold text-foreground">{selectedRate.roomName}</p>
             <p className="mt-1 text-xs text-muted-foreground">{selectedRate.boardName}</p>
           </div>
         ) : null}
 
-        <div className="mt-6 flex flex-col gap-2 border-t border-border/70 pt-5">
+        <div className="mt-6 flex flex-col gap-1 border-t border-border pt-4">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Check-in</span>
             <span className="font-semibold text-foreground">{checkin}</span>
@@ -68,18 +68,18 @@ export function HotelBookingSidebar({
           </div>
         </div>
 
-        <div className="mt-6 rounded-[20px] border border-border/70 bg-secondary/50 p-4">
+        <div className="mt-6 rounded-xl border border-border bg-background/70 p-3">
           <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Cancellation</p>
           <p className="mt-1 text-sm font-semibold text-foreground">{selectedCancellation?.status ?? 'Select a room to view policy'}</p>
           <p className="mt-1 text-xs text-muted-foreground">{selectedCancellation?.detail ?? 'Cancellation details will follow the selected room.'}</p>
         </div>
 
         {selectedBookingHref ? (
-          <PreferenceLink href={selectedBookingHref} className="mt-8 flex w-full items-center justify-center rounded-full bg-primary px-4 py-4 text-base font-bold text-primary-foreground shadow-premium-sm transition-all hover:bg-primary/95 hover:shadow-premium-md">
+          <PreferenceLink href={selectedBookingHref} className="mt-8 flex w-full items-center justify-center rounded-none bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
             Reserve selected room
           </PreferenceLink>
         ) : (
-          <a href="#rooms" className="mt-8 flex w-full items-center justify-center rounded-full bg-primary px-4 py-4 text-base font-bold text-primary-foreground shadow-premium-sm transition-all hover:bg-primary/95 hover:shadow-premium-md">
+          <a href="#rooms" className="mt-8 flex w-full items-center justify-center rounded-none bg-primary px-4 py-4 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg">
             See availability
           </a>
         )}

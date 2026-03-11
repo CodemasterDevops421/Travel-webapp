@@ -258,8 +258,8 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-7 md:py-9">
-      <section className="space-y-5 border-b border-border/70 pb-8 pt-4">
-        <PreferenceLink href={browseHotelsHref} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-accent">
+      <section className="space-y-4 border-b border-border pb-8 pt-4">
+        <PreferenceLink href={browseHotelsHref} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
           &larr; See all properties
         </PreferenceLink>
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -288,8 +288,8 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
                   });
                 }}
                 className={cn(
-                  'inline-flex items-center gap-2 rounded-full border border-border/80 px-4 py-2 text-sm font-semibold transition-colors',
-                  isHotelSaved ? 'bg-rose-50 text-rose-600' : 'bg-card text-foreground hover:bg-secondary'
+                  'inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-sm font-semibold transition-colors',
+                  isHotelSaved ? 'bg-rose-50 text-rose-600' : 'bg-background text-foreground hover:bg-muted'
                 )}
               >
                 <Heart className={cn('h-4 w-4', isHotelSaved ? 'fill-current' : '')} />
@@ -302,7 +302,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
               ) : null}
             </div>
           </div>
-          <div className="rounded-[24px] border border-border/70 bg-secondary/55 px-5 py-4 text-right shadow-sm">
+          <div className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-right">
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">From</p>
             <p className="text-2xl font-bold text-primary">{formatMoney(currency, lowestRate, true)}</p>
             <p className="text-xs text-muted-foreground">/ night</p>
@@ -320,7 +320,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
         }}
       />
 
-      <nav className="sticky top-0 z-20 -mx-4 border-b border-border/70 bg-background/95 backdrop-blur md:mx-0 md:px-0">
+      <nav className="sticky top-0 z-20 -mx-4 border-b border-border bg-background/95 backdrop-blur md:mx-0 md:px-0">
         <div className="relative">
           <div className="flex w-full gap-8 overflow-x-auto px-4 md:px-0 scrollbar-none">
             {SECTION_TABS.map((tab) => (
@@ -331,7 +331,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
                 className={cn(
                   'whitespace-nowrap border-b-2 py-4 text-sm font-semibold transition-colors',
                   activeTab === tab.id
-                    ? 'border-accent text-accent'
+                    ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
                 )}
               >
