@@ -4,7 +4,10 @@ import { Input } from '@/components/ui/input';
 
 export function NewsletterBand() {
   return (
-    <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#0B2545] via-[#133C67] to-[#1F5E7A] p-8 shadow-premium-lg md:p-12">
+    <section
+      className="section-reveal relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#0B2545] via-[#133C67] to-[#1F5E7A] p-8 shadow-premium-lg md:p-12"
+      data-reveal="home-module"
+    >
       <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/8" />
       <div className="pointer-events-none absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-[#7FC8B2]/12" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-white/6 to-transparent" />

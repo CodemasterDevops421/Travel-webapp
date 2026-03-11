@@ -27,7 +27,7 @@ const articles = [
 
 export function TravelArticles() {
   return (
-    <section className="space-y-6">
+    <section className="section-reveal space-y-6" data-reveal="home-module">
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">Travel journal</p>

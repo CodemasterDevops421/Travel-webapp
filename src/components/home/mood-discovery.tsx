@@ -17,7 +17,10 @@ export function MoodDiscovery() {
   const setActiveMood = useSearchUIStore((state) => state.setActiveMood);
 
   return (
-    <section className="surface-panel space-y-5 rounded-[32px] border-border/70 bg-gradient-to-br from-accent/[0.06] via-card to-card p-6 md:p-8">
+    <section
+      className="section-reveal surface-panel space-y-5 overflow-hidden rounded-[32px] border-border/70 bg-gradient-to-br from-accent/[0.06] via-card to-card p-6 md:p-8"
+      data-reveal="home-module"
+    >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">Personalize</p>

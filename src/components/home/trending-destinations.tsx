@@ -33,7 +33,7 @@ export async function TrendingDestinations() {
   const data = await getTrendingDestinations();
 
   return (
-    <section className="space-y-6">
+    <section className="section-reveal space-y-6" data-reveal="home-module">
       <div className="flex items-end justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">Popular now</p>
@@ -45,7 +45,7 @@ export async function TrendingDestinations() {
         {data.map((item, idx) => (
           <article
             key={item.name}
-            className="group animate-soft-rise cursor-pointer overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-premium-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-premium-md"
+            className="group cursor-pointer overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-premium-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-premium-md"
             style={{ animationDelay: `${idx * 80}ms` }}
           >
             <div
