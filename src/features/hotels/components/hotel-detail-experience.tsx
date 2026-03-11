@@ -59,6 +59,29 @@ function buildRateKey(rate: Pick<HotelRateOption, 'offerId' | 'roomId'>): string
   return `${rate.offerId}:${rate.roomId}`;
 }
 
+export function pickLowestActionableRate<T extends Pick<HotelRateOption, 'offerId' | 'roomId' | 'amount'>>(
+  rates: readonly T[]
+): T | null {
+  let fallbackRate: T | null = null;
+  let cheapestRate: T | null = null;
+
+  for (const rate of rates) {
+    if (!fallbackRate) {
+      fallbackRate = rate;
+    }
+
+    if (!Number.isFinite(rate.amount) || rate.amount <= 0) {
+      continue;
+    }
+
+    if (!cheapestRate || rate.amount < cheapestRate.amount) {
+      cheapestRate = rate;
+    }
+  }
+
+  return cheapestRate ?? fallbackRate;
+}
+
 function buildBookingQuery(
   rate: HotelRateWithCancellationContext,
   context: { hotelId: string; checkin: string; checkout: string; adults: number; rooms: number }
@@ -119,12 +142,13 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   const [question, setQuestion] = useState('');
   const [askAnswer, setAskAnswer] = useState('');
   const [askLoading, setAskLoading] = useState(false);
+  const initialDefaultRate = useMemo(() => pickLowestActionableRate(initialRates), [initialRates]);
   const [selectedRateKey, setSelectedRateKey] = useState<string | null>(
-    initialRates[0] ? buildRateKey(initialRates[0]) : null
+    initialDefaultRate ? buildRateKey(initialDefaultRate) : null
   );
   const { isSaved, toggleSave, authRequired, clearAuthRequired } = useWishlist();
 
-  const { data: hotel } = useHotelDetails(hotelId, undefined, initialRates[0]?.currency, {
+  const { data: hotel } = useHotelDetails(hotelId, undefined, initialDefaultRate?.currency ?? initialRates[0]?.currency, {
     initialData: initialHotel ?? undefined
   });
 
@@ -134,10 +158,12 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     checkout,
     adults,
     rooms,
-    currency: initialRates[0]?.currency
+    currency: initialDefaultRate?.currency ?? initialRates[0]?.currency
   }, {
     initialData: initialRates
   });
+
+  const defaultRate = useMemo(() => pickLowestActionableRate(rates), [rates]);
 
   useEffect(() => {
     if (!rates.length) {
@@ -149,9 +175,9 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
       if (current && rates.some((rate) => buildRateKey(rate) === current)) {
         return current;
       }
-      return buildRateKey(rates[0]);
+      return defaultRate ? buildRateKey(defaultRate) : null;
     });
-  }, [rates]);
+  }, [defaultRate, rates]);
 
   const photos = useMemo(() => {
     const basePhotos = hotel?.photos?.length ? hotel.photos : hotel?.mainPhoto ? [hotel.mainPhoto as string] : [];
@@ -161,11 +187,11 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     return Array.from(new Set([...basePhotos, ...roomPhotos]));
   }, [hotel?.mainPhoto, hotel?.photos, rates]);
   const amenities = hotel?.facilities ?? [];
-  const lowestRate = rates.reduce<number | null>((min, rate) => (min === null || rate.amount < min ? rate.amount : min), null);
-  const currency = rates[0]?.currency ?? 'USD';
+  const lowestRate = defaultRate?.amount ?? null;
+  const currency = defaultRate?.currency ?? rates[0]?.currency ?? 'USD';
   const selectedRate = useMemo(
-    () => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? rates[0] ?? null,
-    [rates, selectedRateKey]
+    () => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? defaultRate ?? null,
+    [defaultRate, rates, selectedRateKey]
   );
   const selectedCancellation = useMemo(
     () => (selectedRate ? getCancellationCopy(selectedRate) : null),

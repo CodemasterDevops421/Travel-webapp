@@ -1,8 +1,54 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_LISTING_FILTERS,
   parseListingUiState,
   serializeListingSearchParams
 } from '@/features/search/lib/listing-search-params';
+import type { PropertyPreview } from '@/features/search/hooks/use-property-preview';
+import {
+  filterListings as filterSearchResultsListings,
+  getActiveFilterCount as getSearchResultsActiveFilterCount,
+  sortListings as sortSearchResultsListings
+} from '@/features/search/components/search-results-page';
+
+const sampleListings: PropertyPreview[] = [
+  {
+    hotelId: 'far',
+    name: 'Far Hotel',
+    city: 'Paris',
+    countryCode: 'FR',
+    price: 180,
+    currency: 'EUR',
+    starRating: 4,
+    reviewScore: 8.9,
+    reviewCount: 120,
+    distanceFromCenterKm: 4.5
+  },
+  {
+    hotelId: 'near',
+    name: 'Near Hotel',
+    city: 'Paris',
+    countryCode: 'FR',
+    price: 220,
+    currency: 'EUR',
+    starRating: 4,
+    reviewScore: 8.4,
+    reviewCount: 90,
+    distanceFromCenterKm: 0.8
+  },
+  {
+    hotelId: 'unknown',
+    name: 'Unknown Hotel',
+    city: 'Paris',
+    countryCode: 'FR',
+    price: 140,
+    currency: 'EUR',
+    starRating: 3,
+    reviewScore: 7.4,
+    reviewCount: 12,
+    distanceFromCenterKm: null
+  }
+];
 
 describe('search results URL state contract', () => {
   it('serializes discovery controls in deterministic order', () => {
@@ -18,7 +64,7 @@ describe('search results URL state contract', () => {
         currency: 'EUR'
       },
       ui: {
-        sort: 'rating',
+        sort: 'distance',
         view: 'map',
         page: 3,
         filters: {
@@ -26,7 +72,7 @@ describe('search results URL state contract', () => {
           minPrice: 120,
           maxPrice: 420,
           minGuestRating: 8.5,
-          minReviewCount: 0,
+          minReviewCount: 200,
           minStars: 4,
           amenities: ['wifi', 'parking'],
           propertyTypes: ['hotel', 'resort'],
@@ -36,7 +82,7 @@ describe('search results URL state contract', () => {
     });
 
     expect(params.toString()).toBe(
-      'q=Paris&mode=destination&checkin=2026-07-10&checkout=2026-07-13&guests=2&rooms=1&language=en&currency=EUR&view=map&sort=rating&page=3&propertyName=Hilton&minPrice=120&maxPrice=420&minGuestRating=8.5&minStars=4&maxDistanceKm=5&amenities=parking%2Cwifi&propertyType=hotel%2Cresort'
+      'q=Paris&mode=destination&checkin=2026-07-10&checkout=2026-07-13&guests=2&rooms=1&language=en&currency=EUR&view=map&sort=distance&page=3&propertyName=Hilton&minPrice=120&maxPrice=420&minGuestRating=8.5&minReviewCount=200&minStars=4&maxDistanceKm=5&amenities=parking%2Cwifi&propertyType=hotel%2Cresort'
     );
   });
 
@@ -49,6 +95,7 @@ describe('search results URL state contract', () => {
       minPrice: '180',
       maxPrice: '255',
       minGuestRating: '8',
+      minReviewCount: '300',
       minStars: '3.5',
       maxDistanceKm: '7',
       amenities: 'wifi,parking,parking',
@@ -64,7 +111,7 @@ describe('search results URL state contract', () => {
         minPrice: 180,
         maxPrice: 255,
         minGuestRating: 8,
-        minReviewCount: 0,
+        minReviewCount: 300,
         minStars: 3.5,
         maxDistanceKm: 7,
         amenities: ['parking', 'wifi'],
@@ -111,5 +158,27 @@ describe('search results URL state contract', () => {
 
     expect(restored.filters.minPrice).toBe(450);
     expect(restored.filters.maxPrice).toBe(450);
+  });
+
+  it('keeps distance sorting available for legacy shared URLs', () => {
+    expect(sortSearchResultsListings(sampleListings, 'distance').map((hotel) => hotel.hotelId)).toEqual(['near', 'far', 'unknown']);
+  });
+
+  it('preserves minReviewCount filtering for existing search URLs', () => {
+    const filters = {
+      ...DEFAULT_LISTING_FILTERS,
+      minReviewCount: 100
+    };
+
+    expect(filterSearchResultsListings(sampleListings, filters).map((hotel) => hotel.hotelId)).toEqual(['far']);
+  });
+
+  it('counts minReviewCount as an active filter', () => {
+    const filters = {
+      ...DEFAULT_LISTING_FILTERS,
+      minReviewCount: 250
+    };
+
+    expect(getSearchResultsActiveFilterCount(filters)).toBe(1);
   });
 });

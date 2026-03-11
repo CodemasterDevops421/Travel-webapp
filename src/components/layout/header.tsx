@@ -14,6 +14,7 @@ import { useAuth } from '@/shared/hooks/use-auth';
 export function Header() {
   const pathname = usePathname();
   const isHomePage = pathname === '/';
+  const isBookingFlow = pathname.startsWith('/booking');
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -37,6 +38,10 @@ export function Header() {
   }, []);
 
   const isDark = mounted && resolvedTheme === 'dark';
+
+  if (isBookingFlow) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/88 backdrop-blur-xl transition-all duration-300">

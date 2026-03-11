@@ -6,17 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { ListingFilters } from '@/features/search/lib/listing-search-params';
 
-export interface FilterState {
-    propertyName: string;
-    minPrice: number;
-    maxPrice: number;
-    minGuestRating: number;
-    minStars: number;
-    amenities: string[];
-    propertyTypes: string[];
-    maxDistanceKm: number;
-}
+export type FilterState = ListingFilters;
 
 interface FiltersSidebarProps {
     filters: FilterState;
@@ -83,6 +75,7 @@ export function FiltersSidebar({ filters, onFilterChange, query, onShowMap }: Fi
             minPrice: 0,
             maxPrice: 1000,
             minGuestRating: 0,
+            minReviewCount: 0,
             minStars: 0,
             amenities: [],
             propertyTypes: [],

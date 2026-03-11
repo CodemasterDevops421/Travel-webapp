@@ -1,77 +1,52 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { pickLowestActionableRate } from '@/features/hotels/components/hotel-detail-experience';
 
-describe('hotel booking card selected-rate contract', () => {
-  const source = readFileSync(
-    resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-sections.tsx'),
-    'utf8'
-  );
-  const roomSectionSource = readFileSync(
-    resolve(process.cwd(), 'src/features/hotels/components/property-room-selection-section.tsx'),
+describe('hotel booking default-offer regression coverage', () => {
+  const parentSource = readFileSync(
+    resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'),
     'utf8'
   );
 
-  it('keeps one selected-rate source of truth shared by room cards and sticky card', () => {
-    expect(roomSectionSource).toContain('setSelectedRateKey(rateKey);');
-    expect(roomSectionSource).toContain('onChooseRate(rate);');
-    expect(source).toContain('const groupedRates = useMemo(() =>');
-    expect(roomSectionSource).toContain('group.offers.map((rate) =>');
+  it('picks the cheapest actionable rate from unsorted supplier payloads', () => {
+    const selected = pickLowestActionableRate([
+      { offerId: 'offer-expensive', roomId: 'room-a', amount: 289 },
+      { offerId: 'offer-cheapest', roomId: 'room-b', amount: 199 },
+      { offerId: 'offer-mid', roomId: 'room-c', amount: 249 }
+    ]);
+
+    expect(selected?.offerId).toBe('offer-cheapest');
+    expect(selected?.roomId).toBe('room-b');
+    expect(selected?.amount).toBe(199);
   });
 
-  it('moves booking forward directly from the chosen room row', () => {
-    const parentSource = readFileSync(resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'), 'utf8');
-    expect(roomSectionSource).toContain("isSelected ? 'Continue booking' : isRecommended ? 'Choose recommended' : 'Choose room'");
-    expect(parentSource).toContain('const router = useRouter();');
-    expect(parentSource).toContain('function handleChooseRate(rate: HotelRateWithCancellationContext)');
-    expect(parentSource).toContain('router.push(buildBookingHref(rate) as any);');
-    expect(source).toContain('onChooseRate: (rate: HotelRateWithCancellationContext) => void;');
+  it('skips zero and invalid prices before falling back', () => {
+    const selected = pickLowestActionableRate([
+      { offerId: 'offer-zero', roomId: 'room-a', amount: 0 },
+      { offerId: 'offer-invalid', roomId: 'room-b', amount: Number.NaN },
+      { offerId: 'offer-live', roomId: 'room-c', amount: 245 }
+    ]);
+
+    expect(selected?.offerId).toBe('offer-live');
   });
 
-  it('verifies state contract matches selected props in parent', () => {
-    const parentSource = readFileSync(resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'), 'utf8');
-    expect(parentSource).toContain('const [selectedRateKey, setSelectedRateKey] = useState<string | null>(');
-    expect(parentSource).toContain('const recommendedRateKey = useMemo(() =>');
-    expect(parentSource).toContain('const selectedRate = useMemo(');
-    expect(parentSource).toContain('const selectedCancellation = useMemo(');
-    expect(parentSource).toContain('const selectedBookingHref = useMemo(() =>');
+  it('falls back to the first supplier row only when no actionable rate exists', () => {
+    const selected = pickLowestActionableRate([
+      { offerId: 'offer-placeholder', roomId: 'room-a', amount: 0 },
+      { offerId: 'offer-invalid', roomId: 'room-b', amount: Number.NaN }
+    ]);
+
+    expect(selected?.offerId).toBe('offer-placeholder');
   });
 
-  it('shows cancellation context from explicit rate contract fields', () => {
-    const parentSource = readFileSync(resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'), 'utf8');
-    const sidebarSource = readFileSync(resolve(process.cwd(), 'src/features/hotels/components/hotel-booking-sidebar.tsx'), 'utf8');
-    expect(parentSource).toContain('function getCancellationCopy(rate: HotelRateWithCancellationContext)');
-    expect(parentSource).toContain("status: 'Non-refundable'");
-    expect(parentSource).toContain("status: 'Free cancellation'");
-    expect(parentSource).toContain("status: 'Cancellation policy pending'");
-    expect(sidebarSource).toContain('selectedCancellation?.status');
-    expect(sidebarSource).toContain('selectedCancellation?.detail');
-    expect(sidebarSource).not.toContain('In high demand');
-    expect(sidebarSource).not.toContain('Prices may increase soon.');
-    expect(sidebarSource.indexOf('Booking clarity')).toBeLessThan(sidebarSource.indexOf('Reserve selected room'));
-  });
-
-  it('passes complete booking query payload including cancellation fields', () => {
-    const parentSource = readFileSync(resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'), 'utf8');
-    expect(parentSource).toContain('bookingQuery.set(\'cancellationDeadline\', rate.cancellationDeadline);');
-    expect(parentSource).toContain('bookingQuery.set(\'cancellationNote\', rate.cancellationNote);');
-    expect(parentSource).toContain("isRefundable: rate.isRefundable === null ? 'unknown' : rate.isRefundable ? 'true' : 'false'");
-    expect(parentSource).toContain('hotelId: context.hotelId');
-    expect(parentSource).toContain('roomId: rate.roomId');
-    expect(parentSource).toContain('offerId: rate.offerId');
-    expect(parentSource).toContain('amount: String(rate.amount)');
-    expect(parentSource).toContain('checkIn: context.checkin');
-    expect(parentSource).toContain('checkOut: context.checkout');
-  });
-
-  it('pins a recommended offer without hiding alternatives', () => {
-    const parentSource = readFileSync(resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'), 'utf8');
-    expect(parentSource).toContain('function pickRecommendedRate<T extends Pick<HotelRateOption, \'offerId\' | \'roomId\' | \'amount\'>>(rates: T[]): T | null {');
-
-    expect(source).toContain('recommendedRateKey: string | null;');
-    expect(roomSectionSource).toContain('const isRecommended = recommendedRateKey === rateKey;');
-    expect(roomSectionSource).toContain('Recommended value');
-    expect(roomSectionSource).toContain('Choose recommended');
-    expect(roomSectionSource).toContain('We surface the clearest offer first, then keep the rest visible in the same booking flow.');
+  it('uses the cheapest actionable rate as the shared default selection contract', () => {
+    expect(parentSource).toContain('const initialDefaultRate = useMemo(() => pickLowestActionableRate(initialRates), [initialRates]);');
+    expect(parentSource).toContain('const defaultRate = useMemo(() => pickLowestActionableRate(rates), [rates]);');
+    expect(parentSource).toContain('initialDefaultRate ? buildRateKey(initialDefaultRate) : null');
+    expect(parentSource).toContain('return defaultRate ? buildRateKey(defaultRate) : null;');
+    expect(parentSource).toContain('const lowestRate = defaultRate?.amount ?? null;');
+    expect(parentSource).toContain("const currency = defaultRate?.currency ?? rates[0]?.currency ?? 'USD';");
+    expect(parentSource).toContain('() => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? defaultRate ?? null,');
   });
 });

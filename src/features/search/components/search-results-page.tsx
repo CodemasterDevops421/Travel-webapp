@@ -11,6 +11,8 @@ import {
   DEFAULT_LISTING_FILTERS,
   parseListingUiState,
   serializeListingSearchParams,
+  type ListingFilters,
+  type ListingSort,
   type ListingUiState
 } from '@/features/search/lib/listing-search-params';
 import { Button } from '@/components/ui/button';
@@ -63,6 +65,119 @@ function inferPropertyType(name: string): string {
 
 function computePopularityScore(price: number | null, reviewScore: number | null | undefined, starRating: number | null) {
   return (reviewScore ?? 0) * 12 + (starRating ?? 0) * 6 - (price ?? 0) / 120;
+}
+
+function getDistanceFromCenter(hotel: { distanceFromCenterKm?: unknown }) {
+  const distanceFromCenter = Number(hotel.distanceFromCenterKm);
+  return Number.isFinite(distanceFromCenter) && distanceFromCenter > 0
+    ? distanceFromCenter
+    : null;
+}
+
+export function filterListings<T extends {
+  price: number | null;
+  reviewScore?: number | null;
+  reviewCount?: number | null;
+  starRating: number | null;
+  name?: string;
+  amenities?: string[];
+  distanceFromCenterKm?: number | null;
+}>(source: T[], filters: ListingFilters) {
+  return source.filter((hotel) => {
+    const price = hotel.price ?? 0;
+    const review = hotel.reviewScore ?? 0;
+    const reviewCount = hotel.reviewCount ?? 0;
+    const stars = hotel.starRating ?? 0;
+    const name = (hotel.name ?? '').toLowerCase();
+
+    if (filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice && price > filters.maxPrice) {
+      return false;
+    }
+    if (filters.minPrice > 0 && price < filters.minPrice) {
+      return false;
+    }
+    if (filters.minGuestRating > 0 && review < filters.minGuestRating) {
+      return false;
+    }
+    if (filters.minReviewCount > 0 && reviewCount < filters.minReviewCount) {
+      return false;
+    }
+    if (filters.minStars > 0 && stars < filters.minStars) {
+      return false;
+    }
+    if (filters.propertyName && !name.includes(filters.propertyName.toLowerCase())) {
+      return false;
+    }
+
+    if (filters.amenities.length > 0) {
+      const hotelAmenities = (hotel.amenities ?? []).map(normalizeToken);
+      const hasAllAmenities = filters.amenities.every((amenity) => hotelAmenities.includes(amenity));
+      if (!hasAllAmenities) return false;
+    }
+
+    if (filters.propertyTypes.length > 0) {
+      const propertyType = inferPropertyType(hotel.name ?? '');
+      if (!filters.propertyTypes.includes(propertyType)) {
+        return false;
+      }
+    }
+
+    const distanceFromCenter = getDistanceFromCenter(hotel);
+    if (distanceFromCenter !== null && distanceFromCenter > filters.maxDistanceKm) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+export function sortListings<T extends {
+  price: number | null;
+  reviewScore?: number | null;
+  starRating: number | null;
+  distanceFromCenterKm?: number | null;
+}>(source: T[], sort: ListingSort) {
+  return [...source].sort((a, b) => {
+    if (sort === 'price') {
+      return (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER);
+    }
+    if (sort === 'rating') {
+      return (b.reviewScore ?? 0) - (a.reviewScore ?? 0);
+    }
+    if (sort === 'distance') {
+      const distanceA = getDistanceFromCenter(a);
+      const distanceB = getDistanceFromCenter(b);
+
+      if (distanceA !== null && distanceB !== null && distanceA !== distanceB) {
+        return distanceA - distanceB;
+      }
+      if (distanceA !== null && distanceB === null) {
+        return -1;
+      }
+      if (distanceA === null && distanceB !== null) {
+        return 1;
+      }
+    }
+
+    return (
+      computePopularityScore(b.price, b.reviewScore, b.starRating) -
+      computePopularityScore(a.price, a.reviewScore, a.starRating)
+    );
+  });
+}
+
+export function getActiveFilterCount(filters: ListingFilters) {
+  return (
+    (filters.propertyName ? 1 : 0) +
+    (filters.minPrice > 0 ? 1 : 0) +
+    (filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? 1 : 0) +
+    (filters.minGuestRating > 0 ? 1 : 0) +
+    (filters.minReviewCount > 0 ? 1 : 0) +
+    (filters.minStars > 0 ? 1 : 0) +
+    (filters.maxDistanceKm < DEFAULT_LISTING_FILTERS.maxDistanceKm ? 1 : 0) +
+    filters.amenities.length +
+    filters.propertyTypes.length
+  );
 }
 
 export function SearchResultsPage({ query, mode, checkin, checkout, adults, rooms, language, currency }: SearchResultsPageProps) {
@@ -125,68 +240,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
   );
 
   const listings = useMemo(() => {
-    const source = [...(previewEnvelope?.data ?? [])];
-    const filtered = source.filter((hotel) => {
-      const price = hotel.price ?? 0;
-      const review = hotel.reviewScore ?? 0;
-      const stars = hotel.starRating ?? 0;
-      const name = (hotel.name ?? '').toLowerCase();
-
-      if (urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice && price > urlState.filters.maxPrice) {
-        return false;
-      }
-      if (urlState.filters.minPrice > 0 && price < urlState.filters.minPrice) {
-        return false;
-      }
-      if (urlState.filters.minGuestRating > 0 && review < urlState.filters.minGuestRating) {
-        return false;
-      }
-      if (urlState.filters.minStars > 0 && stars < urlState.filters.minStars) {
-        return false;
-      }
-      if (urlState.filters.propertyName && !name.includes(urlState.filters.propertyName.toLowerCase())) {
-        return false;
-      }
-
-      if (urlState.filters.amenities.length > 0) {
-        const hotelAmenities = (hotel.amenities ?? []).map(normalizeToken);
-        const hasAllAmenities = urlState.filters.amenities.every((amenity) => hotelAmenities.includes(amenity));
-        if (!hasAllAmenities) return false;
-      }
-
-      if (urlState.filters.propertyTypes.length > 0) {
-        const propertyType = inferPropertyType(hotel.name ?? '');
-        if (!urlState.filters.propertyTypes.includes(propertyType)) {
-          return false;
-        }
-      }
-
-      const distanceFromCenter = Number((hotel as { distanceFromCenterKm?: unknown }).distanceFromCenterKm);
-      if (
-        Number.isFinite(distanceFromCenter) &&
-        distanceFromCenter > 0 &&
-        distanceFromCenter > urlState.filters.maxDistanceKm
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-
-    filtered.sort((a, b) => {
-      if (urlState.sort === 'price') {
-        return (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER);
-      }
-      if (urlState.sort === 'rating') {
-        return (b.reviewScore ?? 0) - (a.reviewScore ?? 0);
-      }
-      return (
-        computePopularityScore(b.price, b.reviewScore, b.starRating) -
-        computePopularityScore(a.price, a.reviewScore, a.starRating)
-      );
-    });
-
-    return filtered;
+    return sortListings(filterListings(previewEnvelope?.data ?? [], urlState.filters), urlState.sort);
   }, [previewEnvelope, urlState.filters, urlState.sort]);
 
   const totalPages = Math.max(1, Math.ceil(listings.length / ITEMS_PER_PAGE));
@@ -231,15 +285,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
     [reviewSnippets]
   );
 
-  const activeFilterCount =
-    (urlState.filters.propertyName ? 1 : 0) +
-    (urlState.filters.minPrice > 0 ? 1 : 0) +
-    (urlState.filters.maxPrice < DEFAULT_LISTING_FILTERS.maxPrice ? 1 : 0) +
-    (urlState.filters.minGuestRating > 0 ? 1 : 0) +
-    (urlState.filters.minStars > 0 ? 1 : 0) +
-    (urlState.filters.maxDistanceKm < DEFAULT_LISTING_FILTERS.maxDistanceKm ? 1 : 0) +
-    urlState.filters.amenities.length +
-    urlState.filters.propertyTypes.length;
+  const activeFilterCount = getActiveFilterCount(urlState.filters);
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
@@ -295,6 +341,7 @@ export function SearchResultsPage({ query, mode, checkin, checkout, adults, room
               <option value="popularity">popularity</option>
               <option value="price">price</option>
               <option value="rating">guest rating</option>
+              <option value="distance">distance</option>
             </select>
           </div>
 
