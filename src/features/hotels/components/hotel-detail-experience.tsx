@@ -295,7 +295,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   }
 
   return (
-    <main className="hotel-detail-page page-shell space-y-4 py-4 md:space-y-5 md:py-6">
+    <main className="hotel-detail-page page-shell mx-auto w-full max-w-7xl space-y-4 px-4 py-4 md:space-y-5 md:py-6">
       <PropertyHero
         browseHotelsHref={browseHotelsHref}
         hotelName={hotel?.name ?? 'Hotel'}
