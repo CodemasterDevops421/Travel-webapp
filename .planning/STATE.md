@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in_progress
-stopped_at: "Verification found remaining 02.2 search-shell interaction coverage gap"
-last_updated: "2026-03-11T13:05:00.000Z"
-last_activity: 2026-03-11 - Planned 02.2 gap closure for search-shell interaction coverage
+status: complete
+stopped_at: Completed 02.2-04-PLAN.md
+last_updated: "2026-03-11T12:59:00.000Z"
+last_activity: 2026-03-11 - Completed 02.2 search-shell interaction coverage gap closure
 progress:
   total_phases: 9
-  completed_phases: 3
-  total_plans: 20
-  completed_plans: 27
-  percent: 100
+  completed_phases: 4
+  total_plans: 21
+  completed_plans: 29
 ---
 
 # Project State
@@ -21,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Phase 02.2 gap closure is planned to finish the missing keyboard/touch/reduced-motion regression coverage for the shared search shell.
+**Current focus:** Phase 02.2 is complete with rendered HeroSearchBar interaction coverage closing the remaining verification gap.
 
 ## Current Position
 
 Phase: 02.2-home-and-search-motion-audit
-Plan: 3 of 4 plans completed in current phase
-Status: Gap closure planned
-Last activity: 2026-03-11 - Planned 02.2 search-shell interaction coverage gap closure
+Plan: 4 of 4 plans completed in current phase
+Status: Complete
+Last activity: 2026-03-11 - Completed 02.2 search-shell interaction coverage gap closure
 
-Progress: Phase 02.2 awaiting one focused gap-closure plan before re-verification
+Progress: Phase 02.2 complete and re-verified with executable keyboard, reduced-motion, and popover search-shell coverage
 
 ## Performance Metrics
 
@@ -82,6 +81,7 @@ Progress: Phase 02.2 awaiting one focused gap-closure plan before re-verificatio
 | Phase 02.2-home-and-search-motion-audit P01 | 6 min | 2 tasks | 4 files |
 | Phase 02.2-home-and-search-motion-audit P03 | 4 min | 2 tasks | 5 files |
 | Phase 02.2-home-and-search-motion-audit P02 | 11 min | 2 tasks | 9 files |
+| Phase 02.2-home-and-search-motion-audit P04 | 8 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -168,6 +168,8 @@ Recent decisions affecting current work:
 - [Phase 02.2-home-and-search-motion-audit]: Protected the motion contract with source-level tests that ban wheel/touch interception and layout animation patterns.
 - [Phase 02.2-home-and-search-motion-audit]: Homepage hero motion stays decorative and CSS-scoped so the search shell remains stable, server-rendered, and conversion-first.
 - [Phase 02.2-home-and-search-motion-audit]: Homepage discovery modules share one reveal contract (`section-reveal` plus `data-reveal="home-module"`) instead of bespoke section animations.
+- [Phase 02.2-home-and-search-motion-audit]: Search-shell regression coverage now relies on rendered HeroSearchBar interaction tests for keyboard autocomplete, reduced-motion rendering, and date/guest popover safety.
+- [Phase 02.2-home-and-search-motion-audit]: Accessibility-aligned labels and combobox semantics are the preferred test seams for shared discovery-shell regressions.
 
 ### Pending Todos
 
@@ -179,6 +181,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:30:00.000Z
-Stopped at: Completed 02.2-02-PLAN.md
+Last session: 2026-03-11T12:59:00.000Z
+Stopped at: Completed 02.2-04-PLAN.md
 Resume file: None
