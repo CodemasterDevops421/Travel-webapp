@@ -73,13 +73,14 @@ Plans:
 
 ### Phase 02.3: Homepage Navigation and Detail Shell Regression Closure (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Restore homepage discovery-card navigation and the hotel-detail shell utility contract that regressed during recent frontend polish.
+**Requirements**: DISC-01, DISC-06, HOTL-01, HOTL-02
 **Depends on:** Phase 2
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 02.3 to break down)
+- [ ] 02.3-01-PLAN.md - Restore homepage discovery-card navigation and add focused navigation regression coverage
+- [ ] 02.3-02-PLAN.md - Restore hotel-detail shell utilities and add stylesheet/caller contract guardrails
 
 ### Phase 3: Hotel Detail and User Workspace
 **Goal**: Travelers can confidently evaluate properties and manage saved stays in their account workspace.
@@ -188,7 +189,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 1. Platform Foundation and Security | 0/4 | Complete    | 2026-02-23 |
 | 2. Search and Discovery Experience | 0/4 | Not started | - |
 | 02.2. Home and Search Motion Audit | 4/4 | Complete   | 2026-03-11 |
-| 02.3. Homepage Navigation and Detail Shell Regression Closure | 0/0 | Not planned | - |
+| 02.3. Homepage Navigation and Detail Shell Regression Closure | 0/2 | Planned | - |
 | 3. Hotel Detail and User Workspace | 4/4 | Complete | 2026-02-25 |
 | 4. Checkout and Booking Lifecycle Integrity | 0/4 | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |

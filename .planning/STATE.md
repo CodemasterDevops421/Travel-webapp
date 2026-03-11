@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: complete
-stopped_at: Completed 02.2-04-PLAN.md
-last_updated: "2026-03-11T12:59:00.000Z"
-last_activity: 2026-03-11 - Completed 02.2 search-shell interaction coverage gap closure
+status: in_progress
+stopped_at: Planned 02.3 homepage-navigation-and-detail-shell-regression-closure
+last_updated: "2026-03-11T13:25:00.000Z"
+last_activity: 2026-03-11 - Planned 02.3 homepage navigation and detail shell regression closure
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 4
-  total_plans: 21
-  completed_plans: 29
+  total_plans: 31
+  completed_plans: 14
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Phase 02.2 is complete with rendered HeroSearchBar interaction coverage closing the remaining verification gap.
+**Current focus:** Phase 02.3 is planned and ready to execute to restore homepage discovery-card navigation and the hotel-detail shell utility contract.
 
 ## Current Position
 
-Phase: 02.2-home-and-search-motion-audit
-Plan: 4 of 4 plans completed in current phase
-Status: Complete
-Last activity: 2026-03-11 - Completed 02.2 search-shell interaction coverage gap closure
+Phase: 02.3-homepage-navigation-and-detail-shell-regression-closure
+Plan: 0 of 2 plans completed in current phase
+Status: Planned
+Last activity: 2026-03-11 - Planned 02.3 homepage navigation and detail shell regression closure
 
-Progress: Phase 02.2 complete and re-verified with executable keyboard, reduced-motion, and popover search-shell coverage
+Progress: Phase 02.3 planned with two regression-closure plans covering homepage navigation restoration and hotel-detail shell utility recovery
 
 ## Performance Metrics
 
@@ -182,6 +182,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:59:00.000Z
-Stopped at: Completed 02.2-04-PLAN.md
+Last session: 2026-03-11T13:25:00.000Z
+Stopped at: Planned 02.3 homepage-navigation-and-detail-shell-regression-closure
 Resume file: None

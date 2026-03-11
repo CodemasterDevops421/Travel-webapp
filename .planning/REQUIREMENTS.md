@@ -94,14 +94,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 1 | Verified |
 | AUTH-04 | Phase 1 | Verified |
 | AUTH-05 | Phase 6 | Code verified (live human verification pending) |
-| DISC-01 | Phase 2 + Phase 02.2 | Verified by discovery-shell audit and guardrail tests |
+| DISC-01 | Phase 2 + Phase 02.2 + Phase 02.3 | Verified by discovery-shell audit and guardrail tests; Phase 02.3 restores homepage card navigation regressions |
 | DISC-02 | Phase 2 | Implemented (verification artifact pending) |
 | DISC-03 | Phase 2 | Implemented (verification artifact pending) |
 | DISC-04 | Phase 2 | Implemented (verification artifact pending) |
 | DISC-05 | Phase 2 | Implemented (verification artifact pending) |
-| DISC-06 | Phase 2 + Phase 02.2 | Verified by motion audit validation artifact and baseline responsive shell guardrails |
-| HOTL-01 | Phase 3 | Verified (reinforced in Phase 8) |
-| HOTL-02 | Phase 3 | Verified (reinforced in Phase 8) |
+| DISC-06 | Phase 2 + Phase 02.2 + Phase 02.3 | Verified by motion audit validation artifact and baseline responsive shell guardrails; Phase 02.3 adds card-navigation stability guardrails |
+| HOTL-01 | Phase 3 + Phase 02.3 | Verified (reinforced in Phase 8 and Phase 02.3 shell regression closure) |
+| HOTL-02 | Phase 3 + Phase 02.3 | Verified (reinforced in Phase 02.3 shell regression closure) |
 | HOTL-03 | Phase 3 | Implemented (verification artifact pending) |
 | HOTL-04 | Phase 3 | Implemented (verification artifact pending) |
 | BOOK-01 | Phase 4 | Implemented (verification artifact pending) |
