@@ -323,9 +323,6 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const [promoLoading, setPromoLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('guest_details');
-  const [travelingForWork, setTravelingForWork] = useState(false);
-  const [bookingFor, setBookingFor] = useState<'self' | 'someone_else'>('self');
-  const [specialRequests, setSpecialRequests] = useState('');
 
   const defaultValues: FormValues = {
     hotelId: initialValues?.hotelId ?? '',
@@ -499,9 +496,26 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const query = searchParams.toString();
   const redirectPath = query ? `${pathname}?${query}` : pathname;
   const signInHref = `/auth/login?redirect=${encodeURIComponent(redirectPath)}`;
-  const backToPropertyHref = liveValues.hotelId
-    ? `/hotels/${liveValues.hotelId}?checkin=${encodeURIComponent(liveValues.checkIn)}&checkout=${encodeURIComponent(liveValues.checkOut)}&adults=${liveValues.adults}&rooms=${liveValues.rooms}`
-    : '/';
+  const selectedLanguageParam = searchParams.get('language');
+  const selectedCurrencyParam = searchParams.get('currency');
+  const backToPropertyHref = (() => {
+    if (!liveValues.hotelId) {
+      return '/';
+    }
+    const params = new URLSearchParams({
+      checkin: liveValues.checkIn,
+      checkout: liveValues.checkOut,
+      adults: String(liveValues.adults),
+      rooms: String(liveValues.rooms)
+    });
+    if (selectedLanguageParam) {
+      params.set('language', selectedLanguageParam);
+    }
+    if (selectedCurrencyParam) {
+      params.set('currency', selectedCurrencyParam);
+    }
+    return `/hotels/${liveValues.hotelId}?${params.toString()}`;
+  })();
 
   const prebookMutation = useMutation({
     mutationFn: async (values: FormValues): Promise<PrebookResult> => {
@@ -731,44 +745,6 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
                 <Input aria-label="Phone" placeholder="Enter phone number" {...form.register('phone')} />
               </label>
             </div>
-            <div className="mt-5 border-t border-border/70 pt-5">
-              <p className="text-sm font-medium text-foreground">Are you traveling for work?</p>
-              <div className="mt-3 flex gap-3">
-                <button type="button" onClick={() => setTravelingForWork(true)} className={cn('rounded-full border px-4 py-2 text-sm font-medium', travelingForWork ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-foreground')}>
-                  Yes
-                </button>
-                <button type="button" onClick={() => setTravelingForWork(false)} className={cn('rounded-full border px-4 py-2 text-sm font-medium', !travelingForWork ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-foreground')}>
-                  No
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[28px] border border-border/80 bg-card p-5 shadow-[0_18px_44px_-34px_rgba(15,23,42,0.3)]">
-            <h2 className="text-xl font-semibold text-foreground">Who is the booking for</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Choose whether this reservation is for you or someone else.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <button type="button" onClick={() => setBookingFor('self')} className={cn('rounded-[18px] border px-4 py-4 text-left', bookingFor === 'self' ? 'border-primary bg-primary/5 shadow-[0_12px_28px_-24px_rgba(37,99,235,0.45)]' : 'border-border bg-background')}>
-                <p className="font-semibold text-foreground">Myself</p>
-                <p className="mt-1 text-sm text-muted-foreground">Use the traveler details above for this stay.</p>
-              </button>
-              <button type="button" onClick={() => setBookingFor('someone_else')} className={cn('rounded-[18px] border px-4 py-4 text-left', bookingFor === 'someone_else' ? 'border-primary bg-primary/5 shadow-[0_12px_28px_-24px_rgba(37,99,235,0.45)]' : 'border-border bg-background')}>
-                <p className="font-semibold text-foreground">Someone else</p>
-                <p className="mt-1 text-sm text-muted-foreground">Keep the booking contact while preparing this stay for another guest.</p>
-              </button>
-            </div>
-          </section>
-
-          <section className="rounded-[28px] border border-border/80 bg-card p-5 shadow-[0_18px_44px_-34px_rgba(15,23,42,0.3)]">
-            <h2 className="text-xl font-semibold text-foreground">Special requests</h2>
-            <p className="mt-1 text-sm text-muted-foreground">We will pass along requests to the property, but they are subject to availability.</p>
-            <textarea
-              aria-label="Special requests"
-              value={specialRequests}
-              onChange={(event) => setSpecialRequests(event.target.value)}
-              placeholder="Add any arrival notes, bedding requests, or accessibility details"
-              className="mt-4 min-h-[120px] w-full rounded-[18px] border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/40"
-            />
           </section>
 
           <section className="rounded-[28px] border border-border/80 bg-card p-5 shadow-[0_18px_44px_-34px_rgba(15,23,42,0.3)]">

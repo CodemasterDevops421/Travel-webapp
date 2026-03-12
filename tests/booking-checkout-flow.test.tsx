@@ -37,6 +37,10 @@ describe('booking checkout return flow', () => {
     expect(bookingConsoleSource).toContain('const { user, isLoading: authIsLoading, error: authError } = useAuth();');
     expect(bookingConsoleSource).toContain('const redirectPath = query ? `${pathname}?${query}` : pathname;');
     expect(bookingConsoleSource).toContain("const signInHref = `/auth/login?redirect=${encodeURIComponent(redirectPath)}`;");
+    expect(bookingConsoleSource).toContain("const selectedLanguageParam = searchParams.get('language');");
+    expect(bookingConsoleSource).toContain("const selectedCurrencyParam = searchParams.get('currency');");
+    expect(bookingConsoleSource).toContain("params.set('language', selectedLanguageParam);");
+    expect(bookingConsoleSource).toContain("params.set('currency', selectedCurrencyParam);");
     expect(bookingConsoleSource).toContain('router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);');
     expect(bookingConsoleSource).toContain("throw new Error(authError ?? 'Sign in to continue to secure payment.');");
   });
@@ -58,12 +62,14 @@ describe('booking checkout return flow', () => {
     expect(bookingConsoleSource).toContain('Back to property');
     expect(bookingConsoleSource).toContain('Complete your booking');
     expect(bookingConsoleSource).toContain('Your details');
-    expect(bookingConsoleSource).toContain('Who is the booking for');
-    expect(bookingConsoleSource).toContain('Special requests');
     expect(bookingConsoleSource).toContain('Payment information');
     expect(bookingConsoleSource).toContain('Cancellation policy');
     expect(bookingConsoleSource).toContain('Your room');
     expect(bookingConsoleSource).toContain('Complete booking');
+    expect(bookingConsoleSource).not.toContain('Are you traveling for work?');
+    expect(bookingConsoleSource).not.toContain('Who is the booking for');
+    expect(bookingConsoleSource).not.toContain('Special requests');
+    expect(bookingConsoleSource).not.toContain('We will pass along requests to the property');
   });
 
   it('passes hotel and room summary fields through the booking route contract', () => {
