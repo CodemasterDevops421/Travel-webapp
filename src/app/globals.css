@@ -33,6 +33,14 @@
     --ring: 11 100% 67%;
 
     --radius: 1.5rem;
+    --surface-radius: 1.75rem;
+    --surface-radius-sm: 1.25rem;
+    --surface-shadow: 0 22px 44px -28px rgba(15, 23, 42, 0.28);
+    --surface-shadow-lg: 0 34px 70px -34px rgba(15, 23, 42, 0.34);
+    --page-max-width: 80rem;
+    --page-gutter: clamp(1rem, 2vw, 1.5rem);
+    --section-gap: clamp(1rem, 1.5vw, 1.5rem);
+    --header-offset: 5.5rem;
   }
 
   .dark {
@@ -63,6 +71,8 @@
     --border: 208 25% 24%;
     --input: 208 25% 24%;
     --ring: 11 100% 67%;
+    --surface-shadow: 0 26px 56px -32px rgba(2, 8, 23, 0.58);
+    --surface-shadow-lg: 0 40px 80px -38px rgba(2, 8, 23, 0.68);
   }
 }
 

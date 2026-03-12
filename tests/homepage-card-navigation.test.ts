@@ -24,9 +24,9 @@ describe('homepage discovery card navigation contract', () => {
     expect(featuredDealsSource).not.toContain('<article\n            key={deal.city}\n            className="group flex h-full cursor-pointer');
   });
 
-  it('routes travel journal cards through PreferenceLink with the restored tag search href', () => {
+  it('routes travel journal cards through PreferenceLink with vibe-mode search hrefs', () => {
     expect(travelArticlesSource).toContain("import { PreferenceLink } from '@/components/navigation/preference-link';");
-    expect(travelArticlesSource).toContain('href={`/search?q=${encodeURIComponent(article.tag)}`}');
+    expect(travelArticlesSource).toContain('href={`/search?q=${encodeURIComponent(article.tag)}&mode=vibe`}');
     expect(travelArticlesSource).toContain('className="group block rounded-[28px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"');
     expect(travelArticlesSource).toContain('group-hover:translate-x-1');
     expect(travelArticlesSource).not.toContain('<article\r\n            key={article.title}\r\n            className={`group flex h-full cursor-pointer');

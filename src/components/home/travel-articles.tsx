@@ -45,7 +45,7 @@ export function TravelArticles() {
         {articles.map((article) => (
           <PreferenceLink
             key={article.title}
-            href={`/search?q=${encodeURIComponent(article.tag)}`}
+            href={`/search?q=${encodeURIComponent(article.tag)}&mode=vibe`}
             className="group block rounded-[28px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <article
