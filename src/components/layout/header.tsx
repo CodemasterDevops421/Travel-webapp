@@ -14,7 +14,7 @@ import { useAuth } from '@/shared/hooks/use-auth';
 export function Header() {
   const pathname = usePathname();
   const isHomePage = pathname === '/';
-  const isCheckoutPage = pathname.startsWith('/booking');
+  const isCheckoutPage = pathname === '/booking' || pathname.startsWith('/booking/');
   const showInlineDesktopSearch = !isHomePage;
   const headerSurfaceClassName = isHomePage
     ? 'bg-white/72 dark:bg-slate-950/68'
@@ -57,7 +57,7 @@ export function Header() {
         headerSurfaceClassName
       ].join(' ')}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 md:h-20">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 md:h-20 md:gap-4">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2 premium-hover group">
           <span className="text-2xl font-heading font-extrabold tracking-tight text-primary transition-colors group-hover:text-primary/80">
@@ -66,10 +66,10 @@ export function Header() {
         </Link>
 
         {showInlineDesktopSearch && (
-          <div className="hidden min-w-0 flex-1 md:block motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-300">
+          <div className="hidden min-w-0 flex-1 md:block md:max-w-[42rem] lg:max-w-[46rem] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-300">
             <HeroSearchBar
               variant="compact"
-              className="mx-auto w-full max-w-3xl border border-white/65 bg-white/92 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.45)] dark:border-white/15 dark:bg-slate-950/88"
+              className="mx-auto w-full max-w-none border border-white/65 bg-white/92 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.45)] dark:border-white/15 dark:bg-slate-950/88"
             />
           </div>
         )}
