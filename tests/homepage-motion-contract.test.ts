@@ -22,12 +22,11 @@ describe('homepage motion contract', () => {
   const newsletterBandSource = readFileSync(resolve(process.cwd(), 'src/components/home/newsletter-band.tsx'), 'utf8');
 
   it('defines homepage-safe reveal and hero motion utilities with reduced-motion fallbacks', () => {
-    expect(globalsSource).toContain('@keyframes hero-word-cycle');
-    expect(globalsSource).toContain('.hero-word');
+    expect(globalsSource).toContain('@keyframes hero-accent-breathe');
+    expect(globalsSource).toContain('.hero-accent-emphasis');
     expect(globalsSource).toContain('.section-reveal');
     expect(globalsSource).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(globalsSource).toContain('.hero-orbit');
-    expect(globalsSource).toContain('.hero-spotlight');
+    expect(globalsSource).not.toContain('.hero-word');
   });
 
   it('applies the shared reveal marker across homepage modules', () => {
