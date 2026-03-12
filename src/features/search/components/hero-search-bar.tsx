@@ -25,6 +25,9 @@ export type HeroSearchBarProps = {
     };
 };
 
+const SHELL_EASE = [0.22, 1, 0.36, 1] as const;
+const PANEL_EASE = [0.16, 1, 0.3, 1] as const;
+
 function formatSearchDate(value: string): string {
     if (!value) return 'Select date';
     const parsed = new Date(`${value}T00:00:00`);
@@ -93,7 +96,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
         : {
             initial: { opacity: 0, y: 10, scale: 0.985 },
             animate: { opacity: 1, y: 0, scale: 1 },
-            transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] }
+            transition: { duration: 0.38, ease: SHELL_EASE }
         };
     const panelMotionProps = reduceMotion
         ? { initial: false, animate: { opacity: 1, y: 0, scale: 1 }, exit: { opacity: 1, y: 0, scale: 1 }, transition: { duration: 0.01 } }
@@ -101,7 +104,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             initial: { opacity: 0, y: 8, scale: 0.985 },
             animate: { opacity: 1, y: 0, scale: 1 },
             exit: { opacity: 0, y: 4, scale: 0.99 },
-            transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] }
+            transition: { duration: 0.22, ease: PANEL_EASE }
         };
 
     useEffect(() => {
