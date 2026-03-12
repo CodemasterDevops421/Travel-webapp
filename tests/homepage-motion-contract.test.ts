@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest';
 describe('homepage motion contract', () => {
   const pageSource = readFileSync(resolve(process.cwd(), 'src/app/page.tsx'), 'utf8');
   const globalsSource = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
+  const heroSearchBarSource = readFileSync(
+    resolve(process.cwd(), 'src/features/search/components/hero-search-bar.tsx'),
+    'utf8'
+  );
   const heroSearchInteractionSource = readFileSync(
     resolve(process.cwd(), 'tests/hero-search-bar-interactions.test.tsx'),
     'utf8'
@@ -25,6 +29,8 @@ describe('homepage motion contract', () => {
     expect(globalsSource).toContain('@keyframes hero-accent-breathe');
     expect(globalsSource).toContain('.hero-accent-emphasis');
     expect(globalsSource).toContain('.section-reveal');
+    expect(globalsSource).toContain('.ui-label');
+    expect(globalsSource).toContain('.numeric-tight');
     expect(globalsSource).toContain('@media (prefers-reduced-motion: reduce)');
     expect(globalsSource).not.toContain('.hero-word');
   });
@@ -66,6 +72,8 @@ describe('homepage motion contract', () => {
   });
 
   it('anchors search-shell motion safety to executable interaction coverage', () => {
+    expect(heroSearchBarSource).toContain('ui-label');
+    expect(heroSearchBarSource).toContain('numeric-tight');
     expect(heroSearchInteractionSource).toContain("describe('HeroSearchBar interaction coverage'");
     expect(heroSearchInteractionSource).toContain("{ArrowDown}{ArrowDown}{Enter}");
     expect(heroSearchInteractionSource).toContain("useReducedMotionMock.mockReturnValue(true)");

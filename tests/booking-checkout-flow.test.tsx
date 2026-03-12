@@ -7,6 +7,7 @@ describe('booking checkout return flow', () => {
     resolve(process.cwd(), 'src/app/booking/return/booking-return-client.tsx'),
     'utf8'
   );
+  const bookingPageSource = readFileSync(resolve(process.cwd(), 'src/app/booking/page.tsx'), 'utf8');
   const bookingConsoleSource = readFileSync(
     resolve(process.cwd(), 'src/features/booking/components/booking-console.tsx'),
     'utf8'
@@ -35,6 +36,7 @@ describe('booking checkout return flow', () => {
   it('gates payment launch behind auth and preserves booking redirect context', () => {
     expect(bookingConsoleSource).toContain('const { user, isLoading: authIsLoading, error: authError } = useAuth();');
     expect(bookingConsoleSource).toContain('const redirectPath = query ? `${pathname}?${query}` : pathname;');
+    expect(bookingConsoleSource).toContain("const signInHref = `/auth/login?redirect=${encodeURIComponent(redirectPath)}`;");
     expect(bookingConsoleSource).toContain('router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);');
     expect(bookingConsoleSource).toContain("throw new Error(authError ?? 'Sign in to continue to secure payment.');");
   });
@@ -47,8 +49,30 @@ describe('booking checkout return flow', () => {
   });
 
   it('lets the booking page progress into review before payment auth is required', () => {
-    expect(bookingConsoleSource).toContain("!prebook ? 'Continue to booking review' : 'Continue to payment'");
-    expect(bookingConsoleSource).toContain('You can reach the booking page without signing in. We only require sign-in when you continue to payment.');
+    expect(bookingConsoleSource).toContain("!prebook ? 'Continue to booking review' : 'Complete booking'");
     expect(bookingConsoleSource).toContain("{user ? 'Open secure payment' : 'Sign in to pay'}");
+    expect(bookingConsoleSource).toContain('You can reach the booking page without signing in. We only require sign-in when you continue to payment.');
+  });
+
+  it('renders a booking-review layout with traveler form and stay summary before payment', () => {
+    expect(bookingConsoleSource).toContain('Back to property');
+    expect(bookingConsoleSource).toContain('Complete your booking');
+    expect(bookingConsoleSource).toContain('Your details');
+    expect(bookingConsoleSource).toContain('Who is the booking for');
+    expect(bookingConsoleSource).toContain('Special requests');
+    expect(bookingConsoleSource).toContain('Payment information');
+    expect(bookingConsoleSource).toContain('Cancellation policy');
+    expect(bookingConsoleSource).toContain('Your room');
+    expect(bookingConsoleSource).toContain('Complete booking');
+  });
+
+  it('passes hotel and room summary fields through the booking route contract', () => {
+    expect(bookingPageSource).toContain("hotelName: pickParam(params, 'hotelName')");
+    expect(bookingPageSource).toContain("hotelImage: pickParam(params, 'hotelImage')");
+    expect(bookingPageSource).toContain("hotelAddress: pickParam(params, 'hotelAddress')");
+    expect(bookingPageSource).toContain("starRating: pickNumber(params, 'starRating')");
+    expect(bookingPageSource).toContain("roomName: pickParam(params, 'roomName')");
+    expect(bookingPageSource).toContain("boardName: pickParam(params, 'boardName')");
+    expect(bookingPageSource).toContain("roomImage: pickParam(params, 'roomImage')");
   });
 });

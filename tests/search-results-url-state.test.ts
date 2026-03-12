@@ -15,6 +15,18 @@ import { resolve } from 'node:path';
 
 const sampleListings: PropertyPreview[] = [
   {
+    hotelId: 'center',
+    name: 'Center Hotel',
+    city: 'Paris',
+    countryCode: 'FR',
+    price: 260,
+    currency: 'EUR',
+    starRating: 5,
+    reviewScore: 9.2,
+    reviewCount: 200,
+    distanceFromCenterKm: 0
+  },
+  {
     hotelId: 'far',
     name: 'Far Hotel',
     city: 'Paris',
@@ -57,6 +69,7 @@ describe('search results URL state contract', () => {
     resolve(process.cwd(), 'src/features/search/components/filters-sidebar.tsx'),
     'utf8'
   );
+  const liteApiSource = readFileSync(resolve(process.cwd(), 'src/server/liteapi.ts'), 'utf8');
 
   it('serializes discovery controls in deterministic order', () => {
     const params = serializeListingSearchParams({
@@ -168,7 +181,24 @@ describe('search results URL state contract', () => {
   });
 
   it('keeps distance sorting available for legacy shared URLs', () => {
-    expect(sortSearchResultsListings(sampleListings, 'distance').map((hotel) => hotel.hotelId)).toEqual(['near', 'far', 'unknown']);
+    const sortedHotelIds = sortSearchResultsListings(sampleListings, 'distance').map((hotel) => hotel.hotelId);
+
+    expect(sortedHotelIds[0]).toBe('center');
+    expect(sortedHotelIds.indexOf('near')).toBeLessThan(sortedHotelIds.indexOf('far'));
+    expect(sortedHotelIds.indexOf('center')).toBeLessThan(sortedHotelIds.indexOf('near'));
+  });
+
+  it('preserves exact center-distance listings when distance filters are active', () => {
+    const filters = {
+      ...DEFAULT_LISTING_FILTERS,
+      maxDistanceKm: 1
+    };
+
+    expect(filterSearchResultsListings(sampleListings, filters).map((hotel) => hotel.hotelId)).toEqual([
+      'center',
+      'near',
+      'unknown'
+    ]);
   });
 
   it('preserves minReviewCount filtering for existing search URLs', () => {
@@ -177,7 +207,7 @@ describe('search results URL state contract', () => {
       minReviewCount: 100
     };
 
-    expect(filterSearchResultsListings(sampleListings, filters).map((hotel) => hotel.hotelId)).toEqual(['far']);
+    expect(filterSearchResultsListings(sampleListings, filters).map((hotel) => hotel.hotelId)).toEqual(['center', 'far']);
   });
 
   it('counts minReviewCount as an active filter', () => {
@@ -193,5 +223,15 @@ describe('search results URL state contract', () => {
     expect(sidebarSource).toContain('filters.minReviewCount > 0 ||');
     expect(sidebarSource).toContain('{hasActiveFilters && (');
     expect(sidebarSource).toContain('Clear all');
+  });
+
+  it('does not emit the removed hot-path LiteAPI rates request debug log', () => {
+    expect(liteApiSource).not.toContain("rates_request");
+    expect(liteApiSource).not.toContain("rates_response");
+    expect(liteApiSource).not.toContain('apiKey: maskApiKey(runtime.apiKey)');
+    expect(liteApiSource).not.toContain('guestNationality: payload.guestNationality');
+    expect(liteApiSource).not.toContain('occupancies: payload.occupancies');
+    expect(liteApiSource).not.toContain('cityName: payload.cityName');
+    expect(liteApiSource).not.toContain('aiSearch: payload.aiSearch');
   });
 });

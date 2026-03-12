@@ -69,7 +69,7 @@ function computePopularityScore(price: number | null, reviewScore: number | null
 
 function getDistanceFromCenter(hotel: { distanceFromCenterKm?: unknown }) {
   const distanceFromCenter = Number(hotel.distanceFromCenterKm);
-  return Number.isFinite(distanceFromCenter) && distanceFromCenter > 0
+  return Number.isFinite(distanceFromCenter) && distanceFromCenter >= 0
     ? distanceFromCenter
     : null;
 }

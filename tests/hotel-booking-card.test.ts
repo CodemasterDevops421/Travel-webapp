@@ -54,6 +54,16 @@ describe('hotel booking default-offer regression coverage', () => {
     expect(parentSource).toContain('() => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? defaultRate ?? rates[0] ?? null,');
   });
 
+  it('enriches the booking handoff with summary fields needed by the guest-first booking page', () => {
+    expect(parentSource).toContain("bookingQuery.set('hotelName', context.hotelName);");
+    expect(parentSource).toContain("bookingQuery.set('hotelImage', context.hotelImage);");
+    expect(parentSource).toContain("bookingQuery.set('hotelAddress', context.hotelAddress);");
+    expect(parentSource).toContain("bookingQuery.set('starRating', String(context.starRating));");
+    expect(parentSource).toContain("bookingQuery.set('roomImage', rate.imageUrl);");
+    expect(parentSource).toContain("roomName: rate.roomName");
+    expect(parentSource).toContain("boardName: rate.boardName");
+  });
+
   it('keeps the booking rail chrome pinned to the restored shell utility classes', () => {
     expect(bookingSidebarSource).toContain('className="surface-shell overflow-hidden"');
     expect(bookingSidebarSource).toContain('className="surface-shell-subtle px-3 py-3"');

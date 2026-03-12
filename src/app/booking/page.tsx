@@ -41,6 +41,13 @@ function pickPositiveInt(params: Record<string, string | string[] | undefined>, 
   return intValue > 0 ? intValue : undefined;
 }
 
+function pickNumber(params: Record<string, string | string[] | undefined>, key: string): number | undefined {
+  const raw = pickParam(params, key);
+  if (!raw) return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function pickRefundableState(
   params: Record<string, string | string[] | undefined>,
   key: string
@@ -71,6 +78,13 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
           hotelId: pickParam(params, 'hotelId'),
           roomId: pickParam(params, 'roomId'),
           offerId: pickParam(params, 'offerId'),
+          hotelName: pickParam(params, 'hotelName'),
+          hotelImage: pickParam(params, 'hotelImage'),
+          hotelAddress: pickParam(params, 'hotelAddress'),
+          starRating: pickNumber(params, 'starRating'),
+          roomName: pickParam(params, 'roomName'),
+          boardName: pickParam(params, 'boardName'),
+          roomImage: pickParam(params, 'roomImage'),
           currency: preferredCurrency,
           adults: pickPositiveInt(params, 'adults'),
           rooms: pickPositiveInt(params, 'rooms'),

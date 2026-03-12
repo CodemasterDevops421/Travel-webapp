@@ -295,12 +295,6 @@ function isTimeoutLikeError(error: unknown): boolean {
   return error instanceof Error && (error.name === 'AbortError' || /timeout|aborted/i.test(error.message));
 }
 
-function maskApiKey(value?: string | null): string | null {
-  if (!value) return null;
-  if (value.length <= 8) return '***';
-  return `${value.slice(0, 4)}...${value.slice(-4)}`;
-}
-
 function safeSnippet(value: unknown, maxLength = 1200): string {
   try {
     const raw = typeof value === 'string' ? value : JSON.stringify(value);
@@ -309,10 +303,6 @@ function safeSnippet(value: unknown, maxLength = 1200): string {
   } catch {
     return '[unserializable]';
   }
-}
-
-function logLiteApiDebug(event: string, payload: Record<string, unknown>) {
-  logger.info({ liteapiEvent: event, ...payload }, 'LiteAPI debug');
 }
 
 async function fetchJsonWithBackoffDetailed<T>(
@@ -1311,28 +1301,6 @@ async function searchRates(
     }
   }
 
-  logLiteApiDebug('rates_request', {
-    liteApiEnv: runtime.mode,
-    url: `${runtime.baseUrl}/hotels/rates`,
-    hasApiKey: Boolean(runtime.apiKey),
-    apiKey: maskApiKey(runtime.apiKey),
-    timeoutMs: env.LITEAPI_TIMEOUT_MS,
-    payload: {
-      checkin: payload.checkin,
-      checkout: payload.checkout,
-      currency: payload.currency,
-      guestNationality: payload.guestNationality,
-      occupancies: payload.occupancies,
-      placeId: payload.placeId,
-      cityName: payload.cityName,
-      aiSearch: payload.aiSearch,
-      timeoutSeconds: payload.timeout,
-      minRating: payload.minRating,
-      starRating: payload.starRating,
-      limit: payload.limit
-    }
-  });
-
   const response = await fetchJsonWithBackoffDetailed<LiteApiResponse<Array<Record<string, unknown>>>>(`${runtime.baseUrl}/hotels/rates`, {
     method: 'POST',
     headers: {
@@ -1344,14 +1312,6 @@ async function searchRates(
     next: { revalidate: 300 }
   });
 
-  logLiteApiDebug('rates_response', {
-    status: response.status,
-    statusText: response.statusText,
-    ok: Boolean(response.data),
-    degradedReason: response.degradedReason,
-    bodySnippet: response.bodySnippet
-  });
-
   if (!response.data) {
     return {
       items: [],
@@ -1360,11 +1320,6 @@ async function searchRates(
   }
 
   const mapped = mapRatesResponse(response.data, fallbackCity);
-  logLiteApiDebug('rates_response_summary', {
-    upstreamHotelsCount: Array.isArray(response.data.hotels) ? response.data.hotels.length : 0,
-    upstreamDataCount: Array.isArray(response.data.data) ? response.data.data.length : 0,
-    mappedCount: mapped.length
-  });
   if (redis && cacheKey && mapped.length > 0) {
     try {
       await redis.set(cacheKey, mapped, { ex: 300 });
@@ -1917,18 +1872,11 @@ export async function searchPropertyPreviews(
     freshness: degradedReason ? 'stale' : 'fresh'
   });
   const logDegradedFallback = (reason: SupplierDegradedReason, context: Record<string, unknown> = {}) => {
-    logLiteApiDebug('property_preview_degraded', {
+    logger.warn({
       degradedReason: reason,
       fallbackCount: fallbackProperties.length,
-      query,
-      language,
-      currency,
-      checkin,
-      checkout,
-      adults,
-      rooms,
       ...context
-    });
+    }, 'LiteAPI property preview degraded');
   };
 
   if (!hasConfiguredLiteApiKey(runtime.apiKey)) {
