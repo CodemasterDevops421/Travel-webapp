@@ -51,6 +51,18 @@ describe('homepage motion contract', () => {
     }
   });
 
+  it('keeps homepage imagery on optimized local rendering paths', () => {
+    expect(pageSource).toContain('src="/images/hero-bg.png"');
+    expect(pageSource).not.toContain('images.unsplash.com/photo-1506744038136-46273834b3fb');
+    expect(trendingDestinationsSource).toContain("import Image from 'next/image';");
+    expect(trendingDestinationsSource).toContain("image: '/images/trending-dubai.png'");
+    expect(trendingDestinationsSource).toContain("image: '/images/trending-bali.jpg'");
+    expect(trendingDestinationsSource).toContain("image: '/images/trending-zurich.png'");
+    expect(trendingDestinationsSource).toContain("image: '/images/trending-kyoto.jpg'");
+    expect(trendingDestinationsSource).not.toContain('images.unsplash.com/');
+    expect(trendingDestinationsSource).not.toContain('backgroundImage:');
+  });
+
   it('keeps banned motion patterns out of the homepage shell and modules', () => {
     const auditedSources = [
       pageSource,

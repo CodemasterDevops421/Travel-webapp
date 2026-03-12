@@ -1,4 +1,5 @@
 import React, { cache } from 'react';
+import Image from 'next/image';
 import { ArrowUpRight } from 'lucide-react';
 import { PreferenceLink } from '@/components/navigation/preference-link';
 import { withNextCache } from '@/server/cache';
@@ -7,22 +8,22 @@ const destinations = [
   {
     name: 'Dubai',
     blurb: 'Skyline luxury and beach escapes',
-    image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80'
+    image: '/images/trending-dubai.png'
   },
   {
     name: 'Bali',
     blurb: 'Wellness villas and rainforest retreats',
-    image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80'
+    image: '/images/trending-bali.jpg'
   },
   {
     name: 'Zurich',
     blurb: 'Lake views, boutiques, alpine access',
-    image: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=1200&q=80'
+    image: '/images/trending-zurich.png'
   },
   {
     name: 'Kyoto',
     blurb: 'Heritage stays and culinary routes',
-    image: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1200&q=80'
+    image: '/images/trending-kyoto.jpg'
   }
 ];
 
@@ -53,12 +54,16 @@ export async function TrendingDestinations() {
               className="overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-premium-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-premium-md"
               style={{ animationDelay: `${idx * 80}ms` }}
             >
-              <div
-                className="h-44 bg-cover bg-center"
-                style={{
-                  backgroundImage: `linear-gradient(180deg, rgba(11,37,69,0.05) 0%, rgba(11,37,69,0.34) 100%), url("${item.image}")`
-                }}
-              />
+              <div className="relative h-44 overflow-hidden">
+                <Image
+                  src={item.image}
+                  alt={`${item.name} destination`}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  className="object-cover object-center"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(11,37,69,0.05)_0%,rgba(11,37,69,0.34)_100%)]" />
+              </div>
               <div className="space-y-3 p-6">
                 <h3 className="text-2xl font-heading font-bold">{item.name}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{item.blurb}</p>

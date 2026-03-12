@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import { LockKeyhole, ShieldCheck, Sparkles, Wallet } from 'lucide-react';
 import { HeroSearchBar } from '@/features/search/components/hero-search-bar';
 import { SearchSkeleton } from '@/features/search/components/search-skeleton';
@@ -22,15 +23,16 @@ export default function HomePage() {
     <main className="pb-24" data-home-motion="safe">
       <section className="relative px-4 pt-4 md:px-8 md:pt-6">
         <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[36px] border border-white/20 shadow-premium-lg">
-          <div
-            className="relative overflow-hidden px-6 py-14 md:px-10 md:py-18 lg:px-14 lg:py-20"
-            style={{
-              backgroundImage:
-                'linear-gradient(180deg, rgba(11,37,69,0.28) 0%, rgba(11,37,69,0.6) 48%, rgba(11,37,69,0.9) 100%), url("https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2200&q=80")',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center 38%'
-            }}
-          >
+          <div className="relative overflow-hidden px-6 py-14 md:px-10 md:py-18 lg:px-14 lg:py-20">
+            <Image
+              src="/images/hero-bg.png"
+              alt="Mountain valley stay inspiration"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover object-center"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(11,37,69,0.28)_0%,rgba(11,37,69,0.6)_48%,rgba(11,37,69,0.9)_100%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_28%)]" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#0B2545] via-[#0B2545]/55 to-transparent" />
 

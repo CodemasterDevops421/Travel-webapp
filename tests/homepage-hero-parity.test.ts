@@ -13,6 +13,10 @@ describe('homepage hero parity regression coverage', () => {
     expect(pageSource).toContain('data-home-motion="safe"');
     expect(pageSource).toContain('rgba(11,37,69,0.28)');
     expect(pageSource).toContain("bg-gradient-to-t from-[#0B2545] via-[#0B2545]/55 to-transparent");
+    expect(pageSource).toContain('src="/images/hero-bg.png"');
+    expect(pageSource).toContain('priority');
+    expect(pageSource).not.toContain('images.unsplash.com/photo-1506744038136-46273834b3fb');
+    expect(pageSource).not.toContain('backgroundImage:');
   });
 
   it('uses one bounded hero accent seam and removes the desktop editorial side panel', () => {
