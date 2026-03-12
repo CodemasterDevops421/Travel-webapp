@@ -474,11 +474,12 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     return diff > 0 ? diff : null;
   }, [liveValues.checkIn, liveValues.checkOut]);
 
-  const baseAmount = Number(liveValues.amount || 0);
+  const nightlyRate = Number(liveValues.amount || 0);
   const currency = (liveValues.currency || 'USD').toUpperCase();
-  const totalAmount = prebook?.quote.totalAmount ?? baseAmount;
-  const taxesAndFees = Math.max(totalAmount - baseAmount, 0);
-  const nightlyAmount = nights ? totalAmount / nights : totalAmount;
+  const totalAmount = prebook?.quote.totalAmount ?? nightlyRate;
+  const staySubtotal = Math.max(nightlyRate * (nights ?? 1) * Math.max(liveValues.rooms, 1), 0);
+  const estimatedTaxesAndFees = Math.max(totalAmount - staySubtotal, 0);
+  const nightlyAmount = nightlyRate > 0 ? nightlyRate : nights ? totalAmount / nights : totalAmount;
   const cancellationSummary =
     liveValues.isRefundable === 'false'
       ? 'This selected rate is non-refundable.'
@@ -496,8 +497,8 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const query = searchParams.toString();
   const redirectPath = query ? `${pathname}?${query}` : pathname;
   const signInHref = `/auth/login?redirect=${encodeURIComponent(redirectPath)}`;
-  const selectedLanguageParam = searchParams.get('language');
-  const selectedCurrencyParam = searchParams.get('currency');
+  const selectedLanguageParam = preferredLanguage ?? normalizeLanguage(searchParams.get('preferredLanguage')) ?? normalizeLanguage(searchParams.get('language'));
+  const selectedCurrencyParam = preferredCurrency ?? normalizeCurrency(searchParams.get('preferredCurrency')) ?? normalizeCurrency(searchParams.get('currency'));
   const backToPropertyHref = (() => {
     if (!liveValues.hotelId) {
       return '/';
@@ -943,13 +944,15 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
                         <span className="font-semibold text-foreground">{formatMoney(currency, nightlyAmount)}</span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">Selected stay</span>
-                        <span className="font-semibold text-foreground">{formatMoney(currency, baseAmount)}</span>
+                        <span className="text-muted-foreground">Room subtotal</span>
+                        <span className="font-semibold text-foreground">{formatMoney(currency, staySubtotal)}</span>
                       </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="inline-flex items-center gap-1 text-muted-foreground">Included taxes and fees <CircleHelp className="h-3.5 w-3.5" /></span>
-                        <span className="font-semibold text-foreground">{formatMoney(currency, taxesAndFees)}</span>
-                      </div>
+                      {estimatedTaxesAndFees > 0 ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">Estimated taxes and fees <CircleHelp className="h-3.5 w-3.5" /></span>
+                          <span className="font-semibold text-foreground">{formatMoney(currency, estimatedTaxesAndFees)}</span>
+                        </div>
+                      ) : null}
                       <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3">
                         <span className="text-base font-semibold text-foreground">Total</span>
                         <span className="text-xl font-bold text-foreground">{formatMoney(currency, totalAmount)}</span>

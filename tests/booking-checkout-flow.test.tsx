@@ -37,8 +37,8 @@ describe('booking checkout return flow', () => {
     expect(bookingConsoleSource).toContain('const { user, isLoading: authIsLoading, error: authError } = useAuth();');
     expect(bookingConsoleSource).toContain('const redirectPath = query ? `${pathname}?${query}` : pathname;');
     expect(bookingConsoleSource).toContain("const signInHref = `/auth/login?redirect=${encodeURIComponent(redirectPath)}`;");
-    expect(bookingConsoleSource).toContain("const selectedLanguageParam = searchParams.get('language');");
-    expect(bookingConsoleSource).toContain("const selectedCurrencyParam = searchParams.get('currency');");
+    expect(bookingConsoleSource).toContain("const selectedLanguageParam = preferredLanguage ?? normalizeLanguage(searchParams.get('preferredLanguage')) ?? normalizeLanguage(searchParams.get('language'));");
+    expect(bookingConsoleSource).toContain("const selectedCurrencyParam = preferredCurrency ?? normalizeCurrency(searchParams.get('preferredCurrency')) ?? normalizeCurrency(searchParams.get('currency'));");
     expect(bookingConsoleSource).toContain("params.set('language', selectedLanguageParam);");
     expect(bookingConsoleSource).toContain("params.set('currency', selectedCurrencyParam);");
     expect(bookingConsoleSource).toContain('router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);');
@@ -80,5 +80,18 @@ describe('booking checkout return flow', () => {
     expect(bookingPageSource).toContain("roomName: pickParam(params, 'roomName')");
     expect(bookingPageSource).toContain("boardName: pickParam(params, 'boardName')");
     expect(bookingPageSource).toContain("roomImage: pickParam(params, 'roomImage')");
+    expect(bookingPageSource).toContain("const preferredLanguage = normalizeLanguage(pickParam(params, 'preferredLanguage')) ?? normalizeLanguage(pickParam(params, 'language'));");
+    expect(bookingPageSource).toContain("const preferredCurrency =");
+    expect(bookingPageSource).toContain("const quoteCurrency = normalizeCurrency(pickParam(params, 'currency'));");
+  });
+
+  it('keeps multi-night stay cost separate from estimated taxes and fees', () => {
+    expect(bookingConsoleSource).toContain('const nightlyRate = Number(liveValues.amount || 0);');
+    expect(bookingConsoleSource).toContain('const staySubtotal = Math.max(nightlyRate * (nights ?? 1) * Math.max(liveValues.rooms, 1), 0);');
+    expect(bookingConsoleSource).toContain('const estimatedTaxesAndFees = Math.max(totalAmount - staySubtotal, 0);');
+    expect(bookingConsoleSource).toContain('Room subtotal');
+    expect(bookingConsoleSource).toContain('Estimated taxes and fees');
+    expect(bookingConsoleSource).not.toContain('Selected stay');
+    expect(bookingConsoleSource).not.toContain('Included taxes and fees');
   });
 });

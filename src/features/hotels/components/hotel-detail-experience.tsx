@@ -79,6 +79,8 @@ function buildBookingQuery(
     hotelImage?: string | null;
     hotelAddress?: string;
     starRating?: number | null;
+    preferredLanguage?: string | null;
+    preferredCurrency?: string | null;
   }
 ): URLSearchParams {
   const bookingQuery = new URLSearchParams({
@@ -116,6 +118,12 @@ function buildBookingQuery(
   }
   if (typeof context.starRating === 'number' && Number.isFinite(context.starRating)) {
     bookingQuery.set('starRating', String(context.starRating));
+  }
+  if (context.preferredLanguage) {
+    bookingQuery.set('preferredLanguage', context.preferredLanguage);
+  }
+  if (context.preferredCurrency) {
+    bookingQuery.set('preferredCurrency', context.preferredCurrency);
   }
 
   return bookingQuery;
@@ -243,6 +251,8 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     const recommendedRate = pickLowestActionableRate(rates);
     return recommendedRate ? buildRateKey(recommendedRate) : null;
   }, [rates]);
+  const preferredLanguage = searchParams.get('language');
+  const preferredCurrency = searchParams.get('currency');
   const selectedCancellation = useMemo(
     () => (selectedRate ? getCancellationCopy(selectedRate) : null),
     [selectedRate]
@@ -258,10 +268,12 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
       hotelName: hotel?.name,
       hotelImage: hotel?.mainPhoto ?? photos[0] ?? null,
       hotelAddress: address,
-      starRating: hotel?.starRating ?? null
+      starRating: hotel?.starRating ?? null,
+      preferredLanguage,
+      preferredCurrency
     });
     return `/booking?${query.toString()}`;
-  }, [selectedRate, hotelId, checkin, checkout, adults, rooms, hotel?.name, hotel?.mainPhoto, hotel?.starRating, photos, address]);
+  }, [selectedRate, hotelId, checkin, checkout, adults, rooms, hotel?.name, hotel?.mainPhoto, hotel?.starRating, photos, address, preferredLanguage, preferredCurrency]);
   const buildBookingHref = (rate: HotelRateWithCancellationContext) => {
     const query = buildBookingQuery(rate, {
       hotelId,
@@ -272,7 +284,9 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
       hotelName: hotel?.name,
       hotelImage: hotel?.mainPhoto ?? photos[0] ?? null,
       hotelAddress: address,
-      starRating: hotel?.starRating ?? null
+      starRating: hotel?.starRating ?? null,
+      preferredLanguage,
+      preferredCurrency
     });
 
     return `/booking?${query.toString()}`;

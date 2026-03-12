@@ -59,6 +59,10 @@ describe('hotel booking default-offer regression coverage', () => {
     expect(parentSource).toContain("bookingQuery.set('hotelImage', context.hotelImage);");
     expect(parentSource).toContain("bookingQuery.set('hotelAddress', context.hotelAddress);");
     expect(parentSource).toContain("bookingQuery.set('starRating', String(context.starRating));");
+    expect(parentSource).toContain("bookingQuery.set('preferredLanguage', context.preferredLanguage);");
+    expect(parentSource).toContain("bookingQuery.set('preferredCurrency', context.preferredCurrency);");
+    expect(parentSource).toContain("const preferredLanguage = searchParams.get('language');");
+    expect(parentSource).toContain("const preferredCurrency = searchParams.get('currency');");
     expect(parentSource).toContain("bookingQuery.set('roomImage', rate.imageUrl);");
     expect(parentSource).toContain("roomName: rate.roomName");
     expect(parentSource).toContain("boardName: rate.boardName");
