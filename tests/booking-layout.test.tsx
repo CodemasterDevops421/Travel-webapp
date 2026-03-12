@@ -19,11 +19,14 @@ describe('booking layout chrome suppression', () => {
 
   it('keeps the compact hero search inline in the desktop header on non-home routes', () => {
     expect(headerSource).toContain("const showInlineDesktopSearch = !isHomePage;");
+    expect(headerSource).toContain("const desktopActionsClassName = showInlineDesktopSearch");
+    expect(headerSource).toContain("? 'hidden shrink-0 items-center gap-2 md:ml-auto md:flex xl:ml-0 xl:gap-3'");
+    expect(headerSource).toContain(": 'hidden shrink-0 items-center gap-2 md:ml-auto md:flex';");
     expect(headerSource).toContain("const headerSurfaceClassName = isHomePage");
     expect(headerSource).toContain('{showInlineDesktopSearch && (');
     expect(headerSource).toContain('hidden min-w-0 flex-1 xl:flex xl:justify-center xl:pr-5 motion-safe:animate-in');
     expect(headerSource).toContain('min-w-0 w-full xl:max-w-[36rem] 2xl:max-w-[40rem]');
-    expect(headerSource).toContain('hidden shrink-0 items-center gap-2 md:ml-auto md:flex xl:ml-0 xl:gap-3');
+    expect(headerSource).toContain('<div className={desktopActionsClassName}>');
     expect(headerSource).toContain('transition-[background-color,border-color,box-shadow] duration-300');
     expect(headerSource).toContain('bg-white/88 dark:bg-slate-950/82');
     expect(headerSource).not.toContain('md:block md:max-w-[42rem] lg:max-w-[46rem]');

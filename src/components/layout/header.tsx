@@ -16,6 +16,9 @@ export function Header() {
   const isHomePage = pathname === '/';
   const isCheckoutPage = pathname === '/booking' || pathname.startsWith('/booking/');
   const showInlineDesktopSearch = !isHomePage;
+  const desktopActionsClassName = showInlineDesktopSearch
+    ? 'hidden shrink-0 items-center gap-2 md:ml-auto md:flex xl:ml-0 xl:gap-3'
+    : 'hidden shrink-0 items-center gap-2 md:ml-auto md:flex';
   const headerSurfaceClassName = isHomePage
     ? 'bg-white/72 dark:bg-slate-950/68'
     : 'bg-white/88 dark:bg-slate-950/82';
@@ -77,7 +80,7 @@ export function Header() {
         )}
 
         {/* Desktop Actions */}
-        <div className="hidden shrink-0 items-center gap-2 md:ml-auto md:flex xl:ml-0 xl:gap-3">
+        <div className={desktopActionsClassName}>
           <LanguageCurrencyChooser />
           <Button
             variant="ghost"
