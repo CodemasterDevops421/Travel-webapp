@@ -197,13 +197,13 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     className={cn(
                         "flex w-full flex-col transition-[background-color,border-color,box-shadow,transform,opacity] duration-300 md:flex-row md:items-stretch",
                         isCompact
-                            ? "rounded-[18px] border border-border/80 bg-card px-2 py-2 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.28)] supports-[backdrop-filter]:bg-card/95 md:rounded-full"
+                            ? "rounded-[18px] border border-border/80 bg-card px-1.5 py-1.5 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.28)] supports-[backdrop-filter]:bg-card/95 md:rounded-full"
                             : "rounded-[24px] border border-white/85 bg-white px-2 py-2 shadow-[0_32px_60px_-34px_rgba(17,12,40,0.6)] supports-[backdrop-filter]:bg-white/96 md:rounded-full"
                     )}
                 >
 
                     {/* Destination Input */}
-                    <div className="relative z-50 flex-[1.5]">
+                    <div className={cn("relative z-50 min-w-0", isCompact ? "flex-[1.2]" : "flex-[1.5]")}>
                         {isHero ? (
                             <span className="ui-label pointer-events-none absolute left-14 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
                                 Where
@@ -292,7 +292,10 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     </div>
 
                     {/* Dates - Split into Check-in / Check-out */}
-                    <div className="flex flex-1 items-center border-t border-border/20 md:flex-[0.94] md:border-t-0 md:border-l">
+                    <div className={cn(
+                        "flex min-w-0 flex-1 items-center border-t border-border/20 md:border-t-0 md:border-l",
+                        isCompact ? "md:flex-[0.8]" : "md:flex-[0.94]"
+                    )}>
                         {isHero ? (
                             <Popover>
                                 <PopoverTrigger asChild>
@@ -341,7 +344,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             </Popover>
                         ) : (
                             <>
-                                <div className="relative flex-1">
+                                <div className="relative min-w-0 flex-1">
                                     <div className={cn(
                                         "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
                                         isCompact && "left-3"
@@ -353,7 +356,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         className={cn(
                                         "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
                                         isCompact
-                                            ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
+                                            ? "numeric-tight h-11 pl-8 pr-1 text-[10px] leading-none md:h-12 md:text-[10px]"
                                                 : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
                                         )}
                                         value={checkIn}
@@ -361,7 +364,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         onChange={(e) => setCheckIn(e.target.value)}
                                     />
                                 </div>
-                                <div className="relative flex-1 border-l border-border/20">
+                                <div className="relative min-w-0 flex-1 border-l border-border/20">
                                     <div className={cn(
                                         "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
                                         isCompact && "left-3"
@@ -373,7 +376,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         className={cn(
                                         "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
                                         isCompact
-                                            ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
+                                            ? "numeric-tight h-11 pl-8 pr-1 text-[10px] leading-none md:h-12 md:text-[10px]"
                                                 : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
                                         )}
                                         value={checkOut}
@@ -388,7 +391,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     {/* Guests & Search Button */}
                     <div className={cn(
                         "flex flex-1 items-center justify-between border-t border-border/20 md:border-t-0 md:border-l",
-                        isCompact ? "pl-1 pb-1 pt-1 md:min-w-[172px] md:flex-[0.72] md:p-0" : "pl-2 pb-2 pt-2 md:p-0"
+                        isCompact ? "min-w-0 pl-1 pb-1 pt-1 md:min-w-[148px] md:flex-[0.58] md:p-0" : "pl-2 pb-2 pt-2 md:p-0"
                     )}>
                         <Popover>
                             <PopoverTrigger asChild>
@@ -398,7 +401,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                     className={cn(
                                         "group relative flex flex-1 items-center text-left transition-colors outline-none focus-visible:bg-primary/5 hover:bg-primary/5",
                                         isCompact
-                                            ? "h-11 gap-2 px-3 rounded-l-xl md:h-12 md:rounded-xl"
+                                            ? "h-11 min-w-0 gap-2 px-2.5 rounded-l-xl md:h-12 md:rounded-xl"
                                             : "h-14 gap-3 px-4 rounded-l-xl md:h-16 md:rounded-xl md:pt-5"
                                     )}
                                 >
@@ -411,10 +414,10 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         "text-muted-foreground transition-colors group-hover:text-primary",
                                         isCompact ? "h-4 w-4" : "h-5 w-5"
                                     )} strokeWidth={1.5} />
-                                    <div className="flex flex-col">
+                                    <div className="min-w-0 flex flex-col">
                                         <span className={cn(
                                             "ui-label font-semibold text-foreground whitespace-nowrap",
-                                            isCompact ? "text-[10px] md:text-[10.5px]" : "text-xs"
+                                            isCompact ? "truncate text-[9.5px] md:text-[10px]" : "text-xs"
                                         )}>{rooms} Room, {adults} Guests</span>
                                     </div>
                                 </button>
@@ -454,7 +457,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             className={cn(
                                 "flex shrink-0 items-center justify-center rounded-full bg-primary p-0 text-primary-foreground transition-[transform,box-shadow,filter] duration-200 hover:brightness-110 motion-safe:hover:-translate-y-0.5 disabled:opacity-50 disabled:shadow-none",
                                 isCompact
-                                    ? "mr-1 h-10 w-10 shadow-[0_14px_24px_-16px_rgba(189,47,241,0.78)] md:mr-0"
+                                    ? "mr-0.5 h-9 w-9 shadow-[0_14px_24px_-16px_rgba(189,47,241,0.78)] md:mr-0 md:h-10 md:w-10"
                                     : "mr-2 h-12 w-12 shadow-[0_18px_30px_-18px_rgba(189,47,241,0.8)] md:mr-0"
                             )}
                         >
