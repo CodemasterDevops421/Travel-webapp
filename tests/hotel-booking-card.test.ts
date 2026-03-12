@@ -8,6 +8,10 @@ describe('hotel booking default-offer regression coverage', () => {
     resolve(process.cwd(), 'src/features/hotels/components/hotel-detail-experience.tsx'),
     'utf8'
   );
+  const bookingSidebarSource = readFileSync(
+    resolve(process.cwd(), 'src/features/hotels/components/hotel-booking-sidebar.tsx'),
+    'utf8'
+  );
 
   it('picks the cheapest actionable rate from unsorted supplier payloads', () => {
     const selected = pickLowestActionableRate([
@@ -48,5 +52,10 @@ describe('hotel booking default-offer regression coverage', () => {
     expect(parentSource).toContain('const lowestRate = defaultRate?.amount ?? rates.reduce<number | null>');
     expect(parentSource).toContain("const currency = defaultRate?.currency ?? rates[0]?.currency ?? 'USD';");
     expect(parentSource).toContain('() => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? defaultRate ?? rates[0] ?? null,');
+  });
+
+  it('keeps the booking rail chrome pinned to the restored shell utility classes', () => {
+    expect(bookingSidebarSource).toContain('className="surface-shell overflow-hidden"');
+    expect(bookingSidebarSource).toContain('className="surface-shell-subtle px-3 py-3"');
   });
 });

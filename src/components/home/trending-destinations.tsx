@@ -1,5 +1,6 @@
-import { cache } from 'react';
+import React, { cache } from 'react';
 import { ArrowUpRight } from 'lucide-react';
+import { PreferenceLink } from '@/components/navigation/preference-link';
 import { withNextCache } from '@/server/cache';
 
 const destinations = [
@@ -43,29 +44,34 @@ export async function TrendingDestinations() {
       </div>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {data.map((item, idx) => (
-          <article
+          <PreferenceLink
             key={item.name}
-            className="group cursor-pointer overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-premium-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-premium-md"
-            style={{ animationDelay: `${idx * 80}ms` }}
+            href={`/search?q=${encodeURIComponent(item.name)}`}
+            className="group block rounded-[28px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <div
-              className="h-44 bg-cover bg-center"
-              style={{
-                backgroundImage: `linear-gradient(180deg, rgba(11,37,69,0.05) 0%, rgba(11,37,69,0.34) 100%), url("${item.image}")`
-              }}
-            />
-            <div className="space-y-3 p-6">
-              <h3 className="text-2xl font-heading font-bold">{item.name}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{item.blurb}</p>
-            </div>
-            <div className="flex items-center justify-between border-t border-border/50 px-6 py-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Explore rates</p>
-              <span className="inline-flex items-center gap-1 text-sm font-semibold text-accent transition-transform duration-300 group-hover:translate-x-1">
-                View stays
-                <ArrowUpRight className="h-4 w-4" />
-              </span>
-            </div>
-          </article>
+            <article
+              className="overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-premium-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-premium-md"
+              style={{ animationDelay: `${idx * 80}ms` }}
+            >
+              <div
+                className="h-44 bg-cover bg-center"
+                style={{
+                  backgroundImage: `linear-gradient(180deg, rgba(11,37,69,0.05) 0%, rgba(11,37,69,0.34) 100%), url("${item.image}")`
+                }}
+              />
+              <div className="space-y-3 p-6">
+                <h3 className="text-2xl font-heading font-bold">{item.name}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{item.blurb}</p>
+              </div>
+              <div className="flex items-center justify-between border-t border-border/50 px-6 py-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Explore rates</p>
+                <span className="inline-flex items-center gap-1 text-sm font-semibold text-accent transition-transform duration-300 group-hover:translate-x-1">
+                  View stays
+                  <ArrowUpRight className="h-4 w-4" />
+                </span>
+              </div>
+            </article>
+          </PreferenceLink>
         ))}
       </div>
     </section>

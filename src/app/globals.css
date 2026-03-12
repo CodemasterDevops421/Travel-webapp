@@ -115,6 +115,28 @@
   @apply rounded-3xl border border-border/70 bg-secondary/70 shadow-premium-sm;
 }
 
+.surface-shell {
+  border: 1px solid hsl(var(--border) / 0.72);
+  background: hsl(var(--card) / 0.92);
+  border-radius: var(--surface-radius);
+  box-shadow: var(--surface-shadow);
+}
+
+.surface-shell-subtle {
+  border: 1px solid hsl(var(--border) / 0.72);
+  background: hsl(var(--card));
+  border-radius: var(--surface-radius-sm);
+}
+
+.page-shell {
+  width: min(var(--page-max-width), calc(100vw - (var(--page-gutter) * 2)));
+  margin-inline: auto;
+}
+
+.page-section {
+  gap: var(--section-gap);
+}
+
 .premium-hover {
   @apply transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-premium-lg;
 }
