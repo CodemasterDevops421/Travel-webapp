@@ -474,12 +474,15 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     return diff > 0 ? diff : null;
   }, [liveValues.checkIn, liveValues.checkOut]);
 
-  const nightlyRate = Number(liveValues.amount || 0);
+  // `amount` is the full quoted stay total from LiteAPI (retailRate.total[0].amount),
+  // NOT a per-night figure — do not multiply by nights or rooms.
+  const quotedStayTotal = Number(liveValues.amount || 0);
   const currency = (liveValues.currency || 'USD').toUpperCase();
-  const totalAmount = prebook?.quote.totalAmount ?? nightlyRate;
-  const staySubtotal = Math.max(nightlyRate * (nights ?? 1) * Math.max(liveValues.rooms, 1), 0);
-  const estimatedTaxesAndFees = Math.max(totalAmount - staySubtotal, 0);
-  const nightlyAmount = nightlyRate > 0 ? nightlyRate : nights ? totalAmount / nights : totalAmount;
+  const totalAmount = prebook?.quote.totalAmount ?? quotedStayTotal;
+  const staySubtotal = quotedStayTotal; // already the full stay price
+  // Only show taxes line when prebook returns a confirmed total that differs from the quoted amount.
+  const estimatedTaxesAndFees = prebook ? Math.max(totalAmount - staySubtotal, 0) : 0;
+  const nightlyAmount = nights && nights > 0 ? totalAmount / nights : totalAmount;
   const cancellationSummary =
     liveValues.isRefundable === 'false'
       ? 'This selected rate is non-refundable.'
