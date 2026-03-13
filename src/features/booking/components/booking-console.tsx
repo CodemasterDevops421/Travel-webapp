@@ -677,9 +677,9 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs font-medium">
-                <span className={cn('rounded-full px-3 py-1.5', checkoutStep === 'guest_details' ? 'bg-primary text-primary-foreground' : 'border border-border bg-background text-muted-foreground')}>1. Review</span>
-                <span className={cn('rounded-full px-3 py-1.5', checkoutStep === 'payment' ? 'bg-primary text-primary-foreground' : 'border border-border bg-background text-muted-foreground')}>2. Payment</span>
-                <span className={cn('rounded-full px-3 py-1.5', checkoutStep === 'confirmation' ? 'bg-primary text-primary-foreground' : 'border border-border bg-background text-muted-foreground')}>3. Confirmation</span>
+                <span className={cn('rounded-full px-3 py-1.5', checkoutStep === 'guest_details' ? 'bg-primary text-primary-foreground' : 'border border-border bg-background text-muted-foreground')}>Guest details</span>
+                <span className={cn('rounded-full px-3 py-1.5', checkoutStep === 'payment' ? 'bg-primary text-primary-foreground' : 'border border-border bg-background text-muted-foreground')}>Payment</span>
+                <span className={cn('rounded-full px-3 py-1.5', checkoutStep === 'confirmation' ? 'bg-primary text-primary-foreground' : 'border border-border bg-background text-muted-foreground')}>Confirmation</span>
               </div>
             </div>
           </div>
@@ -850,13 +850,15 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
           </section>
 
           <section className="rounded-[28px] border border-border/80 bg-card p-5 shadow-[0_18px_44px_-34px_rgba(15,23,42,0.3)]">
-            <div className="flex items-start gap-3">
+            <h2 className="text-xl font-semibold text-foreground">Terms and booking conditions</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Please review the cancellation policy and terms before continuing to payment.</p>
+            <div className="mt-4 flex items-start gap-3">
               <CircleHelp className="mt-0.5 h-4 w-4 text-primary" />
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">{cancellationSummary}</p>
                 <label className="flex items-start gap-3 text-sm text-foreground">
                   <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-1 h-4 w-4 rounded border border-border" />
-                  <span>I accept the cancellation policy and booking terms for this reservation.</span>
+                  <span>I accept the cancellation policy and terms for this booking.</span>
                 </label>
               </div>
             </div>
@@ -908,6 +910,20 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
               </div>
 
               <div className="space-y-5 py-5">
+                <section className="space-y-2 border-b border-border/70 pb-5">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                    <span className="text-sm font-semibold text-emerald-700">Your booking is protected</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Selected rate locked — your price is guaranteed until payment is completed.</p>
+                  <p className="text-xs text-muted-foreground">Selected rate locked</p>
+                </section>
+
+                <section className="space-y-2 border-b border-border/70 pb-5">
+                  <p className="ui-label text-muted-foreground">Cancellation summary</p>
+                  <p className="text-sm text-muted-foreground">{cancellationSummary}</p>
+                </section>
+
                 <section className="space-y-2 border-b border-border/70 pb-5">
                   <p className="ui-label text-muted-foreground">Check-in & check-out</p>
                   <div className="flex items-start gap-2 text-sm text-muted-foreground">
