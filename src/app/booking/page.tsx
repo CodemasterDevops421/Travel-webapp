@@ -41,6 +41,13 @@ function pickPositiveInt(params: Record<string, string | string[] | undefined>, 
   return intValue > 0 ? intValue : undefined;
 }
 
+function pickNumber(params: Record<string, string | string[] | undefined>, key: string): number | undefined {
+  const raw = pickParam(params, key);
+  if (!raw) return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function pickRefundableState(
   params: Record<string, string | string[] | undefined>,
   key: string
@@ -54,8 +61,10 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
   const amountRaw = pickParam(params, 'amount');
   const parsedAmount = amountRaw ? Number(amountRaw) : undefined;
   const amount = parsedAmount && Number.isFinite(parsedAmount) ? parsedAmount : undefined;
-  const preferredLanguage = normalizeLanguage(pickParam(params, 'language'));
-  const preferredCurrency = normalizeCurrency(pickParam(params, 'currency'));
+  const preferredLanguage = normalizeLanguage(pickParam(params, 'preferredLanguage')) ?? normalizeLanguage(pickParam(params, 'language'));
+  const preferredCurrency =
+    normalizeCurrency(pickParam(params, 'preferredCurrency')) ?? normalizeCurrency(pickParam(params, 'currency'));
+  const quoteCurrency = normalizeCurrency(pickParam(params, 'currency'));
 
   return (
     <main className="mx-auto max-w-5xl space-y-4 px-4 py-8">
@@ -71,7 +80,14 @@ export default async function BookingPage({ searchParams }: BookingPageProps) {
           hotelId: pickParam(params, 'hotelId'),
           roomId: pickParam(params, 'roomId'),
           offerId: pickParam(params, 'offerId'),
-          currency: preferredCurrency,
+          hotelName: pickParam(params, 'hotelName'),
+          hotelImage: pickParam(params, 'hotelImage'),
+          hotelAddress: pickParam(params, 'hotelAddress'),
+          starRating: pickNumber(params, 'starRating'),
+          roomName: pickParam(params, 'roomName'),
+          boardName: pickParam(params, 'boardName'),
+          roomImage: pickParam(params, 'roomImage'),
+          currency: quoteCurrency,
           adults: pickPositiveInt(params, 'adults'),
           rooms: pickPositiveInt(params, 'rooms'),
           checkIn: pickParam(params, 'checkIn'),

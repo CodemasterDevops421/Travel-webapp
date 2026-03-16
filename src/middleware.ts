@@ -82,7 +82,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const protectedPaths = ['/booking', '/wishlist', '/admin'];
+  const protectedPaths = ['/wishlist', '/admin'];
   const isProtectedRoute = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );

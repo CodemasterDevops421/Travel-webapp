@@ -19,6 +19,14 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
     resolve(process.cwd(), 'src/features/hotels/components/property-guest-reviews-section.tsx'),
     'utf8'
   );
+  const propertyHeroSource = readFileSync(
+    resolve(process.cwd(), 'src/features/hotels/components/property-hero.tsx'),
+    'utf8'
+  );
+  const roomSelectionSource = readFileSync(
+    resolve(process.cwd(), 'src/features/hotels/components/property-room-selection-section.tsx'),
+    'utf8'
+  );
 
   const liteApiSource = readFileSync(
     resolve(process.cwd(), 'src/server/liteapi.ts'),
@@ -33,6 +41,15 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
     expect(source).toContain("{ id: 'policies', label: 'Policies' }");
     expect(source).not.toContain("{ id: 'location', label: 'Location' }");
     expect(source).not.toContain("{ id: 'pros-cons', label: 'Pros & Cons' }");
+  });
+
+  it('keeps page and section scaffolding pinned to the restored hotel-detail shell contract', () => {
+    expect(source).toContain('className="hotel-detail-page page-shell mx-auto w-full max-w-7xl space-y-4 px-4 py-4 md:space-y-5 md:py-6"');
+    expect(source).toContain('<section className="page-section relative flex flex-col">');
+    expect(sectionsSource).toContain('<div className="page-section flex flex-col pb-16">');
+    expect(propertyHeroSource).toContain('className="surface-shell space-y-4 px-4 py-4 md:px-5 md:py-5"');
+    expect(guestReviewsSource).toContain('className="surface-shell scroll-mt-24 p-3.5 md:p-4"');
+    expect(roomSelectionSource).toContain('className="surface-shell scroll-mt-24 space-y-4 p-3.5 md:p-4"');
   });
 
   it('shows explicit partial-data messaging from normalized completeness contract', () => {
@@ -58,9 +75,8 @@ describe('hotel detail content completeness and truthful fallbacks', () => {
 
   it('renders deterministic review highlights and low-signal fallback states', () => {
     expect(sectionsSource).toContain('const reviewHighlights = hotel?.reviewHighlights;');
-    expect(guestReviewsSource).toContain('const topicChips = reviewHighlights && !reviewHighlights.lowSignal');
     expect(guestReviewsSource).toContain('Top comments from travelers');
-    expect(guestReviewsSource).toContain("Not enough verified review volume to generate stable topic highlights yet.");
+    expect(guestReviewsSource).toContain("reviewHighlights?.message ?? 'Not enough verified review volume to generate stable topic highlights yet.'");
   });
 
   it('enforces description hierarchy and sectioned narrative rendering', () => {

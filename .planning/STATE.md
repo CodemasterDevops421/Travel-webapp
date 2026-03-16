@@ -1,3 +1,18 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: in_progress
+stopped_at: Planned 02.3 homepage-navigation-and-detail-shell-regression-closure
+last_updated: "2026-03-11T13:25:00.000Z"
+last_activity: 2026-03-11 - Planned 02.3 homepage navigation and detail shell regression closure
+progress:
+  total_phases: 10
+  completed_phases: 4
+  total_plans: 31
+  completed_plans: 14
+---
+
 # Project State
 
 ## Project Reference
@@ -5,16 +20,16 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** A traveler can discover, book, and manage a stay through a trustworthy, secure, and resilient commerce flow.
-**Current focus:** Milestone complete - all planned phases executed
+**Current focus:** Phase 02.3 is planned and ready to execute to restore homepage discovery-card navigation and the hotel-detail shell utility contract.
 
 ## Current Position
 
-Phase: 07-canonical-data-wiring-and-observability-closure
-Plan: 3 of 3 in current phase
-Status: Complete
-Last activity: 2026-03-04 - Completed 07-03-PLAN.md
+Phase: 02.3-homepage-navigation-and-detail-shell-regression-closure
+Plan: 0 of 2 plans completed in current phase
+Status: Planned
+Last activity: 2026-03-11 - Planned 02.3 homepage navigation and detail shell regression closure
 
-Progress: [##########] 100%
+Progress: Phase 02.3 planned with two regression-closure plans covering homepage navigation restoration and hotel-detail shell utility recovery
 
 ## Performance Metrics
 
@@ -63,8 +78,17 @@ Progress: [##########] 100%
 | Phase 07-canonical-data-wiring-and-observability-closure P01 | 1 min | 3 tasks | 10 files |
 | Phase 07 P02 | 5 min | 3 tasks | 10 files |
 | Phase 07 P03 | 4 min | 2 tasks | 6 files |
+| Phase 02.2-home-and-search-motion-audit P01 | 6 min | 2 tasks | 4 files |
+| Phase 02.2-home-and-search-motion-audit P03 | 4 min | 2 tasks | 5 files |
+| Phase 02.2-home-and-search-motion-audit P02 | 11 min | 2 tasks | 9 files |
+| Phase 02.2-home-and-search-motion-audit P04 | 8 min | 2 tasks | 4 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 02.2 inserted after Phase 2: Home and Search Motion Audit (URGENT)
+- Phase 02.3 inserted after Phase 2: Homepage Navigation and Detail Shell Regression Closure (URGENT)
 
 ### Decisions
 
@@ -89,6 +113,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Recovered search results after supplier failures are labeled partial/stale rather than fresh.
 - [Phase 02]: Use a shared destination slug allowlist to enforce canonical destination routing and metadata consistency.
 - [Phase 02]: Redirect legacy /search requests to /stays/{destination} while preserving normalized discovery query params.
+- [Phase 02]: Search-result cards now route through PreferenceLink so stored language and currency preferences persist into hotel detail.
+- [Phase 02]: Search merchandising removes unsupported benefit and comparison-price claims unless current listing data can prove them.
+- [Phase 02]: Legacy minReviewCount-only URLs remain visibly filtered because sidebar clear-all affordances now treat that field as active state.
 - [Phase 03]: HotelDetails now uses explicit null/array defaults so missing supplier fields are deterministic across API, SSR, and UI.
 - [Phase 03]: Hotel detail API returns additive degraded metadata (degraded/degradedReason/asOf) without breaking existing payload consumers.
 - [Phase 03]: Hotel UI removed synthetic amenity defaults and now shows explicit per-section unavailable messaging.
@@ -134,10 +161,20 @@ Recent decisions affecting current work:
 - [Phase 07]: Redact payload/body-shaped telemetry metadata keys before centralized capture to prevent supplier blob leakage.
 - [Phase 07]: Use httpError.safeMessage at booking and webhook response boundaries while retaining detailed telemetry context.
 - [Phase 07]: Include webhook event and transaction identifiers in centralized catch-path capture metadata for faster triage.
+- [Phase 02.2-home-and-search-motion-audit]: Discovery-shell motion is locked to polished, restrained patterns and explicitly bans scroll-jacking plus wheel/touch interception.
+- [Phase 02.2-home-and-search-motion-audit]: Reduced motion is mandatory for all non-essential homepage and search-shell motion before Wave 2 implementation ships.
+- [Phase 02.2-home-and-search-motion-audit]: Baseline regression coverage stays source-contract oriented and protects hero/search/header boundaries before new motion components are introduced.
+- [Phase 02.2-home-and-search-motion-audit]: Kept the non-home desktop compact search inline in the header while only polishing the shell surface and transitions.
+- [Phase 02.2-home-and-search-motion-audit]: Used reduced-motion-aware framer-motion props and transform/opacity-only transitions for shared search shell polish.
+- [Phase 02.2-home-and-search-motion-audit]: Protected the motion contract with source-level tests that ban wheel/touch interception and layout animation patterns.
+- [Phase 02.2-home-and-search-motion-audit]: Homepage hero motion stays decorative and CSS-scoped so the search shell remains stable, server-rendered, and conversion-first.
+- [Phase 02.2-home-and-search-motion-audit]: Homepage discovery modules share one reveal contract (`section-reveal` plus `data-reveal="home-module"`) instead of bespoke section animations.
+- [Phase 02.2-home-and-search-motion-audit]: Search-shell regression coverage now relies on rendered HeroSearchBar interaction tests for keyboard autocomplete, reduced-motion rendering, and date/guest popover safety.
+- [Phase 02.2-home-and-search-motion-audit]: Accessibility-aligned labels and combobox semantics are the preferred test seams for shared discovery-shell regressions.
 
 ### Pending Todos
 
-- None - phase execution complete.
+- None.
 
 ### Blockers/Concerns
 
@@ -145,6 +182,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04 12:00
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-03-12T00:00:00+05:30
+Stopped at: Session resumed; 02.3 regression-closure work is present locally with uncommitted changes and awaiting next action
 Resume file: None

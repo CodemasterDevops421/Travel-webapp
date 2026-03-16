@@ -37,26 +37,24 @@ export function HotelDetailsPage({ hotel }: HotelDetailsProps) {
 
     return (
         <main className="mx-auto max-w-7xl px-4 py-6 space-y-8">
-            {/* Breadcrumb & Navigation */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Link href="/" className="hover:text-primary flex items-center gap-1">
+                <Link href="/" className="flex items-center gap-1 hover:text-accent">
                     <ArrowLeft className="h-4 w-4" />
                     See all properties
                 </Link>
             </div>
 
-            {/* Header Section */}
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
                     <h1 className="text-3xl font-bold font-heading">{hotel.name}</h1>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <div className="flex">{[...Array(Math.floor(hotel.starRating || 5))].map((_, i) => <Star key={i} className="h-4 w-4 fill-orange-400 text-orange-400" />)}</div>
+                        <div className="flex">{[...Array(Math.floor(hotel.starRating || 5))].map((_, i) => <Star key={i} className="h-4 w-4 fill-[#F4B544] text-[#F4B544]" />)}</div>
                         <span>•</span>
                         <span className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
                             {hotel.address || 'Central District'}, {hotel.city}
                         </span>
-                        <Button variant="link" className="h-auto p-0 text-primary underline">Show Map</Button>
+                        <Button variant="link" className="h-auto p-0 text-accent underline">Show Map</Button>
                     </div>
                 </div>
                 <div className="flex gap-2">
@@ -68,13 +66,12 @@ export function HotelDetailsPage({ hotel }: HotelDetailsProps) {
                         <Share2 className="h-4 w-4" />
                         Share
                     </Button>
-                    <Button className="rounded-full bg-[#aa15ef] hover:bg-[#9013cb] shadow-electric-md text-white font-semibold">
+                    <Button className="rounded-full text-white font-semibold">
                         Reserve
                     </Button>
                 </div>
             </div>
 
-            {/* Mosaic Gallery */}
             <div className="grid h-[400px] grid-cols-4 gap-2 overflow-hidden rounded-[2rem]">
                 <div className="col-span-2 row-span-2 relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -101,42 +98,40 @@ export function HotelDetailsPage({ hotel }: HotelDetailsProps) {
                 </div>
             </div>
 
-            {/* Navigation Tabs */}
             <div className="border-b border-border">
                 <div className="flex gap-8 text-sm font-medium overflow-x-auto">
                     {['Overview', 'Facilities', 'Rooms', 'Reviews', 'Description', 'Ask AI'].map((tab, i) => (
-                        <button key={tab} className={cn("pb-3 border-b-2 transition-colors whitespace-nowrap", i === 0 ? "border-[#aa15ef] text-[#aa15ef]" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                            {tab} {tab === 'Ask AI' && <Badge variant="secondary" className="ml-1 bg-gradient-to-r from-[#aa15ef] to-fuchsia-500 text-white border-0 text-[10px] px-1.5 py-0">Beta</Badge>}
+                        <button key={tab} className={cn("pb-3 border-b-2 transition-colors whitespace-nowrap", i === 0 ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                            {tab} {tab === 'Ask AI' && <Badge variant="trust" className="ml-1 border-0 text-[10px] px-1.5 py-0">Beta</Badge>}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Smart Highlights */}
             <section>
                 <h2 className="mb-4 text-xl font-bold font-heading">Smart highlights</h2>
                 <div className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 shadow-sm">
+                    <div className="rounded-[24px] border border-accent/15 bg-accent/10 p-4 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
-                            <Sparkles className="h-5 w-5 text-[#aa15ef]" />
+                            <Sparkles className="h-5 w-5 text-accent" />
                             <h3 className="font-semibold text-foreground">Parisian charm awaits</h3>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             Nestled in the vibrant 2nd arrondissement, this hotel places you steps from the iconic Palais Royal and enchanting gardens.
                         </p>
                     </div>
-                    <div className="rounded-2xl border border-border/60 bg-white p-4 shadow-sm">
+                    <div className="rounded-[24px] border border-border/60 bg-white p-4 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
-                            <Heart className="h-5 w-5 text-[#aa15ef]" />
+                            <Heart className="h-5 w-5 text-accent" />
                             <h3 className="font-semibold text-foreground">Unforgettable guest experiences</h3>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             Delight in personalized service and a warm atmosphere, complemented by complimentary snacks throughout the day.
                         </p>
                     </div>
-                    <div className="rounded-2xl border border-border/60 bg-white p-4 shadow-sm">
+                    <div className="rounded-[24px] border border-border/60 bg-white p-4 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
-                            <Dumbbell className="h-5 w-5 text-[#aa15ef]" />
+                            <Dumbbell className="h-5 w-5 text-accent" />
                             <h3 className="font-semibold text-foreground">Stylish comfort</h3>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">

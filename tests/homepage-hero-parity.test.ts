@@ -9,9 +9,21 @@ describe('homepage hero parity regression coverage', () => {
     'utf8'
   );
 
-  it('keeps a lighter hero overlay so the homepage search remains visible', () => {
-    expect(pageSource).toContain('rgba(17,12,40,0.08)');
-    expect(pageSource).toContain('bg-gradient-to-t from-black/18 via-transparent to-white/8');
+  it('keeps a calmer hero overlay and an explicit safe-motion marker on the homepage shell', () => {
+    expect(pageSource).toContain('data-home-motion="safe"');
+    expect(pageSource).toContain('rgba(11,37,69,0.28)');
+    expect(pageSource).toContain("bg-gradient-to-t from-[#0B2545] via-[#0B2545]/55 to-transparent");
+    expect(pageSource).toContain('src="/images/hero-bg.png"');
+    expect(pageSource).toContain('priority');
+    expect(pageSource).not.toContain('images.unsplash.com/photo-1506744038136-46273834b3fb');
+    expect(pageSource).not.toContain('backgroundImage:');
+  });
+
+  it('uses one bounded hero accent seam and removes the desktop editorial side panel', () => {
+    expect(pageSource).toContain('hero-accent-emphasis inline-block');
+    expect(pageSource).not.toContain('hero-word hero-word-delay-2');
+    expect(pageSource).not.toContain('hero-word hero-word-delay-3');
+    expect(pageSource).not.toContain('This week’s focus');
   });
 
   it('renders the default homepage search shell as a solid high-contrast surface', () => {
@@ -22,5 +34,19 @@ describe('homepage hero parity regression coverage', () => {
     expect(heroSearchSource).toContain('function formatSearchDate(value: string): string');
     expect(heroSearchSource).toContain('formatSearchDate(checkIn)');
     expect(heroSearchSource).toContain('formatSearchDate(checkOut)');
+    expect(pageSource).toContain('<HeroSearchBar className="border-none bg-transparent shadow-none" />');
+  });
+
+  it('keeps the homepage discovery shell free of scroll-jacking hooks', () => {
+    expect(pageSource).not.toContain('onWheel=');
+    expect(pageSource).not.toContain("addEventListener('wheel'");
+    expect(pageSource).not.toContain('addEventListener(\"wheel\"');
+    expect(pageSource).not.toContain("addEventListener('touchmove'");
+    expect(pageSource).not.toContain('addEventListener(\"touchmove\"');
+    expect(heroSearchSource).not.toContain('onWheel=');
+    expect(heroSearchSource).not.toContain("addEventListener('wheel'");
+    expect(heroSearchSource).not.toContain('addEventListener(\"wheel\"');
+    expect(heroSearchSource).not.toContain("addEventListener('touchmove'");
+    expect(heroSearchSource).not.toContain('addEventListener(\"touchmove\"');
   });
 });

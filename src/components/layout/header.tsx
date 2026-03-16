@@ -14,8 +14,14 @@ import { useAuth } from '@/shared/hooks/use-auth';
 export function Header() {
   const pathname = usePathname();
   const isHomePage = pathname === '/';
-  const isCheckoutPage = pathname.startsWith('/booking');
+  const isCheckoutPage = pathname === '/booking' || pathname.startsWith('/booking/');
   const showInlineDesktopSearch = !isHomePage;
+  const desktopActionsClassName = showInlineDesktopSearch
+    ? 'hidden shrink-0 items-center gap-2 md:ml-auto md:flex xl:ml-0 xl:gap-3'
+    : 'hidden shrink-0 items-center gap-2 md:ml-auto md:flex';
+  const headerSurfaceClassName = isHomePage
+    ? 'bg-white/72 dark:bg-slate-950/68'
+    : 'bg-white/88 dark:bg-slate-950/82';
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -45,8 +51,16 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-white/20 dark:border-white/10 shadow-premium-sm transition-all duration-300">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 md:h-20">
+    <header
+      className={[
+        'sticky top-0 z-50 w-full border-b border-slate-200/70 shadow-[0_18px_38px_-30px_rgba(15,23,42,0.42)]',
+        'backdrop-blur-2xl supports-[backdrop-filter]:bg-white/70 dark:border-white/10',
+        'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/75 before:to-transparent',
+        'transition-[background-color,border-color,box-shadow] duration-300',
+        headerSurfaceClassName
+      ].join(' ')}
+    >
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 md:h-20 md:gap-4 xl:gap-5">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2 premium-hover group">
           <span className="text-2xl font-heading font-extrabold tracking-tight text-primary transition-colors group-hover:text-primary/80">
@@ -55,16 +69,18 @@ export function Header() {
         </Link>
 
         {showInlineDesktopSearch && (
-          <div className="hidden min-w-0 flex-1 md:block">
-            <HeroSearchBar
-              variant="compact"
-              className="mx-auto w-full max-w-3xl border border-border/60 bg-card/95 shadow-sm"
-            />
+          <div className="hidden min-w-0 flex-1 xl:flex xl:justify-center xl:pr-5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-300">
+            <div className="min-w-0 w-full xl:max-w-[36rem] 2xl:max-w-[40rem]">
+              <HeroSearchBar
+                variant="compact"
+                className="mx-auto w-full max-w-none border border-white/65 bg-white/92 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.45)] dark:border-white/15 dark:bg-slate-950/88"
+              />
+            </div>
           </div>
         )}
 
         {/* Desktop Actions */}
-        <div className="hidden shrink-0 items-center gap-2 md:flex md:ml-auto">
+        <div className={desktopActionsClassName}>
           <LanguageCurrencyChooser />
           <Button
             variant="ghost"

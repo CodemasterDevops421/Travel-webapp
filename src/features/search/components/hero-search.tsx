@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { Search, Shield, Users, Calendar } from 'lucide-react';
+import { Search, Shield, Users, Calendar, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -156,11 +156,15 @@ export function HeroSearch() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="rounded-[28px] border border-border/80 bg-card/95 p-6 shadow-2xl backdrop-blur md:p-7"
+      className="surface-panel rounded-[32px] border-border/70 bg-card/95 p-6 md:p-7"
     >
-      <div className="mb-5 space-y-2">
+      <div className="mb-5 space-y-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-accent/10 bg-accent/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+          <Sparkles className="h-3.5 w-3.5" />
+          Discovery assistant
+        </div>
         <h2 className="text-2xl font-semibold">Find your next signature stay</h2>
-        <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
           <Shield className="h-3.5 w-3.5 text-primary" />
           Secure checkout with trusted payment protection
         </p>
@@ -183,7 +187,7 @@ export function HeroSearch() {
                 ? 'Search by destination: city, hotel, landmark'
                 : 'Search by vibe: romantic getaway in paris'
             }
-            className="h-14 pl-10 text-base"
+            className="h-14 rounded-2xl pl-10 text-base"
             value={query}
             onChange={(event) => {
               const nextValue = event.target.value;
@@ -209,7 +213,7 @@ export function HeroSearch() {
             onKeyDown={onAutocompleteKeyDown}
           />
           {isSuggestionsOpen && (
-            <div className="absolute z-20 mt-2 w-full rounded-xl border border-border bg-card p-2 shadow-xl">
+            <div className="absolute z-20 mt-3 w-full rounded-[24px] border border-border/80 bg-card p-2 shadow-premium-lg">
               {isFetching ? (
                 <p className="p-2 text-sm text-muted-foreground">Fetching destinations...</p>
               ) : (
@@ -238,7 +242,7 @@ export function HeroSearch() {
                       >
                         <button
                           type="button"
-                          className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
+                          className="flex w-full cursor-pointer items-center justify-between rounded-2xl px-3 py-3 text-left text-sm transition-colors hover:bg-secondary"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => onPickSuggestion(item.name)}
                         >
@@ -261,8 +265,8 @@ export function HeroSearch() {
               setShowSuggestions(true);
             }}
             className={searchMode === 'destination'
-              ? 'rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground'
-              : 'rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground'}
+              ? 'rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground shadow-sm'
+              : 'rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground'}
           >
             Search by destination
           </button>
@@ -274,18 +278,18 @@ export function HeroSearch() {
               setHighlightedIndex(-1);
             }}
             className={searchMode === 'vibe'
-              ? 'rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground'
-              : 'rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground'}
+              ? 'rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground shadow-sm'
+              : 'rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground'}
           >
             Search by vibe
           </button>
         </div>
-        <label className="flex min-h-12 flex-wrap items-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2">
+        <label className="flex min-h-12 flex-wrap items-center gap-2 rounded-2xl border border-border/80 bg-secondary/55 px-3 py-2">
           <Calendar className="h-4 w-4" />
           <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
             <input
               type="date"
-              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+              className="rounded-xl border border-border/80 bg-card px-3 py-2 text-sm"
               value={checkIn}
               min={today.toISOString().slice(0, 10)}
               onChange={(event) => setCheckIn(event.target.value)}
@@ -294,7 +298,7 @@ export function HeroSearch() {
             <span>to</span>
             <input
               type="date"
-              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+              className="rounded-xl border border-border/80 bg-card px-3 py-2 text-sm"
               value={checkOut}
               min={checkIn}
               onChange={(event) => setCheckOut(event.target.value)}
@@ -302,11 +306,11 @@ export function HeroSearch() {
             />
           </div>
         </label>
-        <label className="flex min-h-12 flex-wrap items-center gap-2 rounded-xl border border-border bg-background/70 px-3 py-2">
+        <label className="flex min-h-12 flex-wrap items-center gap-2 rounded-2xl border border-border/80 bg-secondary/55 px-3 py-2">
           <Users className="h-4 w-4" />
           <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
             <select
-              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+              className="rounded-xl border border-border/80 bg-card px-3 py-2 text-sm"
               value={adults}
               onChange={(event) => setAdults(Number(event.target.value))}
               aria-label="Adults"
@@ -318,7 +322,7 @@ export function HeroSearch() {
               ))}
             </select>
             <select
-              className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+              className="rounded-xl border border-border/80 bg-card px-3 py-2 text-sm"
               value={rooms}
               onChange={(event) => setRooms(Number(event.target.value))}
               aria-label="Rooms"
@@ -350,7 +354,7 @@ export function HeroSearch() {
                 <PreferenceLink
                   key={hotel.hotelId}
                   href={`/hotels/${hotel.hotelId}?checkin=${encodeURIComponent(checkIn)}&checkout=${encodeURIComponent(checkOut)}&adults=${adults}&rooms=${rooms}&currency=${encodeURIComponent(currency)}`}
-                  className="animate-soft-rise overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
+                  className="animate-soft-rise overflow-hidden rounded-[24px] border border-border/80 bg-card shadow-premium-sm"
                   style={{ animationDelay: `${idx * 45}ms` }}
                   onClick={() =>
                     trackFunnelEvent({
@@ -393,7 +397,7 @@ export function HeroSearch() {
                     <p className="text-base font-semibold text-primary">
                       {hotel.price ? `${hotel.currency} ${hotel.price} total/night` : 'Price on request'}
                     </p>
-                    <span className="inline-flex text-xs font-semibold underline underline-offset-4">
+                    <span className="inline-flex text-xs font-semibold text-accent underline underline-offset-4">
                       View details and rates
                     </span>
                   </div>

@@ -25,12 +25,12 @@ Requirements for initial production SaaS launch.
 
 ### Search and Discovery Experience
 
-- [ ] **DISC-01**: Home search supports destination autocomplete, stay dates, guest selection, and natural-language vibe input
+- [x] **DISC-01**: Home search supports destination autocomplete, stay dates, guest selection, and natural-language vibe input
 - [ ] **DISC-02**: Search results pages are server-rendered and SEO-friendly for destination queries
 - [ ] **DISC-03**: Search results support filters for price, star rating, amenities, property type, and distance from center
 - [ ] **DISC-04**: Search results support sorting by price, rating, and popularity with grid/map and pagination/infinite browsing
 - [ ] **DISC-05**: Supplier-backed search/rate responses use caching with 5-15 minute TTL and truthful degraded-state handling
-- [ ] **DISC-06**: Search and listing experiences are mobile-responsive and meet launch performance targets (Lighthouse 90+ on key pages)
+- [x] **DISC-06**: Search and listing experiences are mobile-responsive and meet launch performance targets (Lighthouse 90+ on key pages)
 
 ### Hotel Detail and User Workspace
 
@@ -94,14 +94,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 1 | Verified |
 | AUTH-04 | Phase 1 | Verified |
 | AUTH-05 | Phase 6 | Code verified (live human verification pending) |
-| DISC-01 | Phase 2 | Implemented (verification artifact pending) |
+| DISC-01 | Phase 2 + Phase 02.2 + Phase 02.3 | Verified by discovery-shell audit and guardrail tests; Phase 02.3 restores homepage card navigation regressions |
 | DISC-02 | Phase 2 | Implemented (verification artifact pending) |
 | DISC-03 | Phase 2 | Implemented (verification artifact pending) |
 | DISC-04 | Phase 2 | Implemented (verification artifact pending) |
 | DISC-05 | Phase 2 | Implemented (verification artifact pending) |
-| DISC-06 | Phase 2 | Implemented (verification artifact pending) |
-| HOTL-01 | Phase 3 | Verified (reinforced in Phase 8) |
-| HOTL-02 | Phase 3 | Verified (reinforced in Phase 8) |
+| DISC-06 | Phase 2 + Phase 02.2 + Phase 02.3 | Verified by motion audit validation artifact and baseline responsive shell guardrails; Phase 02.3 adds card-navigation stability guardrails |
+| HOTL-01 | Phase 3 + Phase 02.3 | Verified (reinforced in Phase 8 and Phase 02.3 shell regression closure) |
+| HOTL-02 | Phase 3 + Phase 02.3 | Verified (reinforced in Phase 02.3 shell regression closure) |
 | HOTL-03 | Phase 3 | Implemented (verification artifact pending) |
 | HOTL-04 | Phase 3 | Implemented (verification artifact pending) |
 | BOOK-01 | Phase 4 | Implemented (verification artifact pending) |

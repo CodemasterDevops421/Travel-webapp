@@ -58,6 +58,30 @@ Plans:
 - [ ] 02-03-PLAN.md - Implement cache-backed supplier search envelope with degraded-state truthfulness
 - [ ] 02-04-PLAN.md - Deliver URL-synced filters/sort/map browsing and mobile performance hardening
 
+### Phase 02.2: Home and Search Motion Audit (INSERTED)
+
+**Goal:** Lock the homepage, header, and search-shell motion direction before UI implementation so later polish work stays accessible, search-safe, and visually coherent.
+**Requirements**: DISC-01, DISC-06
+**Depends on:** Phase 2
+**Plans:** 4/4 plans complete
+
+Plans:
+- [x] 02.2-01-PLAN.md - Create discovery-shell audit, motion contract, and validation guardrails
+- [x] 02.2-02-PLAN.md - Rebuild the homepage hero around polished travel motion
+- [x] 02.2-03-PLAN.md - Polish the header and shared search shell without regressing usability
+- [x] 02.2-04-PLAN.md - Close search-shell interaction coverage gaps for keyboard, touch, and reduced-motion safety
+
+### Phase 02.3: Homepage Navigation and Detail Shell Regression Closure (INSERTED)
+
+**Goal:** Restore homepage discovery-card navigation and the hotel-detail shell utility contract that regressed during recent frontend polish.
+**Requirements**: DISC-01, DISC-06, HOTL-01, HOTL-02
+**Depends on:** Phase 2
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02.3-01-PLAN.md - Restore homepage discovery-card navigation and add focused navigation regression coverage
+- [ ] 02.3-02-PLAN.md - Restore hotel-detail shell utilities and add stylesheet/caller contract guardrails
+
 ### Phase 3: Hotel Detail and User Workspace
 **Goal**: Travelers can confidently evaluate properties and manage saved stays in their account workspace.
 **Depends on**: Phase 2
@@ -164,6 +188,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 |-------|----------------|--------|-----------|
 | 1. Platform Foundation and Security | 0/4 | Complete    | 2026-02-23 |
 | 2. Search and Discovery Experience | 0/4 | Not started | - |
+| 02.2. Home and Search Motion Audit | 4/4 | Complete   | 2026-03-11 |
+| 02.3. Homepage Navigation and Detail Shell Regression Closure | 0/2 | Planned | - |
 | 3. Hotel Detail and User Workspace | 4/4 | Complete | 2026-02-25 |
 | 4. Checkout and Booking Lifecycle Integrity | 0/4 | Not started | - |
 | 5. Admin Monetization and Launch Operations | 0/TBD | Not started | - |

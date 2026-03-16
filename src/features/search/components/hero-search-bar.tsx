@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Calendar, MapPin, Search, Users } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAutocomplete } from '@/features/search/hooks/use-autocomplete';
 import { parseDiscoveryQuery, serializeDiscoveryQuery } from '@/features/search/lib/discovery-query';
@@ -24,6 +24,9 @@ export type HeroSearchBarProps = {
         rooms?: number;
     };
 };
+
+const SHELL_EASE = [0.22, 1, 0.36, 1] as const;
+const PANEL_EASE = [0.16, 1, 0.3, 1] as const;
 
 function formatSearchDate(value: string): string {
     if (!value) return 'Select date';
@@ -76,6 +79,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     }, [checkIn, checkOut]);
 
     const router = useRouter();
+    const reduceMotion = useReducedMotion();
     const language = useSearchUIStore((state) => state.language);
     const currency = useSearchUIStore((state) => state.currency);
     const activeMood = useSearchUIStore((state) => state.activeMood);
@@ -87,6 +91,21 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
     const canSearch = query.trim().length >= 3 && checkIn.length > 0 && checkOut.length > 0 && checkOut > checkIn;
     const isCompact = variant === 'compact';
     const isHero = variant === 'default';
+    const shellMotionProps = reduceMotion
+        ? { initial: false, animate: { opacity: 1, y: 0, scale: 1 }, transition: { duration: 0.01 } }
+        : {
+            initial: { opacity: 0, y: 10, scale: 0.985 },
+            animate: { opacity: 1, y: 0, scale: 1 },
+            transition: { duration: 0.38, ease: SHELL_EASE }
+        };
+    const panelMotionProps = reduceMotion
+        ? { initial: false, animate: { opacity: 1, y: 0, scale: 1 }, exit: { opacity: 1, y: 0, scale: 1 }, transition: { duration: 0.01 } }
+        : {
+            initial: { opacity: 0, y: 8, scale: 0.985 },
+            animate: { opacity: 1, y: 0, scale: 1 },
+            exit: { opacity: 0, y: 4, scale: 0.99 },
+            transition: { duration: 0.22, ease: PANEL_EASE }
+        };
 
     useEffect(() => {
         setHighlightedIndex(-1);
@@ -164,7 +183,9 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+            {...shellMotionProps}
+            data-motion-mode={reduceMotion ? 'reduced' : 'default'}
+            data-shell-variant={variant}
             className={cn(
                 "relative z-20 mx-auto w-full",
                 variant === 'default' ? "max-w-full" : "max-w-7xl",
@@ -174,15 +195,15 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
             <form onSubmit={(e) => { e.preventDefault(); onSearch(); }} className="relative w-full">
                 <div
                     className={cn(
-                        "flex w-full flex-col transition-all md:flex-row md:items-stretch",
+                        "flex w-full flex-col transition-[background-color,border-color,box-shadow,transform,opacity] duration-300 md:flex-row md:items-stretch",
                         isCompact
-                            ? "rounded-[18px] border border-border/80 bg-card px-2 py-2 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.28)] md:rounded-full"
-                            : "rounded-[24px] border border-white/85 bg-white px-2 py-2 shadow-[0_32px_60px_-34px_rgba(17,12,40,0.6)] md:rounded-full"
+                            ? "rounded-[18px] border border-border/80 bg-card px-1.5 py-1.5 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.28)] supports-[backdrop-filter]:bg-card/95 md:rounded-full"
+                            : "rounded-[24px] border border-white/85 bg-white px-2 py-2 shadow-[0_32px_60px_-34px_rgba(17,12,40,0.6)] supports-[backdrop-filter]:bg-white/96 md:rounded-full"
                     )}
                 >
 
                     {/* Destination Input */}
-                    <div className="relative z-50 flex-[1.5]">
+                    <div className={cn("relative z-50 min-w-0", isCompact ? "flex-[1.2]" : "flex-[1.5]")}>
                         {isHero ? (
                             <span className="ui-label pointer-events-none absolute left-14 top-3 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:block">
                                 Where
@@ -195,12 +216,22 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             <MapPin className={cn("text-primary/80", isCompact ? "h-4 w-4" : "h-5 w-5")} strokeWidth={1.5} />
                         </div>
                         <Input
+                            aria-activedescendant={
+                                highlightedIndex >= 0 && suggestions[highlightedIndex]
+                                    ? `${suggestionsListId}-option-${suggestions[highlightedIndex].id}`
+                                    : undefined
+                            }
+                            aria-autocomplete="list"
+                            aria-controls={isSuggestionsOpen ? suggestionsListId : undefined}
+                            aria-expanded={isSuggestionsOpen}
+                            aria-label="Destination"
                             className={cn(
                                 "w-full border-0 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-0",
                                 isCompact
                                     ? "h-10 pl-10 text-xs font-medium leading-none md:h-11 md:truncate"
                                     : "h-14 pl-14 text-sm font-medium leading-none md:h-16 md:pt-5"
                             )}
+                            role="combobox"
                             placeholder="Enter a destination"
                             value={query}
                             onChange={(e) => {
@@ -219,8 +250,11 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
 
                         {/* Autocomplete Dropdown */}
                         {isSuggestionsOpen && (
-                            <div
-                                className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-border bg-card p-2 shadow-[var(--surface-shadow-lg)]"
+                            <motion.div
+                                {...panelMotionProps}
+                                data-motion-mode={reduceMotion ? 'reduced' : 'default'}
+                                data-testid="destination-suggestions-panel"
+                                className="absolute left-0 right-0 top-full mt-2 origin-top rounded-2xl border border-border bg-card/98 p-2 shadow-[var(--surface-shadow-lg)] backdrop-blur-xl"
                                 style={{ zIndex: 9999 }}
                             >
                                 {isFetching ? (
@@ -228,14 +262,22 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                 ) : suggestions.length === 0 ? (
                                     <div className="p-4 text-sm text-muted-foreground">No destinations found.</div>
                                 ) : (
-                                    <ul className="max-h-[300px] overflow-y-auto py-2">
+                                    <ul
+                                        id={suggestionsListId}
+                                        role="listbox"
+                                        aria-label="Destination suggestions"
+                                        className="max-h-[300px] overflow-y-auto py-2"
+                                    >
                                         {suggestions.map((item, idx) => (
                                             <li
+                                                id={`${suggestionsListId}-option-${item.id}`}
                                                 key={item.id}
+                                                aria-selected={highlightedIndex === idx}
                                                 className={cn(
-                                                    "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors hover:bg-accent",
+                                                    "flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-[background-color,transform] duration-200 hover:bg-accent motion-safe:hover:translate-x-0.5",
                                                     highlightedIndex === idx && "bg-accent"
                                                 )}
+                                                role="option"
                                                 onMouseDown={(e) => { e.preventDefault(); onPickSuggestion(item.name); }}
                                                 onMouseEnter={() => setHighlightedIndex(idx)}
                                             >
@@ -245,16 +287,20 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         ))}
                                     </ul>
                                 )}
-                            </div>
+                            </motion.div>
                         )}
                     </div>
 
                     {/* Dates - Split into Check-in / Check-out */}
-                    <div className="flex flex-1 items-center border-t border-border/20 md:flex-[0.94] md:border-t-0 md:border-l">
+                    <div className={cn(
+                        "flex min-w-0 flex-1 items-center border-t border-border/20 md:border-t-0 md:border-l",
+                        isCompact ? "md:flex-[0.8]" : "md:flex-[0.94]"
+                    )}>
                         {isHero ? (
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <button
+                                        aria-label="Dates"
                                         type="button"
                                         className="relative grid h-14 w-full grid-cols-2 text-left md:h-16 md:pt-5"
                                     >
@@ -271,7 +317,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         </span>
                                     </button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-[360px] rounded-[20px] border border-border bg-card p-4 shadow-[var(--surface-shadow-lg)]" align="center">
+                                <PopoverContent className="w-[360px] rounded-[20px] border border-border bg-card/98 p-4 shadow-[var(--surface-shadow-lg)] backdrop-blur-xl" align="center">
                                     <div className="grid gap-3 sm:grid-cols-2">
                                         <label className="space-y-2 text-sm">
                                             <span className="ui-label block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Check-in</span>
@@ -298,7 +344,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                             </Popover>
                         ) : (
                             <>
-                                <div className="relative flex-1">
+                                <div className="relative min-w-0 flex-1">
                                     <div className={cn(
                                         "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
                                         isCompact && "left-3"
@@ -310,7 +356,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         className={cn(
                                         "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
                                         isCompact
-                                            ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
+                                            ? "numeric-tight h-11 pl-8 pr-1 text-[10px] leading-none md:h-12 md:text-[10px]"
                                                 : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
                                         )}
                                         value={checkIn}
@@ -318,7 +364,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         onChange={(e) => setCheckIn(e.target.value)}
                                     />
                                 </div>
-                                <div className="relative flex-1 border-l border-border/20">
+                                <div className="relative min-w-0 flex-1 border-l border-border/20">
                                     <div className={cn(
                                         "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
                                         isCompact && "left-3"
@@ -330,7 +376,7 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         className={cn(
                                         "w-full cursor-pointer bg-transparent font-medium text-foreground focus:outline-none",
                                         isCompact
-                                            ? "numeric-tight h-11 pl-8 pr-2 text-[10px] leading-none md:h-12 md:text-[10.5px]"
+                                            ? "numeric-tight h-11 pl-8 pr-1 text-[10px] leading-none md:h-12 md:text-[10px]"
                                                 : "h-14 pl-10 pr-2 text-xs leading-none md:h-16 md:pt-5"
                                         )}
                                         value={checkOut}
@@ -345,16 +391,17 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                     {/* Guests & Search Button */}
                     <div className={cn(
                         "flex flex-1 items-center justify-between border-t border-border/20 md:border-t-0 md:border-l",
-                        isCompact ? "pl-1 pb-1 pt-1 md:min-w-[172px] md:flex-[0.72] md:p-0" : "pl-2 pb-2 pt-2 md:p-0"
+                        isCompact ? "min-w-0 pl-1 pb-1 pt-1 md:min-w-[148px] md:flex-[0.58] md:p-0" : "pl-2 pb-2 pt-2 md:p-0"
                     )}>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <button
+                                    aria-label="Guests and rooms"
                                     type="button"
                                     className={cn(
                                         "group relative flex flex-1 items-center text-left transition-colors outline-none focus-visible:bg-primary/5 hover:bg-primary/5",
                                         isCompact
-                                            ? "h-11 gap-2 px-3 rounded-l-xl md:h-12 md:rounded-xl"
+                                            ? "h-11 min-w-0 gap-2 px-2.5 rounded-l-xl md:h-12 md:rounded-xl"
                                             : "h-14 gap-3 px-4 rounded-l-xl md:h-16 md:rounded-xl md:pt-5"
                                     )}
                                 >
@@ -367,15 +414,15 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                         "text-muted-foreground transition-colors group-hover:text-primary",
                                         isCompact ? "h-4 w-4" : "h-5 w-5"
                                     )} strokeWidth={1.5} />
-                                    <div className="flex flex-col">
+                                    <div className="min-w-0 flex flex-col">
                                         <span className={cn(
                                             "ui-label font-semibold text-foreground whitespace-nowrap",
-                                            isCompact ? "text-[10px] md:text-[10.5px]" : "text-xs"
+                                            isCompact ? "truncate text-[9.5px] md:text-[10px]" : "text-xs"
                                         )}>{rooms} Room, {adults} Guests</span>
                                     </div>
                                 </button>
                             </PopoverTrigger>
-                            <PopoverContent className="z-[100] w-80 rounded-2xl border-border p-6 shadow-[var(--surface-shadow-lg)]" align="end">
+                            <PopoverContent className="z-[100] w-80 rounded-2xl border-border bg-card/98 p-6 shadow-[var(--surface-shadow-lg)] backdrop-blur-xl" align="end">
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between">
                                         <div>
@@ -383,9 +430,9 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                             <span className="text-xs text-muted-foreground">Ages 13 or above</span>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setAdults(Math.max(1, adults - 1))}>-</Button>
+                                            <Button aria-label="Decrease adults" variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setAdults(Math.max(1, adults - 1))}>-</Button>
                                             <span className="w-4 text-center text-sm font-medium">{adults}</span>
-                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setAdults(Math.min(10, adults + 1))}>+</Button>
+                                            <Button aria-label="Increase adults" variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setAdults(Math.min(10, adults + 1))}>+</Button>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between">
@@ -394,9 +441,9 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                                             <span className="text-xs text-muted-foreground">Max 5 per booking</span>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setRooms(Math.max(1, rooms - 1))}>-</Button>
+                                            <Button aria-label="Decrease rooms" variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setRooms(Math.max(1, rooms - 1))}>-</Button>
                                             <span className="w-4 text-center text-sm font-medium">{rooms}</span>
-                                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setRooms(Math.min(5, rooms + 1))}>+</Button>
+                                            <Button aria-label="Increase rooms" variant="outline" size="icon" className="h-8 w-8 rounded-full border-border" onClick={() => setRooms(Math.min(5, rooms + 1))}>+</Button>
                                         </div>
                                     </div>
                                 </div>
@@ -404,12 +451,13 @@ export function HeroSearchBar({ variant = 'default', className, initialValues }:
                         </Popover>
 
                         <Button
+                            aria-label="Search stays"
                             type="submit"
                             disabled={!canSearch}
                             className={cn(
-                                "flex shrink-0 items-center justify-center rounded-full bg-primary p-0 text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:shadow-none",
+                                "flex shrink-0 items-center justify-center rounded-full bg-primary p-0 text-primary-foreground transition-[transform,box-shadow,filter] duration-200 hover:brightness-110 motion-safe:hover:-translate-y-0.5 disabled:opacity-50 disabled:shadow-none",
                                 isCompact
-                                    ? "mr-1 h-10 w-10 shadow-[0_14px_24px_-16px_rgba(189,47,241,0.78)] md:mr-0"
+                                    ? "mr-0.5 h-9 w-9 shadow-[0_14px_24px_-16px_rgba(189,47,241,0.78)] md:mr-0 md:h-10 md:w-10"
                                     : "mr-2 h-12 w-12 shadow-[0_18px_30px_-18px_rgba(189,47,241,0.8)] md:mr-0"
                             )}
                         >

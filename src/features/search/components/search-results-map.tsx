@@ -19,7 +19,7 @@ export function SearchResultsMap({ hotels }: SearchResultsMapProps) {
 
   if (markers.length === 0) {
     return (
-      <div className="flex h-[320px] items-center justify-center bg-muted/40 px-4 text-sm text-muted-foreground dark:bg-slate-800">
+      <div className="flex h-[360px] items-center justify-center bg-secondary px-4 text-sm text-muted-foreground">
         No map coordinates are available for these search results yet.
       </div>
     );
@@ -28,7 +28,7 @@ export function SearchResultsMap({ hotels }: SearchResultsMapProps) {
   const center: [number, number] = [markers[0].latitude!, markers[0].longitude!];
 
   return (
-    <MapContainer center={center} zoom={12} className="h-[320px] w-full lg:h-full" scrollWheelZoom>
+    <MapContainer center={center} zoom={12} className="h-[360px] w-full" scrollWheelZoom>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -38,13 +38,13 @@ export function SearchResultsMap({ hotels }: SearchResultsMapProps) {
           key={hotel.hotelId}
           center={[hotel.latitude!, hotel.longitude!]}
           radius={8}
-          pathOptions={{ color: '#9333ea', fillColor: '#c084fc', fillOpacity: 0.82 }}
+          pathOptions={{ color: '#133C67', fillColor: '#FF6B57', fillOpacity: 0.86 }}
         >
           <Popup>
             <div className="space-y-1 text-sm">
               <p className="font-semibold">{hotel.name}</p>
               <p className="text-muted-foreground">{hotel.city}</p>
-              <a className="text-primary underline" href={`/hotels/${hotel.hotelId}`}>
+              <a className="text-accent underline" href={`/hotels/${hotel.hotelId}`}>
                 View stay
               </a>
             </div>

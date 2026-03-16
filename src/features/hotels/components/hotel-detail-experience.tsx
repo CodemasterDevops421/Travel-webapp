@@ -46,19 +46,42 @@ function buildRateKey(rate: Pick<HotelRateOption, 'offerId' | 'roomId'>): string
   return `${rate.offerId}:${rate.roomId}`;
 }
 
-function pickRecommendedRate<T extends Pick<HotelRateOption, 'offerId' | 'roomId' | 'amount'>>(rates: T[]): T | null {
-  if (!rates.length) return null;
-  return [...rates].sort((left, right) => {
-    if (left.amount !== right.amount) {
-      return left.amount - right.amount;
+export function pickLowestActionableRate<T extends Pick<HotelRateOption, 'offerId' | 'roomId' | 'amount'>>(rates: readonly T[]): T | null {
+  let fallbackRate: T | null = null;
+  let cheapestRate: T | null = null;
+
+  for (const rate of rates) {
+    if (!fallbackRate) {
+      fallbackRate = rate;
     }
-    return buildRateKey(left).localeCompare(buildRateKey(right));
-  })[0] ?? null;
+
+    if (!Number.isFinite(rate.amount) || rate.amount <= 0) {
+      continue;
+    }
+
+    if (!cheapestRate || rate.amount < cheapestRate.amount) {
+      cheapestRate = rate;
+    }
+  }
+
+  return cheapestRate ?? fallbackRate;
 }
 
 function buildBookingQuery(
   rate: HotelRateWithCancellationContext,
-  context: { hotelId: string; checkin: string; checkout: string; adults: number; rooms: number }
+  context: {
+    hotelId: string;
+    checkin: string;
+    checkout: string;
+    adults: number;
+    rooms: number;
+    hotelName?: string;
+    hotelImage?: string | null;
+    hotelAddress?: string;
+    starRating?: number | null;
+    preferredLanguage?: string | null;
+    preferredCurrency?: string | null;
+  }
 ): URLSearchParams {
   const bookingQuery = new URLSearchParams({
     hotelId: context.hotelId,
@@ -70,7 +93,9 @@ function buildBookingQuery(
     checkOut: context.checkout,
     adults: String(context.adults),
     rooms: String(context.rooms),
-    isRefundable: rate.isRefundable === null ? 'unknown' : rate.isRefundable ? 'true' : 'false'
+    isRefundable: rate.isRefundable === null ? 'unknown' : rate.isRefundable ? 'true' : 'false',
+    roomName: rate.roomName,
+    boardName: rate.boardName
   });
 
   if (rate.cancellationDeadline) {
@@ -78,6 +103,27 @@ function buildBookingQuery(
   }
   if (rate.cancellationNote) {
     bookingQuery.set('cancellationNote', rate.cancellationNote);
+  }
+  if (rate.imageUrl) {
+    bookingQuery.set('roomImage', rate.imageUrl);
+  }
+  if (context.hotelName) {
+    bookingQuery.set('hotelName', context.hotelName);
+  }
+  if (context.hotelImage) {
+    bookingQuery.set('hotelImage', context.hotelImage);
+  }
+  if (context.hotelAddress) {
+    bookingQuery.set('hotelAddress', context.hotelAddress);
+  }
+  if (typeof context.starRating === 'number' && Number.isFinite(context.starRating)) {
+    bookingQuery.set('starRating', String(context.starRating));
+  }
+  if (context.preferredLanguage) {
+    bookingQuery.set('preferredLanguage', context.preferredLanguage);
+  }
+  if (context.preferredCurrency) {
+    bookingQuery.set('preferredCurrency', context.preferredCurrency);
   }
 
   return bookingQuery;
@@ -149,12 +195,13 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   const [question, setQuestion] = useState('');
   const [askAnswer, setAskAnswer] = useState('');
   const [askLoading, setAskLoading] = useState(false);
+  const initialDefaultRate = useMemo(() => pickLowestActionableRate(initialRates), [initialRates]);
   const [selectedRateKey, setSelectedRateKey] = useState<string | null>(
-    pickRecommendedRate(initialRates) ? buildRateKey(pickRecommendedRate(initialRates)!) : null
+    initialDefaultRate ? buildRateKey(initialDefaultRate) : null
   );
   const { isSaved, toggleSave, authRequired, clearAuthRequired } = useWishlist();
 
-  const { data: hotel } = useHotelDetails(hotelId, undefined, initialRates[0]?.currency, {
+  const { data: hotel } = useHotelDetails(hotelId, undefined, initialDefaultRate?.currency ?? initialRates[0]?.currency, {
     initialData: initialHotel ?? undefined
   });
 
@@ -164,10 +211,12 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     checkout,
     adults,
     rooms,
-    currency: initialRates[0]?.currency
+    currency: initialDefaultRate?.currency ?? initialRates[0]?.currency
   }, {
     initialData: initialRates
   });
+
+  const defaultRate = useMemo(() => pickLowestActionableRate(rates), [rates]);
 
   useEffect(() => {
     if (!rates.length) {
@@ -175,15 +224,13 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
       return;
     }
 
-    const recommendedRate = pickRecommendedRate(rates);
-
     setSelectedRateKey((current) => {
       if (current && rates.some((rate) => buildRateKey(rate) === current)) {
         return current;
       }
-      return recommendedRate ? buildRateKey(recommendedRate) : buildRateKey(rates[0]);
+      return defaultRate ? buildRateKey(defaultRate) : buildRateKey(rates[0]);
     });
-  }, [rates]);
+  }, [defaultRate, rates]);
 
   const photos = useMemo(() => {
     const basePhotos = hotel?.photos?.length ? hotel.photos : hotel?.mainPhoto ? [hotel.mainPhoto as string] : [];
@@ -193,16 +240,19 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     return Array.from(new Set([...basePhotos, ...roomPhotos]));
   }, [hotel?.mainPhoto, hotel?.photos, rates]);
   const amenities = hotel?.facilities ?? [];
-  const lowestRate = rates.reduce<number | null>((min, rate) => (min === null || rate.amount < min ? rate.amount : min), null);
-  const currency = rates[0]?.currency ?? 'USD';
+  const lowestRate = defaultRate?.amount ?? rates.reduce<number | null>((min, rate) => (min === null || rate.amount < min ? rate.amount : min), null);
+  const currency = defaultRate?.currency ?? rates[0]?.currency ?? 'USD';
+  const address = hotel?.address ?? `${hotel?.city ?? 'Unknown city'}${hotel?.countryCode ? `, ${hotel.countryCode}` : ''}`;
   const selectedRate = useMemo(
-    () => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? rates[0] ?? null,
-    [rates, selectedRateKey]
+    () => rates.find((rate) => buildRateKey(rate) === selectedRateKey) ?? defaultRate ?? rates[0] ?? null,
+    [defaultRate, rates, selectedRateKey]
   );
   const recommendedRateKey = useMemo(() => {
-    const recommendedRate = pickRecommendedRate(rates);
+    const recommendedRate = pickLowestActionableRate(rates);
     return recommendedRate ? buildRateKey(recommendedRate) : null;
   }, [rates]);
+  const preferredLanguage = searchParams.get('language');
+  const preferredCurrency = searchParams.get('currency');
   const selectedCancellation = useMemo(
     () => (selectedRate ? getCancellationCopy(selectedRate) : null),
     [selectedRate]
@@ -214,22 +264,33 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
       checkin,
       checkout,
       adults,
-      rooms
+      rooms,
+      hotelName: hotel?.name,
+      hotelImage: hotel?.mainPhoto ?? photos[0] ?? null,
+      hotelAddress: address,
+      starRating: hotel?.starRating ?? null,
+      preferredLanguage,
+      preferredCurrency
     });
     return `/booking?${query.toString()}`;
-  }, [selectedRate, hotelId, checkin, checkout, adults, rooms]);
+  }, [selectedRate, hotelId, checkin, checkout, adults, rooms, hotel?.name, hotel?.mainPhoto, hotel?.starRating, photos, address, preferredLanguage, preferredCurrency]);
   const buildBookingHref = (rate: HotelRateWithCancellationContext) => {
     const query = buildBookingQuery(rate, {
       hotelId,
       checkin,
       checkout,
       adults,
-      rooms
+      rooms,
+      hotelName: hotel?.name,
+      hotelImage: hotel?.mainPhoto ?? photos[0] ?? null,
+      hotelAddress: address,
+      starRating: hotel?.starRating ?? null,
+      preferredLanguage,
+      preferredCurrency
     });
 
     return `/booking?${query.toString()}`;
   };
-  const address = hotel?.address ?? `${hotel?.city ?? 'Unknown city'}${hotel?.countryCode ? `, ${hotel.countryCode}` : ''}`;
   const reviewBreakdown = hotel?.reviewBreakdown ?? [];
   const reviews = hotel?.reviews ?? [];
   const policies = hotel?.policies;
@@ -283,7 +344,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
   }
 
   return (
-    <main className="hotel-detail-page page-shell space-y-4 py-4 md:space-y-5 md:py-6">
+    <main className="hotel-detail-page page-shell mx-auto w-full max-w-7xl space-y-4 px-4 py-4 md:space-y-5 md:py-6">
       <PropertyHero
         browseHotelsHref={browseHotelsHref}
         hotelName={hotel?.name ?? 'Hotel'}

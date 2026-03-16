@@ -1,21 +1,23 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
-import { Fraunces, Manrope } from 'next/font/google';
+import { Inter, Montserrat } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AppQueryProvider } from '@/components/providers/query-provider';
 import { Header } from '@/components/layout/header';
+import { AIChatbot } from '@/features/ai/components/ai-chatbot';
 
-const bodyFont = Manrope({
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-body',
   display: 'swap'
 });
 
-const headingFont = Fraunces({
+const headingFont = Montserrat({
   subsets: ['latin'],
   variable: '--font-heading',
-  display: 'swap'
+  display: 'swap',
+  weight: ['600', '700', '800']
 });
 
 export const metadata: Metadata = {
@@ -51,12 +53,10 @@ export const viewport: Viewport = {
   viewportFit: 'cover'
 };
 
-import { AIChatbot } from '@/features/ai/components/ai-chatbot';
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${headingFont.variable} ${bodyFont.variable}`}>
+      <body className={`${headingFont.variable} ${inter.variable}`}>
         <ThemeProvider>
           <AppQueryProvider>
             <Suspense fallback={null}>
