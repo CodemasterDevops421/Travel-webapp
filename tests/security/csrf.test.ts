@@ -23,7 +23,9 @@ describe('csrf guards', () => {
     const request = new Request('https://app.travel.test/api/booking/book', {
       method: 'POST',
       headers: {
-        origin: 'https://app.travel.test'
+        origin: 'https://app.travel.test',
+        cookie: 'csrf_token=test-token',
+        'x-csrf-token': 'test-token'
       }
     });
 
@@ -35,7 +37,9 @@ describe('csrf guards', () => {
     const request = new Request('https://app.travel.test/api/booking/book', {
       method: 'POST',
       headers: {
-        origin: 'https://evil.test'
+        origin: 'https://evil.test',
+        cookie: 'csrf_token=test-token',
+        'x-csrf-token': 'test-token'
       }
     });
 
@@ -45,10 +49,28 @@ describe('csrf guards', () => {
   it('requires an origin header outside tests', async () => {
     const { assertSameOrigin } = await loadCsrfModule({ NODE_ENV: 'production' });
     const request = new Request('https://app.travel.test/api/booking/book', {
-      method: 'POST'
+      method: 'POST',
+      headers: {
+        cookie: 'csrf_token=test-token',
+        'x-csrf-token': 'test-token'
+      }
     });
 
     expect(() => assertSameOrigin(request)).toThrow(/origin header is required/i);
+  });
+
+  it('requires a matching csrf token for mutating requests', async () => {
+    const { assertSameOrigin } = await loadCsrfModule({ NODE_ENV: 'production' });
+    const request = new Request('https://app.travel.test/api/booking/book', {
+      method: 'POST',
+      headers: {
+        origin: 'https://app.travel.test',
+        cookie: 'csrf_token=test-token',
+        'x-csrf-token': 'wrong-token'
+      }
+    });
+
+    expect(() => assertSameOrigin(request)).toThrow(/invalid csrf token/i);
   });
 
   it('skips enforcement in test mode', async () => {

@@ -72,4 +72,23 @@ describe('rate-limit policies', () => {
 
     expect(__unsafeInMemoryRateLimitSizeForTests()).toBeLessThanOrEqual(10_000);
   });
+
+  it('fails closed outside tests when redis persistence is unavailable', async () => {
+    vi.resetModules();
+    vi.doMock('@/server/env', async () => {
+      const actual = await vi.importActual<typeof import('@/server/env')>('@/server/env');
+      return {
+        ...actual,
+        env: {
+          ...actual.env,
+          NODE_ENV: 'production',
+          UPSTASH_REDIS_REST_URL: undefined,
+          UPSTASH_REDIS_REST_TOKEN: undefined
+        }
+      };
+    });
+
+    const { assertRateLimit } = await import('@/server/ratelimit');
+    await expect(assertRateLimit('mutation:prod:missing', 'mutation')).rejects.toMatchObject({ status: 503 });
+  });
 });

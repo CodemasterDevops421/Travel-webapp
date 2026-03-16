@@ -6,6 +6,7 @@ import type { HotelDetails, HotelRateOption } from '@/server/liteapi';
 import { useHotelDetails } from '@/features/hotels/hooks/use-hotel-details';
 import { useHotelRates, type HotelRateWithCancellationContext } from '@/features/hotels/hooks/use-hotel-rates';
 import { useWishlist } from '@/shared/hooks/use-wishlist';
+import { withCsrfHeaders } from '@/shared/lib/csrf';
 import { PropertyHero } from '@/features/hotels/components/property-hero';
 import { PropertyTabNav } from '@/features/hotels/components/property-tab-nav';
 import { PropertyContentSections } from '@/features/hotels/components/property-content-sections';
@@ -322,7 +323,7 @@ export function HotelDetailExperience({ hotelId, checkin, checkout, adults, room
     try {
       const response = await fetch('/api/hotel-ai', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: withCsrfHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({ hotelId, question: prompt })
       });
       const json = await response.json();

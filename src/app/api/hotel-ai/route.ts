@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
+import { assertSameOrigin } from '@/server/csrf';
 import { askHotelQuestionWithLiteApi, getHotelDetails } from '@/server/liteapi';
 import { getClientIp } from '@/server/request';
 import {
@@ -17,6 +18,7 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const clientIp = getClientIp(request);
     await assertRateLimit(`hotel-ai:${clientIp}`);
 

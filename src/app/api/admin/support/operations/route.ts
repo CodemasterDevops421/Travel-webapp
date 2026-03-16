@@ -24,6 +24,20 @@ function parseBreachHours(raw: string | null): number {
   return Math.max(1, Math.min(168, Math.floor(parsed)));
 }
 
+function parsePage(raw: string | null): number {
+  if (raw == null || raw.trim() === '') return 1;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(1, Math.min(100, Math.floor(parsed)));
+}
+
+function parseLimit(raw: string | null): number {
+  if (raw == null || raw.trim() === '') return 50;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 50;
+  return Math.max(1, Math.min(100, Math.floor(parsed)));
+}
+
 export async function GET(request: NextRequest) {
   const startedAt = Date.now();
   let responseStatus = 500;
@@ -48,17 +62,31 @@ export async function GET(request: NextRequest) {
 
     const periodDays = parsePeriodDays(request.nextUrl.searchParams.get('days'));
     const breachHours = parseBreachHours(request.nextUrl.searchParams.get('breachHours'));
+    const page = parsePage(request.nextUrl.searchParams.get('page'));
+    const limit = parseLimit(request.nextUrl.searchParams.get('limit'));
     const cacheKey = `admin:support-operations:${user.id}:${periodDays}:${breachHours}`;
     const report = await getOrSetAdminReportCache(cacheKey, ADMIN_REPORT_CACHE_TTL_SECONDS, () =>
       buildSupportOperationsReport(supabase, {
         periodDays,
         breachHours,
-        limit: 300
+        limit: 500
       })
     );
 
+    const start = (page - 1) * limit;
+    const cases = report.cases.slice(start, start + limit);
+
     responseStatus = 200;
-    return NextResponse.json(report, {
+    return NextResponse.json({
+      ...report,
+      cases,
+      pagination: {
+        page,
+        limit,
+        total: report.cases.length,
+        totalPages: Math.max(1, Math.ceil(report.cases.length / limit))
+      }
+    }, {
       headers: {
         'cache-control': `private, max-age=${ADMIN_REPORT_CACHE_TTL_SECONDS}`
       }

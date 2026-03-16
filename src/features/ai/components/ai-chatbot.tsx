@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquare, Send, X, Sparkles, Bot, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { withCsrfHeaders } from '@/shared/lib/csrf';
 import { cn } from '@/shared/lib/utils';
 
 type Message = {
@@ -51,7 +52,7 @@ export function AIChatbot() {
             const searchParams = new URLSearchParams(window.location.search);
             const response = await fetch('/api/concierge', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     messages: nextConversation.slice(-20).map((item) => ({
                         role: item.role,

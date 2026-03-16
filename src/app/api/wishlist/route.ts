@@ -13,8 +13,22 @@ const wishlistBodySchema = z.object({
     city: z.string().trim().max(120).optional()
 });
 
-export async function GET() {
+const wishlistQuerySchema = z.object({
+    page: z.coerce.number().int().min(1).max(100).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional()
+});
+
+export async function GET(request: Request) {
     try {
+        const parsedQuery = wishlistQuerySchema.safeParse({
+            page: new URL(request.url).searchParams.get('page') ?? undefined,
+            limit: new URL(request.url).searchParams.get('limit') ?? undefined
+        });
+        const page = parsedQuery.success ? (parsedQuery.data.page ?? 1) : 1;
+        const limit = parsedQuery.success ? (parsedQuery.data.limit ?? 20) : 20;
+        const start = (page - 1) * limit;
+        const end = start + limit - 1;
+
         const supabase = await createServerSupabaseClient();
         const {
             data: { user }
@@ -24,17 +38,26 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { data, error } = await supabase
+        const { data, error, count } = await supabase
             .from('saved_hotels')
-            .select('*')
+            .select('*', { count: 'exact' })
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .range(start, end);
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        return NextResponse.json({ data });
+        return NextResponse.json({
+            data,
+            pagination: {
+                page,
+                limit,
+                total: count ?? 0,
+                totalPages: Math.max(1, Math.ceil((count ?? 0) / limit))
+            }
+        });
     } catch {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }

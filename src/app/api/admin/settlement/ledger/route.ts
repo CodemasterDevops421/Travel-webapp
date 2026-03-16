@@ -11,6 +11,20 @@ function parsePeriodDays(raw: string | null): number {
   return Math.max(7, Math.min(180, Math.floor(parsed)));
 }
 
+function parsePage(raw: string | null): number {
+  if (raw == null || raw.trim() === '') return 1;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(1, Math.min(100, Math.floor(parsed)));
+}
+
+function parseLimit(raw: string | null): number {
+  if (raw == null || raw.trim() === '') return 50;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 50;
+  return Math.max(1, Math.min(100, Math.floor(parsed)));
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -24,12 +38,26 @@ export async function GET(request: NextRequest) {
 
     await assertAdminAuthorized(supabase, user);
 
+    const page = parsePage(request.nextUrl.searchParams.get('page'));
+    const limit = parseLimit(request.nextUrl.searchParams.get('limit'));
+
     const report = await buildSettlementLedgerReport(supabase, {
       periodDays: parsePeriodDays(request.nextUrl.searchParams.get('days')),
-      limit: 300
+      limit: 500
     });
 
-    return NextResponse.json(report);
+    const start = (page - 1) * limit;
+
+    return NextResponse.json({
+      ...report,
+      ledger: report.ledger.slice(start, start + limit),
+      pagination: {
+        page,
+        limit,
+        total: report.ledger.length,
+        totalPages: Math.max(1, Math.ceil(report.ledger.length / limit))
+      }
+    });
   } catch (error) {
     if (error instanceof HttpError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

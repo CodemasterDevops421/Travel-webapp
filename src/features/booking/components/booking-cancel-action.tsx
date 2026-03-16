@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { withCsrfHeaders } from '@/shared/lib/csrf';
 
 type BookingCancelActionProps = {
   bookingId: string;
@@ -47,10 +48,10 @@ export function BookingCancelAction({
     try {
       const response = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}/cancel`, {
         method: 'POST',
-        headers: {
+        headers: withCsrfHeaders({
           'content-type': 'application/json',
           ...(viewToken ? { 'x-booking-view-token': viewToken } : {})
-        },
+        }),
         body: JSON.stringify({
           reason: 'Guest requested cancellation from booking confirmation page'
         })

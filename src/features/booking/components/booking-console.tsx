@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { publicEnv } from '@/shared/env.public';
 import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
+import { withCsrfHeaders } from '@/shared/lib/csrf';
 import { useAuth } from '@/shared/hooks/use-auth';
 import { cn } from '@/shared/lib/utils';
 
@@ -421,7 +422,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
     mutationFn: async (values: FormValues): Promise<PrebookResult> => {
       const response = await fetch('/api/booking/prebook', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: withCsrfHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           hotelId: values.hotelId,
           roomId: values.roomId,
@@ -471,7 +472,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
 
     const progressResponse = await fetch('/api/booking/checkout-progress', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: withCsrfHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify({
         prebookId: activePrebook.prebookId,
         transactionId: activePrebook.transactionId,
@@ -679,7 +680,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
                 try {
                   const res = await fetch('/api/promo/validate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({ code: promoCode })
                   });
                   const data = await res.json();

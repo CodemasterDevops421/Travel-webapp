@@ -1,3 +1,4 @@
+import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('admin stats authz', () => {
@@ -16,7 +17,7 @@ describe('admin stats authz', () => {
     }));
 
     const { GET } = await import('@/app/api/admin/stats/route');
-    const res = await GET();
+    const res = await GET(new NextRequest('http://localhost/api/admin/stats'));
     expect(res.status).toBe(401);
   });
 
@@ -36,7 +37,7 @@ describe('admin stats authz', () => {
     }));
 
     const { GET } = await import('@/app/api/admin/stats/route');
-    const res = await GET();
+    const res = await GET(new NextRequest('http://localhost/api/admin/stats'));
     expect(res.status).toBe(403);
   });
 });

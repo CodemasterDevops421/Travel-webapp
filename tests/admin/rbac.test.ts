@@ -29,7 +29,7 @@ describe('admin RBAC enforcement', () => {
     expect(supabase.from).not.toHaveBeenCalled();
   });
 
-  it('caches db-backed admin allow decision to reduce repeated lookups', async () => {
+  it('re-checks db-backed admin allow decision on each request', async () => {
     const maybeSingle = vi
       .fn()
       .mockResolvedValue({ data: { user_id: 'db-admin', role: 'admin', is_active: true }, error: null });
@@ -60,10 +60,10 @@ describe('admin RBAC enforcement', () => {
       })
     ).resolves.toBeUndefined();
 
-    expect(maybeSingle).toHaveBeenCalledTimes(1);
+    expect(maybeSingle).toHaveBeenCalledTimes(2);
   });
 
-  it('caches db-backed deny decision and keeps returning 403', async () => {
+  it('re-checks db-backed deny decision on each request', async () => {
     const maybeSingle = vi
       .fn()
       .mockResolvedValue({ data: { user_id: 'non-admin', role: 'viewer', is_active: true }, error: null });
@@ -94,7 +94,7 @@ describe('admin RBAC enforcement', () => {
       })
     ).rejects.toThrow('Forbidden');
 
-    expect(maybeSingle).toHaveBeenCalledTimes(1);
+    expect(maybeSingle).toHaveBeenCalledTimes(2);
   });
 
   it('does not grant admin from user_metadata role alone', async () => {

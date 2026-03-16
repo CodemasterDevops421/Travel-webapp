@@ -1,7 +1,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { env } from '@/server/env';
-import { RateLimitError } from '@/server/errors';
+import { HttpError, RateLimitError } from '@/server/errors';
 
 export type RateLimitClass = 'auth' | 'mutation' | 'booking';
 
@@ -33,7 +33,8 @@ const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
   ? Redis.fromEnv()
   : null;
 
-const inMemory = new Map<string, { count: number; expiresAt: number }>();
+const allowTestFallback = env.NODE_ENV === 'test';
+const inMemory = allowTestFallback ? new Map<string, { count: number; expiresAt: number }>() : null;
 const IN_MEMORY_MAX_KEYS = 10000;
 let fallbackCallCounter = 0;
 
@@ -72,23 +73,28 @@ export function createRateLimitKey(routeClass: RateLimitClass, identifier: strin
 }
 
 function pruneInMemoryStore(now: number): void {
-  for (const [key, entry] of inMemory.entries()) {
+  const store = inMemory;
+  if (!store) {
+    return;
+  }
+
+  for (const [key, entry] of store.entries()) {
     if (entry.expiresAt <= now) {
-      inMemory.delete(key);
+      store.delete(key);
     }
   }
 
-  while (inMemory.size > IN_MEMORY_MAX_KEYS) {
-    const oldestKey = inMemory.keys().next().value;
+  while (store.size > IN_MEMORY_MAX_KEYS) {
+    const oldestKey = store.keys().next().value;
     if (!oldestKey) {
       break;
     }
-    inMemory.delete(oldestKey);
+    store.delete(oldestKey);
   }
 }
 
 export function __unsafeInMemoryRateLimitSizeForTests(): number {
-  return inMemory.size;
+  return inMemory?.size ?? 0;
 }
 
 export function __unsafePruneInMemoryRateLimitStoreForTests(now = Date.now()): void {
@@ -104,6 +110,10 @@ export async function assertRateLimit(key: string, routeClass: RateLimitClass = 
       throw new RateLimitError();
     }
     return;
+  }
+
+  if (!inMemory) {
+    throw new HttpError(503, 'Rate limit persistence unavailable');
   }
 
   const now = Date.now();

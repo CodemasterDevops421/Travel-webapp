@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServerSupabaseClient } from '@/server/supabase/server';
 import { assertAdminAuthorized } from '@/server/authz';
+import { assertSameOrigin } from '@/server/csrf';
 import { HttpError } from '@/server/errors';
 import { getBookingById, updateBookingMetadataById } from '@/server/booking/repository';
 import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
@@ -23,6 +24,7 @@ export async function PATCH(
   const startedAt = Date.now();
   let responseStatus = 500;
   try {
+    assertSameOrigin(request);
     const supabase = await createServerSupabaseClient();
     const {
       data: { user }

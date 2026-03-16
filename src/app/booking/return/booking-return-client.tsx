@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
+import { withCsrfHeaders } from '@/shared/lib/csrf';
 
 export function BookingReturnClient() {
   const params = useSearchParams();
@@ -42,7 +43,7 @@ export function BookingReturnClient() {
       try {
         const response = await fetch('/api/booking/book', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: withCsrfHeaders({ 'content-type': 'application/json' }),
           body: JSON.stringify({
             prebookId,
             transactionId
@@ -60,7 +61,7 @@ export function BookingReturnClient() {
         for (let attempt = 0; attempt < 40; attempt += 1) {
           const statusResponse = await fetch('/api/booking/status', {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: withCsrfHeaders({ 'content-type': 'application/json' }),
             body: JSON.stringify({
               transactionId,
               prebookId

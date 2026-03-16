@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/shared/hooks/use-auth';
+import { withCsrfHeaders } from '@/shared/lib/csrf';
 
 interface SavedHotel {
     id: string;
@@ -107,11 +108,12 @@ export function useWishlist() {
       try {
         const response = alreadySaved
           ? await fetch(`/api/wishlist?hotelId=${encodeURIComponent(hotel.hotelId)}`, {
-              method: 'DELETE'
+              method: 'DELETE',
+              headers: withCsrfHeaders()
             })
           : await fetch('/api/wishlist', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
               body: JSON.stringify(hotel)
             });
 

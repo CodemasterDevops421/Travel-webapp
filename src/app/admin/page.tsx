@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, DollarSign, Users, ShoppingBag, TrendingUp, Loader2, AlertTriangle, Download } from 'lucide-react';
 import { useAuth } from '@/shared/hooks/use-auth';
+import { withCsrfHeaders } from '@/shared/lib/csrf';
 import { Button } from '@/components/ui/button';
 
 interface AdminStats {
@@ -317,7 +318,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/reconciliation/${encodeURIComponent(selectedIssue.bookingId)}/resolve`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: withCsrfHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           issueType: selectedIssue.type,
           resolutionNote: resolutionNote.trim()
@@ -344,7 +345,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/support/operations/${encodeURIComponent(selectedSupportCase.bookingId)}`, {
         method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
+        headers: withCsrfHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({
           state: supportStateDraft,
           priority: supportPriorityDraft,

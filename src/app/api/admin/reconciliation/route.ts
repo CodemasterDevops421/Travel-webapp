@@ -22,6 +22,28 @@ function parsePeriodDays(raw: string | null): number {
   return Math.max(7, Math.min(180, intValue));
 }
 
+function parsePage(raw: string | null): number {
+  if (raw == null || raw.trim() === '') {
+    return 1;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+  return Math.max(1, Math.min(100, Math.floor(parsed)));
+}
+
+function parseLimit(raw: string | null): number {
+  if (raw == null || raw.trim() === '') {
+    return 50;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return 50;
+  }
+  return Math.max(1, Math.min(100, Math.floor(parsed)));
+}
+
 export async function GET(request: NextRequest) {
   const startedAt = Date.now();
   let responseStatus = 500;
@@ -45,6 +67,8 @@ export async function GET(request: NextRequest) {
     await assertAdminAuthorized(supabase, user);
 
     const periodDays = parsePeriodDays(request.nextUrl.searchParams.get('days'));
+    const page = parsePage(request.nextUrl.searchParams.get('page'));
+    const limit = parseLimit(request.nextUrl.searchParams.get('limit'));
     const includeResolved = ['1', 'true', 'yes'].includes(
       (request.nextUrl.searchParams.get('includeResolved') ?? '').trim().toLowerCase()
     );
@@ -54,12 +78,23 @@ export async function GET(request: NextRequest) {
       buildReconciliationReport(supabase, {
         periodDays,
         includeResolved,
-        maxIssues: 200
+        maxIssues: 500
       })
     );
 
+    const start = (page - 1) * limit;
+
     responseStatus = 200;
-    return NextResponse.json(report, {
+    return NextResponse.json({
+      ...report,
+      issues: report.issues.slice(start, start + limit),
+      pagination: {
+        page,
+        limit,
+        total: report.issues.length,
+        totalPages: Math.max(1, Math.ceil(report.issues.length / limit))
+      }
+    }, {
       headers: {
         'cache-control': `private, max-age=${ADMIN_REPORT_CACHE_TTL_SECONDS}`
       }

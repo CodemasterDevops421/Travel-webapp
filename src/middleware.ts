@@ -27,7 +27,26 @@ const CONTENT_SECURITY_POLICY = [
   'upgrade-insecure-requests'
 ].join('; ');
 
-function applySecurityHeaders(response: NextResponse) {
+function ensureCsrfCookie(request: NextRequest, response: NextResponse): void {
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  const existingToken = request.cookies.get('csrf_token')?.value;
+  if (existingToken) {
+    return;
+  }
+
+  response.cookies.set('csrf_token', crypto.randomUUID(), {
+    httpOnly: false,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/'
+  });
+}
+
+function applySecurityHeaders(request: NextRequest, response: NextResponse) {
+  ensureCsrfCookie(request, response);
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -90,20 +109,20 @@ export async function middleware(request: NextRequest) {
   if (isProtectedRoute && !user) {
     const signupUrl = new URL('/auth/signup', request.url);
     signupUrl.searchParams.set('redirect', request.nextUrl.pathname);
-    return applySecurityHeaders(NextResponse.redirect(signupUrl));
+    return applySecurityHeaders(request, NextResponse.redirect(signupUrl));
   }
 
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
   if (isAdminRoute && user && !hasAdminClaim(user)) {
-    return applySecurityHeaders(NextResponse.redirect(new URL('/', request.url)));
+    return applySecurityHeaders(request, NextResponse.redirect(new URL('/', request.url)));
   }
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
   if (isAuthRoute && user) {
-    return applySecurityHeaders(NextResponse.redirect(new URL('/', request.url)));
+    return applySecurityHeaders(request, NextResponse.redirect(new URL('/', request.url)));
   }
 
-  return applySecurityHeaders(response);
+  return applySecurityHeaders(request, response);
 }
 
 export const config = {

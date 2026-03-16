@@ -115,12 +115,14 @@ describe('admin operations routes', () => {
     }));
 
     const { GET } = await import('@/app/api/admin/support/sla/route');
-    const req = new NextRequest('http://localhost/api/admin/support/sla?days=30&breachHours=24');
+    const req = new NextRequest('http://localhost/api/admin/support/sla?days=30&breachHours=24&page=1&limit=1');
     const res = await GET(req);
     const json = await res.json();
 
     expect(res.status).toBe(200);
     expect(json.summary.totalCases).toBeGreaterThanOrEqual(1);
+    expect(json.pagination.limit).toBe(1);
+    expect(json.cases.length).toBe(1);
   });
 
   it('returns 503 when support sla bookings query fails', async () => {

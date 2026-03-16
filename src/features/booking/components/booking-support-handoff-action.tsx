@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { withCsrfHeaders } from '@/shared/lib/csrf';
 
 type BookingSupportHandoffActionProps = {
   bookingId: string;
@@ -33,10 +34,10 @@ export function BookingSupportHandoffAction({ bookingId, viewToken = null }: Boo
     try {
         const response = await fetch('/api/support/liteapi', {
           method: 'POST',
-          headers: {
+          headers: withCsrfHeaders({
             'content-type': 'application/json',
             ...(viewToken ? { 'x-booking-view-token': viewToken } : {})
-          },
+          }),
         body: JSON.stringify({
           bookingId,
           channel: 'chat',

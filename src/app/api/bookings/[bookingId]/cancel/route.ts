@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
+import { assertSameOrigin } from '@/server/csrf';
 import { cancelBooking } from '@/server/liteapi';
 import { HttpError, toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
@@ -23,6 +24,7 @@ const bodySchema = z.object({
 export async function POST(request: NextRequest, context: { params: Promise<{ bookingId: string }> }) {
   try {
     assertProductionReadiness();
+    assertSameOrigin(request);
     const params = paramsSchema.parse(await context.params);
 
     const bookingViewToken = request.headers.get('x-booking-view-token');

@@ -1,6 +1,9 @@
 import { env } from '@/server/env';
 import { HttpError } from '@/server/errors';
 
+const CSRF_COOKIE_NAME = 'csrf_token';
+const CSRF_HEADER_NAME = 'x-csrf-token';
+
 function normalizeOrigin(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -11,6 +14,27 @@ function toOrigin(urlValue: string): string | null {
   } catch {
     return null;
   }
+}
+
+function readCookie(cookieHeader: string | null, name: string): string | null {
+  if (!cookieHeader) {
+    return null;
+  }
+
+  const parts = cookieHeader.split(';');
+  for (const part of parts) {
+    const [rawName, ...rawValue] = part.trim().split('=');
+    if (rawName === name) {
+      return rawValue.join('=').trim() || null;
+    }
+  }
+
+  return null;
+}
+
+function requiresCsrfToken(request: Request): boolean {
+  const method = request.method.toUpperCase();
+  return method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
 }
 
 export function assertSameOrigin(request: Request): void {
@@ -39,4 +63,23 @@ export function assertSameOrigin(request: Request): void {
   if (!allowed.has(callerOrigin)) {
     throw new HttpError(403, 'Cross-site request blocked');
   }
+
+  if (!requiresCsrfToken(request)) {
+    return;
+  }
+
+  const cookieToken = readCookie(request.headers.get('cookie'), CSRF_COOKIE_NAME);
+  const headerToken = request.headers.get(CSRF_HEADER_NAME)?.trim() ?? '';
+
+  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    throw new HttpError(403, 'Invalid CSRF token');
+  }
+}
+
+export function getCsrfCookieName(): string {
+  return CSRF_COOKIE_NAME;
+}
+
+export function getCsrfHeaderName(): string {
+  return CSRF_HEADER_NAME;
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServerSupabaseClient } from '@/server/supabase/server';
 import { assertAdminAuthorized } from '@/server/authz';
+import { assertSameOrigin } from '@/server/csrf';
 import { HttpError } from '@/server/errors';
 import { invalidateAdminReportCache } from '@/server/admin/report-cache';
 import { getBookingById, updateBookingMetadataById } from '@/server/booking/repository';
@@ -19,6 +20,7 @@ type RouteContext = {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    assertSameOrigin(request);
     const supabase = await createServerSupabaseClient();
     const {
       data: { user }

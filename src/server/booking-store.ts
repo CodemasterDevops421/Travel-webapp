@@ -6,7 +6,8 @@ import type { PriceQuote } from '@/server/pricing';
 const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
   ? Redis.fromEnv()
   : null;
-const failClosed = env.NODE_ENV === 'production' && env.STRICT_PERSISTENCE_MODE;
+const allowTestFallback = env.NODE_ENV === 'test';
+const failClosed = !allowTestFallback;
 
 type PrebookSession = {
   prebookId: string;
@@ -60,9 +61,9 @@ type FallbackCheckoutEntry = {
   expiresAt: number;
 };
 
-const fallbackStore = new Map<string, FallbackSessionEntry>();
-const fallbackCheckoutStore = new Map<string, FallbackCheckoutEntry>();
-const fallbackCheckoutPrebookIndex = new Map<string, { transactionId: string; expiresAt: number }>();
+const fallbackStore = allowTestFallback ? new Map<string, FallbackSessionEntry>() : null;
+const fallbackCheckoutStore = allowTestFallback ? new Map<string, FallbackCheckoutEntry>() : null;
+const fallbackCheckoutPrebookIndex = allowTestFallback ? new Map<string, { transactionId: string; expiresAt: number }>() : null;
 
 const CHECKOUT_PROGRESS_TTL_MS = 60 * 60 * 1000;
 
@@ -79,6 +80,10 @@ function checkoutPrebookIndexKey(prebookId: string): string {
 }
 
 function purgeExpiredFallbackEntries(now = Date.now()): void {
+  if (!fallbackStore || !fallbackCheckoutStore || !fallbackCheckoutPrebookIndex) {
+    return;
+  }
+
   for (const [sessionKey, entry] of fallbackStore) {
     if (entry.expiresAt <= now) {
       fallbackStore.delete(sessionKey);
@@ -108,6 +113,10 @@ export async function savePrebookSession(session: PrebookSession): Promise<void>
     return;
   }
 
+  if (!fallbackStore) {
+    throw new HttpError(503, 'Booking session persistence unavailable');
+  }
+
   const now = Date.now();
   purgeExpiredFallbackEntries(now);
 
@@ -124,6 +133,10 @@ export async function getPrebookSession(transactionId: string): Promise<PrebookS
 
   if (redis) {
     return (await redis.get<PrebookSession>(key(transactionId))) ?? null;
+  }
+
+  if (!fallbackStore) {
+    throw new HttpError(503, 'Booking session persistence unavailable');
   }
 
   purgeExpiredFallbackEntries();
@@ -159,6 +172,10 @@ export async function saveCheckoutProgressSession(session: CheckoutProgressSessi
     return;
   }
 
+  if (!fallbackCheckoutStore || !fallbackCheckoutPrebookIndex) {
+    throw new HttpError(503, 'Booking session persistence unavailable');
+  }
+
   const now = Date.now();
   const expiresAt = now + CHECKOUT_PROGRESS_TTL_MS;
   purgeExpiredFallbackEntries(now);
@@ -182,6 +199,10 @@ export async function getCheckoutProgressSessionByTransactionId(
   const transactionSessionKey = checkoutKey(transactionId);
   if (redis) {
     return (await redis.get<CheckoutProgressSession>(transactionSessionKey)) ?? null;
+  }
+
+  if (!fallbackCheckoutStore) {
+    throw new HttpError(503, 'Booking session persistence unavailable');
   }
 
   purgeExpiredFallbackEntries();
@@ -210,6 +231,10 @@ export async function getCheckoutProgressSessionByPrebookId(
       return null;
     }
     return getCheckoutProgressSessionByTransactionId(transactionId);
+  }
+
+  if (!fallbackCheckoutPrebookIndex) {
+    throw new HttpError(503, 'Booking session persistence unavailable');
   }
 
   purgeExpiredFallbackEntries();

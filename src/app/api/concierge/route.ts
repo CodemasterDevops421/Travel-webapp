@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
+import { assertSameOrigin } from '@/server/csrf';
 import { getClientIp } from '@/server/request';
 import { runConciergeChat } from '@/server/concierge';
 import { toHttpError } from '@/server/errors';
@@ -27,6 +28,7 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const clientIp = getClientIp(request);
     await assertRateLimit(`concierge:${clientIp}`);
 

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
+import { assertSameOrigin } from '@/server/csrf';
 import { HttpError, toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
 import { assertBookingApiAuthorized } from '@/server/authz';
@@ -59,6 +60,7 @@ async function forwardToSupportBridge(packet: Record<string, unknown>): Promise<
 export async function POST(request: NextRequest) {
   try {
     assertProductionReadiness();
+    assertSameOrigin(request);
     await assertRateLimit(`support-liteapi:${getClientIp(request)}`);
 
     const body = requestSchema.parse(await request.json());
