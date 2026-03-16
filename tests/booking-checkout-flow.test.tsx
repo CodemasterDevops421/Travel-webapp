@@ -86,9 +86,10 @@ describe('booking checkout return flow', () => {
   });
 
   it('keeps multi-night stay cost separate from estimated taxes and fees', () => {
-    expect(bookingConsoleSource).toContain('const nightlyRate = Number(liveValues.amount || 0);');
-    expect(bookingConsoleSource).toContain('const staySubtotal = Math.max(nightlyRate * (nights ?? 1) * Math.max(liveValues.rooms, 1), 0);');
-    expect(bookingConsoleSource).toContain('const estimatedTaxesAndFees = Math.max(totalAmount - staySubtotal, 0);');
+    expect(bookingConsoleSource).toContain('const quotedStayTotal = Number(liveValues.amount || 0);');
+    expect(bookingConsoleSource).toContain('const staySubtotal = quotedStayTotal; // already the full stay price');
+    expect(bookingConsoleSource).toContain('const estimatedTaxesAndFees = prebook ? Math.max(totalAmount - staySubtotal, 0) : 0;');
+    expect(bookingConsoleSource).toContain('Average per night');
     expect(bookingConsoleSource).toContain('Room subtotal');
     expect(bookingConsoleSource).toContain('Estimated taxes and fees');
     expect(bookingConsoleSource).not.toContain('Selected stay');
