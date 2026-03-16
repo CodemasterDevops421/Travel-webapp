@@ -4,101 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { normalizeCurrency, normalizeLanguage } from '@/shared/lib/preferences';
 
-type CheckoutSessionPayload = {
-  prebookId: string;
-  clientReference: string;
-  quoteId: string | null;
-  sessionSignature: string;
-  quoteSignature: string;
-  updatedAt: string;
-  holder: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-  quote: {
-    hotelId: string;
-    roomId: string;
-    baseAmount: number;
-    totalAmount: number;
-    currency: string;
-    signature: string;
-  };
-  guests: Array<{
-    occupancyNumber: number;
-    firstName: string;
-    lastName: string;
-  }>;
-};
-
-function checkoutStorageKey(transactionId: string): string {
-  return `booking:checkout:${transactionId}`;
-}
-
-function isCheckoutSessionPayload(value: unknown): value is CheckoutSessionPayload {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<CheckoutSessionPayload>;
-  if (typeof candidate.prebookId !== 'string') return false;
-  if (typeof candidate.clientReference !== 'string') return false;
-  if (typeof candidate.sessionSignature !== 'string') return false;
-  if (typeof candidate.quoteSignature !== 'string') return false;
-  if (!candidate.holder || typeof candidate.holder !== 'object') return false;
-  if (!candidate.quote || typeof candidate.quote !== 'object') return false;
-  if (typeof candidate.quote.signature !== 'string') return false;
-  if (!Array.isArray(candidate.guests) || candidate.guests.length < 1) return false;
-  return true;
-}
-
-function removeFromStorage(storage: Storage, key: string): void {
-  try {
-    storage.removeItem(key);
-  } catch {
-    // Ignore clear failures to avoid blocking booking finalization flow.
-  }
-}
-
-function readCheckoutSession(transactionId: string): CheckoutSessionPayload | null {
-  const key = checkoutStorageKey(transactionId);
-  const stores: Storage[] = [sessionStorage, localStorage];
-
-  for (const storage of stores) {
-    let raw: string | null = null;
-    try {
-      raw = storage.getItem(key);
-    } catch {
-      continue;
-    }
-    if (!raw) continue;
-
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (isCheckoutSessionPayload(parsed)) {
-        return parsed;
-      }
-      removeFromStorage(storage, key);
-    } catch {
-      removeFromStorage(storage, key);
-    }
-  }
-
-  return null;
-}
-
-function isRecentCheckoutSession(updatedAt: string): boolean {
-  const parsed = Date.parse(updatedAt);
-  if (Number.isNaN(parsed)) {
-    return false;
-  }
-  const maxAgeMs = 2 * 60 * 60 * 1000;
-  return Date.now() - parsed <= maxAgeMs;
-}
-
-function clearCheckoutSession(transactionId: string): void {
-  const key = checkoutStorageKey(transactionId);
-  removeFromStorage(sessionStorage, key);
-  removeFromStorage(localStorage, key);
-}
-
 export function BookingReturnClient() {
   const params = useSearchParams();
   const router = useRouter();
@@ -128,30 +33,6 @@ export function BookingReturnClient() {
         return;
       }
 
-      const session = readCheckoutSession(transactionId);
-      if (!session) {
-        if (!active) return;
-        setStatus('error');
-        setMessage('Checkout session not found. Please restart booking.');
-        return;
-      }
-
-      if (session.prebookId !== prebookId) {
-        clearCheckoutSession(transactionId);
-        if (!active) return;
-        setStatus('error');
-        setMessage('Checkout session mismatch. Please restart booking.');
-        return;
-      }
-
-      if (!isRecentCheckoutSession(session.updatedAt)) {
-        clearCheckoutSession(transactionId);
-        if (!active) return;
-        setStatus('error');
-        setMessage('Checkout session expired. Please restart booking.');
-        return;
-      }
-
       const requestKey = `${prebookId}:${transactionId}`;
       if (finalizedRequestRef.current === requestKey) {
         return;
@@ -164,14 +45,7 @@ export function BookingReturnClient() {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             prebookId,
-            transactionId,
-            clientReference: session.clientReference,
-            quoteId: session.quoteId,
-            sessionSignature: session.sessionSignature,
-            quoteSignature: session.quoteSignature,
-            quote: session.quote,
-            holder: session.holder,
-            guests: session.guests
+            transactionId
           })
         });
         const json = await response.json();
@@ -189,12 +63,7 @@ export function BookingReturnClient() {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
               transactionId,
-              prebookId,
-              clientReference: session.clientReference,
-              quoteId: session.quoteId,
-              quoteSignature: session.quoteSignature,
-              sessionSignature: session.sessionSignature,
-              holderEmail: session.holder.email
+              prebookId
             })
           });
           const statusJson = await statusResponse.json();
@@ -203,18 +72,18 @@ export function BookingReturnClient() {
           }
 
           if (statusJson.outcome === 'confirmed') {
-            clearCheckoutSession(transactionId);
-            if (statusJson.localBookingId && statusJson.bookingViewToken) {
-              const bookingParams = new URLSearchParams({
-                viewToken: String(statusJson.bookingViewToken)
-              });
+            if (statusJson.localBookingId) {
+              const bookingParams = new URLSearchParams();
               if (language) {
                 bookingParams.set('language', language);
               }
               if (currency) {
                 bookingParams.set('currency', currency);
               }
-              const bookingUrl = `/bookings/${encodeURIComponent(statusJson.localBookingId)}?${bookingParams.toString()}`;
+              const query = bookingParams.toString();
+              const bookingUrl = query
+                ? `/bookings/${encodeURIComponent(statusJson.localBookingId)}?${query}`
+                : `/bookings/${encodeURIComponent(statusJson.localBookingId)}`;
               router.replace(bookingUrl as never);
               return;
             }

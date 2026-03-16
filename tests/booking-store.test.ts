@@ -94,6 +94,20 @@ describe('booking prebook session fallback store', () => {
       sessionSignature: 'session-signature-1',
       quoteSignature: 'quote-signature-1',
       holderEmail: 'traveler@example.com',
+      holder: {
+        firstName: 'Test',
+        lastName: 'Traveler',
+        email: 'traveler@example.com'
+      },
+      guests: [{ occupancyNumber: 1, firstName: 'Test', lastName: 'Traveler' }],
+      quote: {
+        hotelId: 'h1',
+        roomId: 'r1',
+        baseAmount: 100,
+        totalAmount: 112,
+        currency: 'USD',
+        signature: 'quote-signature-1'
+      },
       state: 'awaiting_confirmation',
       updatedAt: new Date().toISOString()
     });

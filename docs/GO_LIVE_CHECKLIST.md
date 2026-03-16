@@ -28,6 +28,32 @@ Evidence to capture:
 - command output or deployment logs showing production config validation passes
 - confirmation that the target deployment URL is publicly reachable
 
+## 2.1) Migration and RLS Gate
+
+Goal: prove the DB schema and row-level access controls are safe before public traffic.
+
+Required migrations present in target environment:
+- `supabase/migrations/20260316_booking_transaction_id_integrity.sql`
+- `supabase/migrations/20260316_enable_rls_and_access_policies.sql`
+
+Required checks:
+- `transaction_id` exists on `public.bookings`
+- unique index exists for non-null `transaction_id`
+- RLS is enabled on booking/payment/admin-sensitive tables
+- at least one active admin exists in `public.admin_users`
+- booking ownership data exists for current flows (`user_id` and/or `metadata->holder->email`)
+
+Evidence to capture:
+- `supabase migration list` output from target environment
+- output from `psql "$SUPABASE_DB_URL" -f scripts/verify-rls-gate.sql`
+- SQL output proving `rowsecurity = true` on protected tables
+- SQL output proving expected policies exist in `pg_policies`
+- staging smoke-test evidence for booking owner access and admin access after RLS rollout
+
+Rollback readiness:
+- operator has the RLS rollback SQL from `docs/DB_RUNBOOK.md`
+- operator knows how to detect `42501` / permission-denied failures in logs immediately after deploy
+
 ## 3) Live Webhook Proof (LiteAPI Primary, Post-Deploy)
 
 Goal: prove deployed `/api/webhooks/liteapi` accepts valid signatures in real runtime.

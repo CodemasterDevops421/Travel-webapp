@@ -69,8 +69,8 @@ describe('booking repository fallback mode', () => {
 
     expect(id1).toBeTypeOf('string');
     expect(id2).toBeTypeOf('string');
-    expect(createAdminClient).toHaveBeenCalledTimes(1);
-    expect(loggerWarn).toHaveBeenCalledTimes(1);
+    expect(createAdminClient).toHaveBeenCalledTimes(2);
+    expect(loggerWarn).toHaveBeenCalledTimes(2);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -116,8 +116,8 @@ describe('booking repository fallback mode', () => {
       transactionId: 'txn-1',
       source: 'webhook'
     });
-    expect(createAdminClient).toHaveBeenCalledTimes(1);
-    expect(loggerWarn).toHaveBeenCalledTimes(1);
+    expect(createAdminClient).toHaveBeenCalledTimes(2);
+    expect(loggerWarn).toHaveBeenCalledTimes(2);
   });
 
   it('falls back for quote persistence after schema-missing error and skips further Supabase quote writes', async () => {
@@ -207,8 +207,8 @@ describe('booking repository fallback mode', () => {
     const id = await repo.persistBooking(buildBookingInput());
 
     expect(id).toBeNull();
-    expect(createAdminClient).toHaveBeenCalledTimes(1);
-    expect(loggerWarn).toHaveBeenCalledTimes(1);
+    expect(createAdminClient).toHaveBeenCalledTimes(2);
+    expect(loggerWarn).toHaveBeenCalledTimes(2);
     expect(loggerError).not.toHaveBeenCalled();
   });
 
@@ -246,7 +246,7 @@ describe('booking repository fallback mode', () => {
 
     expect(updated).toBe(false);
     expect(booking?.status).toBe('pending');
-    expect(loggerWarn).toHaveBeenCalledTimes(2);
+    expect(loggerWarn).toHaveBeenCalledTimes(3);
   });
 
   it('updates canonical booking fields on valid transitions', async () => {

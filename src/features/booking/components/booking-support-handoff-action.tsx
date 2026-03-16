@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 
 type BookingSupportHandoffActionProps = {
   bookingId: string;
-  viewToken: string;
+  viewToken?: string | null;
 };
 
 type SupportState = 'idle' | 'submitting' | 'success' | 'error';
@@ -21,7 +21,7 @@ type SupportResponse = {
   };
 };
 
-export function BookingSupportHandoffAction({ bookingId, viewToken }: BookingSupportHandoffActionProps) {
+export function BookingSupportHandoffAction({ bookingId, viewToken = null }: BookingSupportHandoffActionProps) {
   const [state, setState] = useState<SupportState>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const [responseData, setResponseData] = useState<SupportResponse | null>(null);
@@ -31,12 +31,12 @@ export function BookingSupportHandoffAction({ bookingId, viewToken }: BookingSup
     setMessage(null);
 
     try {
-      const response = await fetch('/api/support/liteapi', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-booking-view-token': viewToken
-        },
+        const response = await fetch('/api/support/liteapi', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            ...(viewToken ? { 'x-booking-view-token': viewToken } : {})
+          },
         body: JSON.stringify({
           bookingId,
           channel: 'chat',

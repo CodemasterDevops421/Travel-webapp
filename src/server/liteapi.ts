@@ -291,6 +291,22 @@ type DetailedFetchResult<T> = {
   bodySnippet: string | null;
 };
 
+type SupplierCircuitState = {
+  consecutiveFailures: number;
+  openedUntil: number | null;
+};
+
+type SupplierRequestOptions = {
+  circuitKey: string;
+  retries?: number;
+  retryDelayMs?: number;
+  timeoutMs?: number;
+};
+
+const SUPPLIER_CIRCUIT_FAILURE_THRESHOLD = 3;
+const SUPPLIER_CIRCUIT_OPEN_MS = 30_000;
+const supplierCircuitStates = new Map<string, SupplierCircuitState>();
+
 function isTimeoutLikeError(error: unknown): boolean {
   return error instanceof Error && (error.name === 'AbortError' || /timeout|aborted/i.test(error.message));
 }
@@ -303,6 +319,119 @@ function safeSnippet(value: unknown, maxLength = 1200): string {
   } catch {
     return '[unserializable]';
   }
+}
+
+function getSupplierCircuitState(circuitKey: string): SupplierCircuitState {
+  const existing = supplierCircuitStates.get(circuitKey);
+  if (existing) {
+    if (existing.openedUntil !== null && existing.openedUntil <= Date.now()) {
+      const resetState = { consecutiveFailures: 0, openedUntil: null };
+      supplierCircuitStates.set(circuitKey, resetState);
+      return resetState;
+    }
+    return existing;
+  }
+
+  const initialState = { consecutiveFailures: 0, openedUntil: null };
+  supplierCircuitStates.set(circuitKey, initialState);
+  return initialState;
+}
+
+function markSupplierRequestSuccess(circuitKey: string): void {
+  supplierCircuitStates.set(circuitKey, { consecutiveFailures: 0, openedUntil: null });
+}
+
+function markSupplierRequestFailure(circuitKey: string): void {
+  const state = getSupplierCircuitState(circuitKey);
+  const consecutiveFailures = state.consecutiveFailures + 1;
+  const openedUntil = consecutiveFailures >= SUPPLIER_CIRCUIT_FAILURE_THRESHOLD
+    ? Date.now() + SUPPLIER_CIRCUIT_OPEN_MS
+    : null;
+
+  supplierCircuitStates.set(circuitKey, { consecutiveFailures, openedUntil });
+}
+
+function shouldRetrySupplierResponse(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+function isSupplierCircuitOpen(circuitKey: string): boolean {
+  const state = getSupplierCircuitState(circuitKey);
+  return state.openedUntil !== null && state.openedUntil > Date.now();
+}
+
+async function waitForRetry(delayMs: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+async function fetchSupplierResponse(
+  url: string,
+  init: RequestInit | undefined,
+  options: SupplierRequestOptions
+): Promise<Response> {
+  const retries = options.retries ?? 2;
+  const retryDelayMs = options.retryDelayMs ?? 250;
+  const timeoutMs = Math.max(1_000, options.timeoutMs ?? env.LITEAPI_TIMEOUT_MS);
+
+  if (isSupplierCircuitOpen(options.circuitKey)) {
+    throw new HttpError(503, 'Supplier temporarily unavailable. Please retry shortly.');
+  }
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    try {
+      const controller = new AbortController();
+      timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+      const response = await fetch(url, {
+        ...init,
+        signal: init?.signal ?? controller.signal
+      });
+
+      if (response.ok) {
+        markSupplierRequestSuccess(options.circuitKey);
+        return response;
+      }
+
+      const retryable = shouldRetrySupplierResponse(response.status);
+      if (retryable) {
+        markSupplierRequestFailure(options.circuitKey);
+      } else {
+        markSupplierRequestSuccess(options.circuitKey);
+      }
+
+      if (retryable && attempt < retries) {
+        await waitForRetry(retryDelayMs * (attempt + 1));
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      markSupplierRequestFailure(options.circuitKey);
+      if (attempt < retries) {
+        await waitForRetry(retryDelayMs * (attempt + 1));
+        continue;
+      }
+      throw error;
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
+  }
+
+  throw new HttpError(503, 'Supplier temporarily unavailable. Please retry shortly.');
+}
+
+export async function __unsafeFetchSupplierResponseForTests(
+  url: string,
+  init: RequestInit | undefined,
+  options: SupplierRequestOptions
+): Promise<Response> {
+  return fetchSupplierResponse(url, init, options);
+}
+
+export function __unsafeResetLiteApiCircuitBreakerForTests(): void {
+  supplierCircuitStates.clear();
 }
 
 async function fetchJsonWithBackoffDetailed<T>(
@@ -1154,7 +1283,7 @@ async function fetchReviewEnrichmentFromRates(
 } | null> {
   try {
     const stayWindow = nextStayWindow();
-    const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
+    const response = await fetchSupplierResponse(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
       headers: {
         accept: 'application/json',
@@ -1173,7 +1302,7 @@ async function fetchReviewEnrichmentFromRates(
         maxRatesPerHotel: 1
       }),
       next: { revalidate: 300 }
-    });
+    }, { circuitKey: 'liteapi:rates:review-enrichment', retries: 1 });
 
     if (!response.ok) {
       logger.warn({ hotelId, status: response.status }, 'LiteAPI review enrichment request failed');
@@ -1340,7 +1469,7 @@ async function fetchPhotoEnrichmentFromRates(
 ): Promise<string[]> {
   try {
     const stayWindow = nextStayWindow();
-    const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
+    const response = await fetchSupplierResponse(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
       headers: {
         accept: 'application/json',
@@ -1359,7 +1488,7 @@ async function fetchPhotoEnrichmentFromRates(
         maxRatesPerHotel: 6
       }),
       next: { revalidate: 300 }
-    });
+    }, { circuitKey: 'liteapi:rates:photo-enrichment', retries: 1 });
 
     if (!response.ok) {
       return [];
@@ -2159,7 +2288,7 @@ export async function searchPropertyPreviews(
 
 export async function prebookRate(offerId: string): Promise<LiteApiPrebookResponse> {
   const runtime = await resolveLiteApiRuntimeConfig();
-  const response = await fetch(`${runtime.bookBaseUrl}/rates/prebook`, {
+  const response = await fetchSupplierResponse(`${runtime.bookBaseUrl}/rates/prebook`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
@@ -2171,7 +2300,7 @@ export async function prebookRate(offerId: string): Promise<LiteApiPrebookRespon
       usePaymentSdk: true
     }),
     cache: 'no-store'
-  });
+  }, { circuitKey: 'liteapi:book:prebook', retries: 2 });
 
   if (!response.ok) {
     const body = await response.text();
@@ -2208,7 +2337,7 @@ type BookPayload = {
 
 export async function bookRate(payload: BookPayload) {
   const runtime = await resolveLiteApiRuntimeConfig();
-  const response = await fetch(`${runtime.bookBaseUrl}/rates/book`, {
+  const response = await fetchSupplierResponse(`${runtime.bookBaseUrl}/rates/book`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
@@ -2226,7 +2355,7 @@ export async function bookRate(payload: BookPayload) {
       guests: payload.guests
     }),
     cache: 'no-store'
-  });
+  }, { circuitKey: 'liteapi:book:finalize', retries: 2 });
 
   if (!response.ok) {
     const body = await response.text();
@@ -2248,13 +2377,13 @@ export async function listBookings(params: { clientReference: string; timeoutSec
     url.searchParams.set('timeout', String(params.timeoutSeconds));
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await fetchSupplierResponse(url.toString(), {
     headers: {
       accept: 'application/json',
       'X-API-Key': runtime.apiKey
     },
     cache: 'no-store'
-  });
+  }, { circuitKey: 'liteapi:book:list', retries: 1 });
 
   if (response.status === 204) {
     return { data: [] };
@@ -2279,13 +2408,13 @@ export async function getBooking(params: { bookingId: string; timeoutSeconds?: n
     url.searchParams.set('timeout', String(params.timeoutSeconds));
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await fetchSupplierResponse(url.toString(), {
     headers: {
       accept: 'application/json',
       'X-API-Key': runtime.apiKey
     },
     cache: 'no-store'
-  });
+  }, { circuitKey: 'liteapi:book:get', retries: 1 });
 
   if (response.status === 204) {
     return null;
@@ -2310,14 +2439,14 @@ export async function cancelBooking(params: { bookingId: string; timeoutSeconds?
     url.searchParams.set('timeout', String(params.timeoutSeconds));
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await fetchSupplierResponse(url.toString(), {
     method: 'PUT',
     headers: {
       accept: 'application/json',
       'X-API-Key': runtime.apiKey
     },
     cache: 'no-store'
-  });
+  }, { circuitKey: 'liteapi:book:cancel', retries: 1 });
 
   if (response.status === 204) {
     return null;
@@ -2343,13 +2472,13 @@ export async function getHotelDetails(hotelId: string, language?: string, curren
 
   try {
     const runtime = await resolveLiteApiRuntimeConfig();
-    const response = await fetch(`${runtime.baseUrl}/data/hotel?hotelId=${encodeURIComponent(hotelId)}${language ? `&language=${encodeURIComponent(language)}` : ''}`, {
+    const response = await fetchSupplierResponse(`${runtime.baseUrl}/data/hotel?hotelId=${encodeURIComponent(hotelId)}${language ? `&language=${encodeURIComponent(language)}` : ''}`, {
       headers: {
         accept: 'application/json',
         'X-API-Key': runtime.apiKey
       },
       cache: 'no-store'
-    });
+    }, { circuitKey: 'liteapi:data:hotel-details', retries: 1 });
     if (!response.ok) {
       return null;
     }
@@ -2462,7 +2591,7 @@ export async function getGuestReviews(
     const seen = new Set<string>();
 
     for (let offset = 0; offset < hardCap; offset += chunkSize) {
-      const response = await fetch(
+      const response = await fetchSupplierResponse(
         `${activeRuntime.baseUrl}/data/reviews?hotelId=${encodeURIComponent(hotelId)}&limit=${chunkSize}&offset=${offset}`,
         {
           headers: {
@@ -2470,7 +2599,8 @@ export async function getGuestReviews(
             'X-API-Key': activeRuntime.apiKey
           },
           next: { revalidate: 3600 }
-        }
+        },
+        { circuitKey: 'liteapi:data:reviews', retries: 1 }
       );
 
       if (!response.ok) {
@@ -2571,7 +2701,7 @@ export async function getHotelRates(params: {
       ratePayload.additionalMarkup = params.additionalMarkup;
     }
 
-    const response = await fetch(`${runtime.baseUrl}/hotels/rates`, {
+    const response = await fetchSupplierResponse(`${runtime.baseUrl}/hotels/rates`, {
       method: 'POST',
       headers: {
         accept: 'application/json',
@@ -2580,7 +2710,7 @@ export async function getHotelRates(params: {
       },
       body: JSON.stringify(ratePayload),
       cache: 'no-store'
-    });
+    }, { circuitKey: 'liteapi:rates:hotel-details', retries: 1 });
     if (!response.ok) {
       logger.warn({ status: response.status }, 'LiteAPI hotel rates failed');
       return [];

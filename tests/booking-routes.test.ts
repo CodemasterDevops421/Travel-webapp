@@ -275,7 +275,8 @@ describe('booking route handlers', () => {
       bookRate
     }));
     vi.doMock('@/server/booking-store', () => ({
-      getPrebookSession: vi.fn().mockResolvedValue(null)
+      getPrebookSession: vi.fn().mockResolvedValue(null),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/booking-session', () => ({
       verifyCheckoutSessionSignature: vi.fn().mockReturnValue(false)
@@ -319,7 +320,8 @@ describe('booking route handlers', () => {
       bookRate
     }));
     vi.doMock('@/server/booking-store', () => ({
-      getPrebookSession: vi.fn().mockResolvedValue(null)
+      getPrebookSession: vi.fn().mockResolvedValue(null),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/booking-session', () => ({
       verifyCheckoutSessionSignature: vi.fn().mockReturnValue(true)
@@ -437,7 +439,8 @@ describe('booking route handlers', () => {
           currency: 'USD',
           signature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         }
-      })
+      }),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/pricing', () => ({
       verifyPriceQuoteSignature: vi.fn().mockReturnValue(true)
@@ -512,7 +515,8 @@ describe('booking route handlers', () => {
           currency: 'USD',
           signature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         }
-      })
+      }),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/pricing', () => ({
       verifyPriceQuoteSignature: vi.fn().mockReturnValue(true)
@@ -582,7 +586,8 @@ describe('booking route handlers', () => {
           currency: 'USD',
           signature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         }
-      })
+      }),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/pricing', () => ({
       verifyPriceQuoteSignature: vi.fn().mockReturnValue(true)
@@ -636,7 +641,8 @@ describe('booking route handlers', () => {
           currency: 'USD',
           signature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         }
-      })
+      }),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/pricing', () => ({
       verifyPriceQuoteSignature: vi.fn().mockReturnValue(true)

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
 import { assertSameOrigin } from '@/server/csrf';
 import { bookRate } from '@/server/liteapi';
-import { getPrebookSession } from '@/server/booking-store';
+import { getCheckoutProgressSessionByTransactionId, getPrebookSession } from '@/server/booking-store';
 import { HttpError, toHttpError } from '@/server/errors';
 import { persistBooking } from '@/server/booking/repository';
 import { verifyCheckoutSessionSignature } from '@/server/booking-session';
@@ -32,7 +32,7 @@ const requestSchema = z.object({
   clientReference: z.string().trim().min(1).optional(),
   quoteId: z.string().trim().min(1).nullable().optional(),
   sessionSignature: z.string().trim().min(32).optional(),
-  quoteSignature: z.string().trim().min(32),
+  quoteSignature: z.string().trim().min(32).optional(),
   quote: z.object({
     hotelId: z.string().trim().min(1),
     roomId: z.string().trim().min(1),
@@ -45,14 +45,14 @@ const requestSchema = z.object({
     firstName: z.string().trim().min(1),
     lastName: z.string().trim().min(1),
     email: z.string().trim().email()
-  }),
+  }).optional(),
   guests: z.array(
     z.object({
       occupancyNumber: z.number().int().positive(),
       firstName: z.string().trim().min(1),
       lastName: z.string().trim().min(1)
     })
-  ).min(1)
+  ).min(1).optional()
 });
 
 const supplierBookingSchema = z.object({
@@ -124,18 +124,32 @@ export async function POST(request: NextRequest) {
     }
 
     const storedSession = await getPrebookSession(payload.transactionId);
-    const recoveredSession = (
-      payload.clientReference && payload.sessionSignature && payload.quoteSignature
-        ? {
+    const checkoutProgress = await getCheckoutProgressSessionByTransactionId(payload.transactionId);
+    const recoveredSession = (() => {
+      if (checkoutProgress) {
+        return {
+          prebookId: checkoutProgress.prebookId,
+          transactionId: checkoutProgress.transactionId,
+          clientReference: checkoutProgress.clientReference,
+          quoteId: checkoutProgress.quoteId,
+          quoteSignature: checkoutProgress.quoteSignature,
+          createdAt: checkoutProgress.updatedAt
+        };
+      }
+
+      if (payload.clientReference && payload.sessionSignature && payload.quoteSignature) {
+        return {
           prebookId: payload.prebookId,
           transactionId: payload.transactionId,
           clientReference: payload.clientReference,
           quoteId: payload.quoteId ?? null,
           quoteSignature: payload.quoteSignature,
           createdAt: new Date().toISOString()
-        }
-        : null
-    );
+        };
+      }
+
+      return null;
+    })();
     const session = storedSession ?? recoveredSession;
     if (!session) {
       throw new HttpError(400, 'Prebook session expired');
@@ -145,6 +159,7 @@ export async function POST(request: NextRequest) {
       if (!recoveredSession) {
         throw new HttpError(400, 'Prebook session expired');
       }
+      const sessionSignature = checkoutProgress?.sessionSignature ?? payload.sessionSignature ?? '';
       const validSessionSignature = verifyCheckoutSessionSignature(
         {
           prebookId: payload.prebookId,
@@ -153,7 +168,7 @@ export async function POST(request: NextRequest) {
           quoteId: recoveredSession.quoteId,
           quoteSignature: recoveredSession.quoteSignature
         },
-        payload.sessionSignature ?? ''
+        sessionSignature
       );
       if (!validSessionSignature) {
         throw new HttpError(400, 'Invalid session signature');
@@ -164,19 +179,26 @@ export async function POST(request: NextRequest) {
       throw new HttpError(400, 'Prebook mismatch');
     }
 
-    const quoteToVerify: PriceQuote | null = storedSession?.quote ?? payload.quote ?? null;
+    const quoteSignature = payload.quoteSignature ?? checkoutProgress?.quoteSignature ?? null;
+    const quoteToVerify: PriceQuote | null = storedSession?.quote ?? checkoutProgress?.quote ?? payload.quote ?? null;
     if (!quoteToVerify) {
       throw new HttpError(400, 'Quote payload missing');
     }
-    if (quoteToVerify.signature !== payload.quoteSignature) {
+    if (!quoteSignature || quoteToVerify.signature !== quoteSignature) {
       throw new HttpError(400, 'Quote mismatch');
     }
     if (!verifyPriceQuoteSignature(quoteToVerify)) {
       throw new HttpError(400, 'Invalid quote signature');
     }
 
-    const safeHolder = sanitizeRecord(payload.holder);
-    const safeGuests = payload.guests.map((guest) => sanitizeRecord(guest));
+    const holderPayload = checkoutProgress?.holder ?? payload.holder;
+    const guestsPayload = checkoutProgress?.guests ?? payload.guests;
+    if (!holderPayload || !guestsPayload || guestsPayload.length < 1) {
+      throw new HttpError(400, 'Checkout traveler details missing');
+    }
+
+    const safeHolder = sanitizeRecord(holderPayload);
+    const safeGuests = guestsPayload.map((guest) => sanitizeRecord(guest));
 
     const supplierBooking = sanitizeUnknown(await bookRate({
       prebookId: payload.prebookId,
@@ -204,6 +226,7 @@ export async function POST(request: NextRequest) {
     const lifecycleStatus = 'pending';
     const localBookingId = await persistBooking({
       quoteId: session.quoteId,
+      userId: user.id,
       liteApiBookingId,
       status: lifecycleStatus,
       metadata: {

@@ -68,7 +68,8 @@ describe('booking finalize idempotency', () => {
           currency: 'USD',
           signature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         }
-      })
+      }),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/pricing', () => ({
       verifyPriceQuoteSignature: vi.fn().mockReturnValue(true)
@@ -117,7 +118,8 @@ describe('booking finalize idempotency', () => {
       saveFinalizedBookingResult: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking-store', () => ({
-      getPrebookSession: vi.fn()
+      getPrebookSession: vi.fn(),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/liteapi', () => ({
       bookRate: vi.fn()
@@ -157,7 +159,8 @@ describe('booking finalize idempotency', () => {
       saveFinalizedBookingResult: vi.fn().mockResolvedValue(undefined)
     }));
     vi.doMock('@/server/booking-store', () => ({
-      getPrebookSession: vi.fn()
+      getPrebookSession: vi.fn(),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/liteapi', () => ({
       bookRate: vi.fn()

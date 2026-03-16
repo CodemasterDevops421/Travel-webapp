@@ -3,6 +3,7 @@ import 'server-only';
 export type AdminReportEndpointId =
   | 'admin_reconciliation_get'
   | 'admin_reconciliation_export_get'
+  | 'admin_support_sla_get'
   | 'admin_support_operations_get'
   | 'admin_support_operations_patch';
 

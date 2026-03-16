@@ -109,7 +109,8 @@ describe('API security regression checks', () => {
           currency: 'USD',
           signature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         }
-      })
+      }),
+      getCheckoutProgressSessionByTransactionId: vi.fn().mockResolvedValue(null)
     }));
     vi.doMock('@/server/pricing', () => ({
       verifyPriceQuoteSignature: vi.fn().mockReturnValue(true)

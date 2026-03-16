@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { assertSameOrigin } from '@/server/csrf';
 import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
 import { getClientIp, sanitizeRecord } from '@/server/request';
+import { getActivePromoCode } from '@/server/promo';
 
 const promoSchema = z.object({
     code: z.string().trim().min(1).max(50),
@@ -38,27 +39,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Promo code is required' }, { status: 400 });
         }
 
-        const normalizedCode = code.trim().toUpperCase();
-
-        const { data: promo, error } = await supabase
-            .from('promo_codes')
-            .select('*')
-            .eq('code', normalizedCode)
-            .eq('is_active', true)
-            .single();
-
-        if (error || !promo) {
+        const promo = await getActivePromoCode(supabase, code);
+        if (!promo) {
             return NextResponse.json({ error: 'Invalid or expired promo code' }, { status: 404 });
-        }
-
-        // Check expiration
-        if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
-            return NextResponse.json({ error: 'This promo code has expired' }, { status: 410 });
-        }
-
-        // Check usage limits
-        if (promo.max_uses !== null && promo.current_uses >= promo.max_uses) {
-            return NextResponse.json({ error: 'This promo code has reached its usage limit' }, { status: 410 });
         }
 
         let newQuote = null;

@@ -47,6 +47,13 @@ describe('booking support handoff route', () => {
         })
       };
     });
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({ data: { user: null } })
+        }
+      })
+    }));
     vi.doMock('@/server/booking/repository', () => ({
       getBookingById,
       updateBookingStatusById
@@ -99,6 +106,13 @@ describe('booking support handoff route', () => {
         })
       };
     });
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({ data: { user: null } })
+        }
+      })
+    }));
     vi.doMock('@/server/booking/repository', () => ({
       getBookingById: vi.fn(),
       updateBookingStatusById: vi.fn()
@@ -113,8 +127,8 @@ describe('booking support handoff route', () => {
     const response = await POST(request as never);
     const body = await response.json();
 
-    expect(response.status).toBe(401);
-    expect(body.error).toMatch(/unauthorized/i);
+    expect(response.status).toBe(404);
+    expect(body.error).toMatch(/booking not found/i);
   });
 
   it('auto-forwards support packet when support bridge is configured', async () => {
@@ -152,6 +166,13 @@ describe('booking support handoff route', () => {
         })
       };
     });
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({ data: { user: null } })
+        }
+      })
+    }));
     vi.doMock('@/server/booking/repository', () => ({
       getBookingById,
       updateBookingStatusById

@@ -5,9 +5,11 @@ import { assertRateLimit } from '@/server/ratelimit';
 import { HttpError, toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
 import { assertBookingApiAuthorized } from '@/server/authz';
+import { canAccessBooking } from '@/server/booking-access';
 import { assertProductionReadiness, env } from '@/server/env';
 import { getBookingById, updateBookingStatusById } from '@/server/booking/repository';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
+import { createServerSupabaseClient } from '@/server/supabase/server';
 
 const requestSchema = z.object({
   bookingId: z.string().trim().min(1),
@@ -63,6 +65,10 @@ export async function POST(request: NextRequest) {
     const bookingViewToken = request.headers.get('x-booking-view-token');
     const tokenAuthorized = typeof bookingViewToken === 'string'
       && verifyBookingViewToken({ bookingId: body.bookingId, token: bookingViewToken });
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
 
     let apiAuthorized = false;
     try {
@@ -72,13 +78,14 @@ export async function POST(request: NextRequest) {
       apiAuthorized = false;
     }
 
-    if (!apiAuthorized && !tokenAuthorized) {
-      throw new HttpError(401, 'Unauthorized booking API request.');
-    }
-
     const booking = await getBookingById(body.bookingId);
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    const ownerAuthorized = canAccessBooking(user, booking);
+    if (!apiAuthorized && !tokenAuthorized && !ownerAuthorized) {
+      throw new HttpError(401, 'Unauthorized booking API request.');
     }
 
     const supportRequestId = `liteapi-support-${randomUUID()}`;

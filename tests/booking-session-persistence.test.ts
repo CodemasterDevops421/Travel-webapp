@@ -7,14 +7,22 @@ describe('booking checkout session persistence', () => {
     resolve(process.cwd(), 'src/features/booking/components/booking-console.tsx'),
     'utf8'
   );
+  const bookingReturnSource = readFileSync(
+    resolve(process.cwd(), 'src/app/booking/return/booking-return-client.tsx'),
+    'utf8'
+  );
 
-  it('preserves guest payload in local fallback session storage for return recovery', () => {
-    expect(bookingConsoleSource).toContain('const localPayload: CheckoutSessionPayload');
-    expect(bookingConsoleSource).toContain('guests: payload.guests');
-    expect(bookingConsoleSource).not.toContain('guests: []');
+  it('stores checkout recovery payload on the server before payment launch', () => {
+    expect(bookingConsoleSource).toContain("fetch('/api/booking/checkout-progress'");
+    expect(bookingConsoleSource).toContain('guests: guestsPayload');
+    expect(bookingConsoleSource).toContain('quote: activePrebook.quote');
   });
 
-  it('preserves holder identity for booking return finalization payload', () => {
-    expect(bookingConsoleSource).not.toContain("holder: {\n      firstName: '',\n      lastName: '',\n      email: ''\n    }");
+  it('does not read checkout secrets or traveler data from browser storage on return', () => {
+    expect(bookingReturnSource).not.toContain('sessionStorage');
+    expect(bookingReturnSource).not.toContain('localStorage');
+    expect(bookingReturnSource).toContain('body: JSON.stringify({');
+    expect(bookingReturnSource).toContain('prebookId,');
+    expect(bookingReturnSource).toContain('transactionId');
   });
 });

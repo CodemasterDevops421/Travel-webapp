@@ -33,6 +33,17 @@ export type CheckoutProgressSession = {
   sessionSignature: string;
   quoteSignature: string;
   holderEmail: string;
+  holder: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  guests: Array<{
+    occupancyNumber: number;
+    firstName: string;
+    lastName: string;
+  }>;
+  quote: PriceQuote;
   state: CheckoutProgressState;
   updatedAt: string;
 };

@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assertRateLimit } from '@/server/ratelimit';
 import { assertSameOrigin } from '@/server/csrf';
-import { buildPriceQuoteExact } from '@/server/pricing';
+import { applyPromoDiscount, buildPriceQuoteExact } from '@/server/pricing';
 import { prebookRate } from '@/server/liteapi';
 import { savePrebookSession } from '@/server/booking-store';
 import { HttpError, toHttpError } from '@/server/errors';
 import { persistQuote } from '@/server/booking/repository';
 import { signCheckoutSession } from '@/server/booking-session';
 import { logger, logStructuredEvent } from '@/server/logger';
+import { getActivePromoCode } from '@/server/promo';
 import { getRequestContext, parseRequestBody, sanitizeUnknown } from '@/server/request';
 import { assertProductionReadiness } from '@/server/env';
 import { createServerSupabaseClient } from '@/server/supabase/server';
@@ -17,6 +18,7 @@ const requestSchema = z.object({
   hotelId: z.string().trim().min(1),
   roomId: z.string().trim().min(1),
   offerId: z.string().trim().min(1),
+  promoCode: z.string().trim().min(1).max(50).optional(),
   checkIn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkOut: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   guests: z.array(
@@ -104,12 +106,23 @@ export async function POST(request: NextRequest) {
       throw new HttpError(502, 'Supplier prebook payload is invalid');
     }
     const prebook = parsedPrebook.data;
-    const quote = buildPriceQuoteExact({
+    const baseQuote = buildPriceQuoteExact({
       hotelId: payload.hotelId,
       roomId: payload.roomId,
       amount: prebook.price,
       currency: prebook.currency.toUpperCase()
     });
+    let quote = baseQuote;
+    let promo = null;
+
+    if (payload.promoCode) {
+      promo = await getActivePromoCode(supabase, payload.promoCode);
+      if (!promo) {
+        return NextResponse.json({ error: 'Invalid or expired promo code' }, { status: 404 });
+      }
+      quote = applyPromoDiscount(baseQuote, promo.discount_percent);
+    }
+
     const clientReference = createClientReference({
       hotelId: payload.hotelId,
       roomId: payload.roomId,
@@ -119,7 +132,8 @@ export async function POST(request: NextRequest) {
       quote,
       checkIn: payload.checkIn,
       checkOut: payload.checkOut,
-      guests: payload.guests
+      guests: payload.guests,
+      userId: user.id
     });
     if (!quoteId) {
       logger.warn({ correlationId }, 'Booking quote persistence unavailable; continuing with signed session only.');
@@ -151,7 +165,8 @@ export async function POST(request: NextRequest) {
         correlationId,
         prebookId: prebook.prebookId,
         transactionId: prebook.transactionId,
-        quoteId
+        quoteId,
+        promoCode: promo?.code ?? null
       },
       'Prebook session created'
     );
@@ -161,7 +176,8 @@ export async function POST(request: NextRequest) {
       module: 'booking.prebook',
       prebook_id: prebook.prebookId,
       transaction_id: prebook.transactionId,
-      quote_id: quoteId
+      quote_id: quoteId,
+      promo_code: promo?.code ?? null
     });
 
     const responsePayload = clientPrebookResponseSchema.parse({

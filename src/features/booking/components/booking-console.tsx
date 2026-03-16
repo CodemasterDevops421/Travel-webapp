@@ -66,35 +66,6 @@ type BookingConsoleProps = {
   preferredCurrency?: string;
 };
 
-type CheckoutSessionPayload = {
-  clientReference: string;
-  quoteId: string | null;
-  sessionSignature: string;
-  quoteSignature: string;
-  prebookId: string;
-  state: 'payment_initiated' | 'awaiting_confirmation';
-  formValues: FormValues;
-  updatedAt: string;
-  holder: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-  quote: {
-    hotelId: string;
-    roomId: string;
-    baseAmount: number;
-    totalAmount: number;
-    currency: string;
-    signature: string;
-  };
-  guests: Array<{
-    occupancyNumber: number;
-    firstName: string;
-    lastName: string;
-  }>;
-};
-
 type CheckoutDraft = Pick<
   FormValues,
   | 'hotelId'
@@ -115,7 +86,6 @@ type CheckoutDraft = Pick<
   | 'roomName'
   | 'boardName'
   | 'roomImage'
-  | 'phone'
 >;
 
 const PAYMENT_SCRIPT_URL = 'https://payment-wrapper.liteapi.travel/dist/liteAPIPayment.js?v=a1';
@@ -123,54 +93,6 @@ const PAYMENT_SCRIPT_ID = 'liteapi-payment-sdk';
 const CHECKOUT_DRAFT_STORAGE_KEY = 'booking:checkout:draft';
 
 type CheckoutStep = 'guest_details' | 'payment' | 'confirmation';
-
-function checkoutStorageKey(transactionId: string) {
-  return `booking:checkout:${transactionId}`;
-}
-
-function parseStoredCheckoutPayload(raw: string): CheckoutSessionPayload | null {
-  try {
-    const parsed = JSON.parse(raw) as CheckoutSessionPayload;
-    if (!parsed || typeof parsed !== 'object') return null;
-    if (typeof parsed.clientReference !== 'string') return null;
-    if (typeof parsed.sessionSignature !== 'string') return null;
-    if (typeof parsed.quoteSignature !== 'string') return null;
-    if (typeof parsed.prebookId !== 'string') return null;
-    if (parsed.state !== 'payment_initiated' && parsed.state !== 'awaiting_confirmation') return null;
-    if (!parsed.formValues || typeof parsed.formValues !== 'object') return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function loadLatestCheckoutSession(): CheckoutSessionPayload | null {
-  const pickLatestFromStorage = (storage: Storage): CheckoutSessionPayload | null => {
-    let latest: CheckoutSessionPayload | null = null;
-    for (let idx = 0; idx < storage.length; idx += 1) {
-      const key = storage.key(idx);
-      if (!key || !key.startsWith('booking:checkout:')) continue;
-      const raw = storage.getItem(key);
-      if (!raw) continue;
-      const parsed = parseStoredCheckoutPayload(raw);
-      if (!parsed) continue;
-      if (!latest) {
-        latest = parsed;
-        continue;
-      }
-      const latestTime = Date.parse(latest.updatedAt);
-      const parsedTime = Date.parse(parsed.updatedAt);
-      if (Number.isNaN(latestTime) || parsedTime > latestTime) {
-        latest = parsed;
-      }
-    }
-    return latest;
-  };
-
-  const sessionRecord = pickLatestFromStorage(sessionStorage);
-  if (sessionRecord) return sessionRecord;
-  return pickLatestFromStorage(localStorage);
-}
 
 function loadCheckoutDraft(): Partial<FormValues> | null {
   try {
@@ -211,8 +133,7 @@ function persistCheckoutDraft(values: FormValues): void {
     starRating: values.starRating,
     roomName: values.roomName,
     boardName: values.boardName,
-    roomImage: values.roomImage,
-    phone: values.phone
+    roomImage: values.roomImage
   };
   saveToStorage(localStorage, CHECKOUT_DRAFT_STORAGE_KEY, JSON.stringify(draft));
 }
@@ -227,25 +148,6 @@ function buildPrebookGuests(adults: number, rooms: number): Array<{ adults: numb
   return Array.from({ length: roomCount }, (_, idx) => ({
     adults: baseAdultsPerRoom + (idx < remainder ? 1 : 0)
   }));
-}
-
-function saveCheckoutSession(transactionId: string, payload: CheckoutSessionPayload): void {
-  const key = checkoutStorageKey(transactionId);
-  const encodedSession = JSON.stringify(payload);
-  saveToStorage(sessionStorage, key, encodedSession);
-
-  const localPayload: CheckoutSessionPayload = {
-    ...payload,
-    guests: payload.guests,
-    formValues: {
-      ...payload.formValues,
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: ''
-    }
-  };
-  saveToStorage(localStorage, key, JSON.stringify(localPayload));
 }
 
 async function ensurePaymentScriptLoaded(): Promise<void> {
@@ -319,6 +221,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [promoDiscount, setPromoDiscount] = useState<number | null>(null);
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
   const [promoError, setPromoError] = useState('');
   const [promoLoading, setPromoLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -387,19 +290,9 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
         roomName: initialValues?.roomName ?? draft.roomName ?? '',
         boardName: initialValues?.boardName ?? draft.boardName ?? '',
         roomImage: initialValues?.roomImage ?? draft.roomImage ?? '',
-        phone: initialValues?.phone ?? draft.phone ?? ''
+        phone: initialValues?.phone ?? ''
       });
     }
-
-    const latestSession = loadLatestCheckoutSession();
-    if (!latestSession || latestSession.state !== 'awaiting_confirmation') {
-      return;
-    }
-    form.reset({
-      ...form.getValues(),
-      ...latestSession.formValues
-    });
-    setCheckoutStep('confirmation');
   }, [
     form,
     initialValues?.boardName,
@@ -478,7 +371,10 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
   // NOT a per-night figure — do not multiply by nights or rooms.
   const quotedStayTotal = Number(liveValues.amount || 0);
   const currency = (liveValues.currency || 'USD').toUpperCase();
-  const totalAmount = prebook?.quote.totalAmount ?? quotedStayTotal;
+  const promoPreviewTotal = promoDiscount
+    ? Math.max(0, Math.floor(quotedStayTotal * (1 - (promoDiscount / 100))))
+    : quotedStayTotal;
+  const totalAmount = prebook?.quote.totalAmount ?? promoPreviewTotal;
   const staySubtotal = quotedStayTotal; // already the full stay price
   // Only show taxes line when prebook returns a confirmed total that differs from the quoted amount.
   const estimatedTaxesAndFees = prebook ? Math.max(totalAmount - staySubtotal, 0) : 0;
@@ -530,6 +426,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
           hotelId: values.hotelId,
           roomId: values.roomId,
           offerId: values.offerId,
+          ...(appliedPromoCode ? { promoCode: appliedPromoCode } : {}),
           checkIn: values.checkIn,
           checkOut: values.checkOut,
           guests: buildPrebookGuests(values.adults, values.rooms)
@@ -572,25 +469,34 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
       lastName: values.lastName
     }));
 
-    const checkoutSession: CheckoutSessionPayload = {
-      clientReference: activePrebook.clientReference,
-      quoteId: activePrebook.quoteId,
-      sessionSignature: activePrebook.sessionSignature,
-      quoteSignature: activePrebook.quote.signature,
-      prebookId: activePrebook.prebookId,
-      state: 'awaiting_confirmation',
-      formValues: values,
-      updatedAt: new Date().toISOString(),
-      holder: {
-        firstName: values.firstName,
-        lastName: values.lastName,
-        email: values.email
-      },
-      quote: activePrebook.quote,
-      guests: guestsPayload
-    };
+    const progressResponse = await fetch('/api/booking/checkout-progress', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        prebookId: activePrebook.prebookId,
+        transactionId: activePrebook.transactionId,
+        clientReference: activePrebook.clientReference,
+        quoteId: activePrebook.quoteId,
+        sessionSignature: activePrebook.sessionSignature,
+        quoteSignature: activePrebook.quote.signature,
+        holder: {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          email: values.email
+        },
+        guests: guestsPayload,
+        quote: activePrebook.quote
+      })
+    });
+    const progressJson = await progressResponse.json().catch(() => ({}));
+    if (!progressResponse.ok) {
+      throw new Error(
+        typeof progressJson.error === 'string'
+          ? progressJson.error
+          : 'Unable to secure your checkout session before payment.'
+      );
+    }
 
-    saveCheckoutSession(activePrebook.transactionId, checkoutSession);
     setCheckoutStep('confirmation');
     await ensurePaymentScriptLoaded();
     if (!window.LiteAPIPayment) {
@@ -763,6 +669,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
                   setPromoCode(e.target.value);
                   setPromoError('');
                   setPromoDiscount(null);
+                  setAppliedPromoCode(null);
                 }}
                 className="sm:flex-1"
               />
@@ -770,28 +677,17 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
                 setPromoLoading(true);
                 setPromoError('');
                 try {
-                  const bodyPayload: Record<string, unknown> = { code: promoCode };
-                  if (prebook) {
-                    bodyPayload.quote = prebook.quote;
-                    bodyPayload.quoteSignature = prebook.quote.signature;
-                  }
                   const res = await fetch('/api/promo/validate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bodyPayload)
+                    body: JSON.stringify({ code: promoCode })
                   });
                   const data = await res.json();
                   if (res.ok && data.valid) {
                     setPromoDiscount(data.discountPercent);
-                    if (data.newQuote && data.newSignature && prebook) {
-                      setPrebook({
-                        ...prebook,
-                        quote: {
-                          ...data.newQuote,
-                          signature: data.newSignature
-                        }
-                      });
-                    }
+                    setAppliedPromoCode(String(data.code ?? promoCode).trim().toUpperCase());
+                    setPrebook(null);
+                    setPaymentError(null);
                   } else {
                     setPromoError(data.error || 'Invalid code');
                   }
@@ -804,7 +700,7 @@ export function BookingConsole({ initialValues, preferredLanguage, preferredCurr
                 Apply
               </Button>
             </div>
-            {promoDiscount ? <p className="mt-3 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{promoDiscount}% discount applied to the selected quote.</p> : null}
+            {promoDiscount ? <p className="mt-3 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{promoDiscount}% discount will be applied when the room is prebooked for payment.</p> : null}
             {promoError ? <p className="mt-3 text-sm font-medium text-destructive">{promoError}</p> : null}
           </section>
 

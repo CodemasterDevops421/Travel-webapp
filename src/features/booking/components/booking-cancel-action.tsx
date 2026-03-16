@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 
 type BookingCancelActionProps = {
   bookingId: string;
-  viewToken: string;
+  viewToken?: string | null;
   bookingStatus: string;
   refundPending?: boolean;
   cancellationOutcome?: string | null;
@@ -17,7 +17,7 @@ const CANCELLABLE_STATUSES = new Set(['payment_authorized', 'confirmed']);
 
 export function BookingCancelAction({
   bookingId,
-  viewToken,
+  viewToken = null,
   bookingStatus,
   refundPending = false,
   cancellationOutcome = null
@@ -49,7 +49,7 @@ export function BookingCancelAction({
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-booking-view-token': viewToken
+          ...(viewToken ? { 'x-booking-view-token': viewToken } : {})
         },
         body: JSON.stringify({
           reason: 'Guest requested cancellation from booking confirmation page'

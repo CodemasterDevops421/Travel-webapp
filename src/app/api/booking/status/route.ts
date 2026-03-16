@@ -4,15 +4,15 @@ import { assertSameOrigin } from '@/server/csrf';
 import { toHttpError } from '@/server/errors';
 import { logger, logStructuredEvent } from '@/server/logger';
 import { verifyCheckoutSessionSignature } from '@/server/booking-session';
+import { canAccessBooking } from '@/server/booking-access';
 import {
   getCheckoutProgressSessionByPrebookId,
   getCheckoutProgressSessionByTransactionId,
-  saveCheckoutProgressSession,
   type CheckoutProgressSession
 } from '@/server/booking-store';
 import { getBookingById, getBookingByTransactionId } from '@/server/booking/repository';
-import { signBookingViewToken } from '@/server/booking-view-token';
 import { parseRequestBody } from '@/server/request';
+import { createServerSupabaseClient } from '@/server/supabase/server';
 
 function emitStructuredEvent(level: 'error' | 'warn' | 'info' | 'debug', event: string, context: Record<string, unknown>) {
   if (typeof logStructuredEvent === 'function') {
@@ -65,6 +65,14 @@ function buildProcessingResponse(context: CheckoutProgressSession | null) {
 export async function POST(request: NextRequest) {
   try {
     assertSameOrigin(request);
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Sign in required to check booking status.', code: 'AUTH_REQUIRED' }, { status: 401 });
+    }
+
     const correlationId = request.headers.get('x-request-id') ?? request.headers.get('x-correlation-id') ?? undefined;
     emitStructuredEvent('info', 'booking.status.received', {
       correlation_id: correlationId,
@@ -72,6 +80,7 @@ export async function POST(request: NextRequest) {
       module: 'booking.status'
     });
     const payload = await parseRequestBody(request, requestSchema);
+    let verifiedCheckoutSession = false;
 
     let checkoutContext: CheckoutProgressSession | null = null;
 
@@ -105,19 +114,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid checkout session signature.' }, { status: 401 });
       }
 
-      checkoutContext = {
-        transactionId,
-        prebookId,
-        clientReference: payload.clientReference,
-        quoteId: payload.quoteId ?? null,
-        sessionSignature: payload.sessionSignature,
-        quoteSignature: payload.quoteSignature,
-        holderEmail: payload.holderEmail ?? checkoutContext?.holderEmail ?? '',
-        state: 'awaiting_confirmation',
-        updatedAt: new Date().toISOString()
-      };
-
-      await saveCheckoutProgressSession(checkoutContext);
+      verifiedCheckoutSession = true;
     }
 
     let booking = payload.bookingId ? await getBookingById(payload.bookingId) : null;
@@ -128,7 +125,15 @@ export async function POST(request: NextRequest) {
       booking = await getBookingByTransactionId(checkoutContext.transactionId);
     }
 
+    if (booking && !canAccessBooking(user, booking)) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
     if (!booking) {
+      if (!verifiedCheckoutSession) {
+        return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+      }
+
       emitStructuredEvent('info', 'booking.status.processing', {
         correlation_id: correlationId,
         route: 'booking-status',
@@ -139,7 +144,6 @@ export async function POST(request: NextRequest) {
     }
 
     const outcome = toOutcome(booking.status);
-    const bookingViewToken = outcome === 'confirmed' ? signBookingViewToken({ bookingId: booking.id }) : null;
 
     emitStructuredEvent('info', 'booking.status.resolved', {
       correlation_id: correlationId,
@@ -161,8 +165,6 @@ export async function POST(request: NextRequest) {
       lifecycleStatus: booking.status,
       paymentStatus: booking.payment_status,
       localBookingId: booking.id,
-      bookingViewToken,
-      confirmationCode: booking.confirmation_code,
       transactionId: checkoutContext?.transactionId ?? payload.transactionId ?? null,
       prebookId: checkoutContext?.prebookId ?? payload.prebookId ?? null,
       message

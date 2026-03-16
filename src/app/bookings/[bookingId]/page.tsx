@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getBookingById } from '@/server/booking/repository';
+import { canAccessBooking } from '@/server/booking-access';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
 import { getHotelDetails } from '@/server/liteapi';
+import { createServerSupabaseClient } from '@/server/supabase/server';
 import { PreferenceLink } from '@/components/navigation/preference-link';
 import { BookingCancelAction } from '@/features/booking/components/booking-cancel-action';
 import { BookingSupportHandoffAction } from '@/features/booking/components/booking-support-handoff-action';
@@ -114,13 +116,24 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
   const { bookingId } = await params;
   const qs = await searchParams;
   const viewToken = pickParam(qs, 'viewToken');
-  if (!viewToken || !verifyBookingViewToken({ bookingId, token: viewToken })) {
-    notFound();
-  }
-
   const booking = await getBookingById(bookingId);
 
   if (!booking) {
+    notFound();
+  }
+
+  const tokenAuthorized = typeof viewToken === 'string' && verifyBookingViewToken({ bookingId, token: viewToken });
+  let ownerAuthorized = false;
+
+  if (!tokenAuthorized) {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    ownerAuthorized = canAccessBooking(user, booking);
+  }
+
+  if (!tokenAuthorized && !ownerAuthorized) {
     notFound();
   }
 
@@ -249,12 +262,12 @@ export default async function BookingConfirmationPage({ params, searchParams }: 
             <p className="mt-2 text-sm text-muted-foreground">Email: support@hostelstays.com</p>
             <BookingCancelAction
               bookingId={booking.id}
-              viewToken={viewToken}
+              viewToken={viewToken ?? null}
               bookingStatus={booking.status}
               refundPending={cancellation.refundPending}
               cancellationOutcome={cancellation.cancellationOutcome}
             />
-            <BookingSupportHandoffAction bookingId={booking.id} viewToken={viewToken} />
+            <BookingSupportHandoffAction bookingId={booking.id} viewToken={viewToken ?? null} />
           </article>
         </aside>
       </section>

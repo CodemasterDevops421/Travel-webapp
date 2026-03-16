@@ -22,6 +22,13 @@ describe('booking notification lifecycle', () => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
     seedRequiredEnv();
+    vi.doMock('@/server/supabase/server', () => ({
+      createServerSupabaseClient: vi.fn().mockResolvedValue({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({ data: { user: null } })
+        }
+      })
+    }));
   });
 
   it('cancels captured bookings with refund and invoice-status sync', async () => {
@@ -380,7 +387,7 @@ describe('booking notification lifecycle', () => {
     });
     const body = await response.json();
 
-    expect(response.status).toBe(401);
-    expect(body.error).toMatch(/unauthorized booking api request/i);
+    expect(response.status).toBe(404);
+    expect(body.error).toMatch(/booking not found/i);
   });
 });

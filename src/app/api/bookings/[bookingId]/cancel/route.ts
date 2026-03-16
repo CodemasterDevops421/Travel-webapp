@@ -5,10 +5,12 @@ import { cancelBooking } from '@/server/liteapi';
 import { HttpError, toHttpError } from '@/server/errors';
 import { getClientIp } from '@/server/request';
 import { assertBookingApiAuthorized } from '@/server/authz';
+import { canAccessBooking } from '@/server/booking-access';
 import { assertProductionReadiness, usesLiteApiPayments, usesStripePayments } from '@/server/env';
 import { createStripeRefund } from '@/server/payments/stripe';
 import { getBookingById, updateBookingStatusById } from '@/server/booking/repository';
 import { verifyBookingViewToken } from '@/server/booking-view-token';
+import { createServerSupabaseClient } from '@/server/supabase/server';
 
 const paramsSchema = z.object({
   bookingId: z.string().trim().min(1)
@@ -26,16 +28,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
     const bookingViewToken = request.headers.get('x-booking-view-token');
     const tokenAuthorized = typeof bookingViewToken === 'string'
       && verifyBookingViewToken({ bookingId: params.bookingId, token: bookingViewToken });
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
     let apiAuthorized = false;
     try {
       assertBookingApiAuthorized(request);
       apiAuthorized = true;
     } catch {
       apiAuthorized = false;
-    }
-
-    if (!apiAuthorized && !tokenAuthorized) {
-      throw new HttpError(401, 'Unauthorized booking API request.');
     }
 
     await assertRateLimit(`bookings-cancel-lifecycle:${getClientIp(request)}`);
@@ -46,6 +48,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ bo
     const booking = await getBookingById(params.bookingId);
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    const ownerAuthorized = canAccessBooking(user, booking);
+    if (!apiAuthorized && !tokenAuthorized && !ownerAuthorized) {
+      throw new HttpError(401, 'Unauthorized booking API request.');
     }
 
     if (booking.status === 'failed' || booking.status === 'refunded') {
