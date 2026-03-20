@@ -36,3 +36,39 @@ jobs:
 
       - name: Audit runtime deps
         run: npm audit --omit=dev
+
+  smoke_gate:
+    needs: verify
+    if: ${{ vars.SMOKE_BASE_URL != '' && secrets.BOOKING_API_AUTH_SECRET != '' && secrets.SMOKE_ADMIN_COOKIE != '' && secrets.STRIPE_WEBHOOK_SECRET != '' && vars.SMOKE_PREBOOK_PAYLOAD != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Run smoke gates
+        env:
+          SMOKE_BASE_URL: ${{ vars.SMOKE_BASE_URL }}
+          SMOKE_PREBOOK_PAYLOAD: ${{ vars.SMOKE_PREBOOK_PAYLOAD }}
+          SMOKE_FINALIZE_PAYLOAD: ${{ vars.SMOKE_FINALIZE_PAYLOAD }}
+          SMOKE_FINALIZE_EXPECTED_STATUS: ${{ vars.SMOKE_FINALIZE_EXPECTED_STATUS }}
+          SMOKE_ADMIN_COOKIE: ${{ secrets.SMOKE_ADMIN_COOKIE }}
+          BOOKING_API_AUTH_SECRET: ${{ secrets.BOOKING_API_AUTH_SECRET }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          SMOKE_ADMIN_ROUTE_PATH: ${{ vars.SMOKE_ADMIN_ROUTE_PATH }}
+          SMOKE_PREBOOK_PATH: ${{ vars.SMOKE_PREBOOK_PATH }}
+          SMOKE_FINALIZE_PATH: ${{ vars.SMOKE_FINALIZE_PATH }}
+          SMOKE_STRIPE_WEBHOOK_PATH: ${{ vars.SMOKE_STRIPE_WEBHOOK_PATH }}
+          SMOKE_OUTBOX_JOB_PATH: ${{ vars.SMOKE_OUTBOX_JOB_PATH }}
+          SMOKE_SWEEP_JOB_PATH: ${{ vars.SMOKE_SWEEP_JOB_PATH }}
+          SMOKE_READINESS_PATH: ${{ vars.SMOKE_READINESS_PATH }}
+        run: npm run smoke

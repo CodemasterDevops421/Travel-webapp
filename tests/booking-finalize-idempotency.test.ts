@@ -40,7 +40,7 @@ describe('booking finalize idempotency', () => {
     } as unknown as Request;
   }
 
-  it('keeps lifecycle pending even when supplier response reports confirmed', async () => {
+  it('keeps lifecycle at booking_requested even when supplier response reports confirmed', async () => {
     const persistBooking = vi.fn().mockResolvedValue('booking_1');
     const saveFinalizedBookingResult = vi.fn().mockResolvedValue(undefined);
 
@@ -94,16 +94,17 @@ describe('booking finalize idempotency', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.status).toBe('pending');
+    expect(body.status).toBe('booking_requested');
     expect(body.supplierStatus).toBe('confirmed');
     expect(persistBooking).toHaveBeenCalledWith(expect.objectContaining({
-      status: 'pending',
+      status: 'booking_requested',
       metadata: expect.objectContaining({
         supplierStatus: 'confirmed',
+        supplierLifecycleState: 'requesting',
         paymentStatus: 'pending'
       })
     }));
-    expect(saveFinalizedBookingResult).toHaveBeenCalledWith('txn_1', expect.objectContaining({ status: 'pending' }));
+    expect(saveFinalizedBookingResult).toHaveBeenCalledWith('txn_1', expect.objectContaining({ status: 'booking_requested' }));
   });
 
   it('returns 409 when a concurrent finalize lock already exists', async () => {
@@ -142,7 +143,7 @@ describe('booking finalize idempotency', () => {
         localBookingId: 'local_cached_1',
         bookingViewToken: 'view_cached_1',
         liteApiBookingId: 'lite_cached_1',
-        status: 'pending',
+        status: 'booking_requested',
         supplierStatus: 'confirmed',
         clientReference: 'client_ref_1',
         quoteSignature: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -172,6 +173,6 @@ describe('booking finalize idempotency', () => {
 
     expect(res.status).toBe(200);
     expect(body.localBookingId).toBe('local_cached_1');
-    expect(body.status).toBe('pending');
+    expect(body.status).toBe('booking_requested');
   });
 });

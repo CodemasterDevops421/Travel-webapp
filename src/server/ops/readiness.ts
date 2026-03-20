@@ -3,18 +3,20 @@ import { Redis } from '@upstash/redis';
 import { env, assertProductionReadiness } from '@/server/env';
 import { createAdminClient } from '@/server/supabase/admin';
 import { getAdminReportBudgetSnapshot } from '@/server/admin/report-observability';
+import { getRecoverySnapshot } from '@/server/ops/recovery-observability';
+import { emitTelemetryEvent } from '@/server/observability/telemetry';
 
 export type ReadinessCheckStatus = 'pass' | 'fail' | 'warn';
 
 export type ReadinessCheck = {
-  id: 'env' | 'redis' | 'supabase' | 'admin_reports';
+  id: 'env' | 'redis' | 'supabase' | 'admin_reports' | 'recovery';
   status: ReadinessCheckStatus;
   latencyMs: number | null;
   message: string;
 };
 
 export type ReadinessAlarm = {
-  id: 'admin-report-error-budget';
+  id: 'admin-report-error-budget' | 'recovery-backlog';
   severity: 'warn' | 'critical';
   message: string;
   snapshot: {
@@ -23,6 +25,11 @@ export type ReadinessAlarm = {
     errorRate: number;
     throttleRate: number;
     p95LatencyMs: number;
+    recoveryBacklog?: {
+      bookingRequestedBacklogAge: number;
+      capturedWithoutTerminalOutcome: number;
+      outboxDeadLetter: number;
+    };
   };
 };
 
@@ -150,8 +157,8 @@ async function checkSupabase(): Promise<ReadinessCheck> {
   }
 }
 
-function checkAdminReportErrorBudget(): { check: ReadinessCheck; alarm: ReadinessAlarm | null } {
-  const snapshot = getAdminReportBudgetSnapshot();
+async function checkAdminReportErrorBudget(): Promise<{ check: ReadinessCheck; alarm: ReadinessAlarm | null }> {
+  const snapshot = await getAdminReportBudgetSnapshot();
   if (snapshot.totalRequests < 20) {
     return {
       check: {
@@ -215,12 +222,84 @@ function checkAdminReportErrorBudget(): { check: ReadinessCheck; alarm: Readines
   };
 }
 
+async function checkRecoveryBacklog(): Promise<{ check: ReadinessCheck; alarm: ReadinessAlarm | null }> {
+  const snapshot = await getRecoverySnapshot();
+  const backlogAge = snapshot.counts.booking_requested_backlog_age;
+  const captured = snapshot.counts.captured_without_terminal_outcome;
+  const deadLetter = snapshot.counts.outbox_dead_letter;
+
+  const exceedsCritical = backlogAge > 120 || captured > 10 || deadLetter > 0;
+  const exceedsWarn = backlogAge > 30 || captured > 0;
+
+  if (exceedsCritical || exceedsWarn) {
+    const severity: ReadinessAlarm['severity'] = exceedsCritical ? 'critical' : 'warn';
+    const status: ReadinessCheckStatus = exceedsCritical ? 'fail' : 'warn';
+    const message =
+      `Recovery backlog elevated (${severity}): ` +
+      `bookingRequestedBacklogAge=${Math.round(backlogAge)}m, ` +
+      `capturedWithoutTerminalOutcome=${captured}, ` +
+      `outboxDeadLetter=${deadLetter}`;
+
+    return {
+      check: {
+        id: 'recovery',
+        status,
+        latencyMs: null,
+        message
+      },
+      alarm: {
+        id: 'recovery-backlog',
+        severity,
+        message,
+        snapshot: {
+          windowMs: snapshot.windowMs,
+          totalRequests: 0,
+          errorRate: 0,
+          throttleRate: 0,
+          p95LatencyMs: 0,
+          recoveryBacklog: {
+            bookingRequestedBacklogAge: backlogAge,
+            capturedWithoutTerminalOutcome: captured,
+            outboxDeadLetter: deadLetter
+          }
+        }
+      }
+    };
+  }
+
+  return {
+    check: {
+      id: 'recovery',
+      status: 'pass',
+      latencyMs: null,
+      message:
+        `Recovery backlog healthy: ` +
+        `bookingRequestedBacklogAge=${Math.round(backlogAge)}m, ` +
+        `capturedWithoutTerminalOutcome=${captured}, ` +
+        `outboxDeadLetter=${deadLetter}`
+    },
+    alarm: null
+  };
+}
+
 export async function buildReadinessReport(): Promise<ReadinessReport> {
   const [envCheck, redisCheck, supabaseCheck] = await Promise.all([checkEnv(), checkRedis(), checkSupabase()]);
-  const budget = checkAdminReportErrorBudget();
-  const checks = [envCheck, redisCheck, supabaseCheck, budget.check];
-  const alarms = budget.alarm ? [budget.alarm] : [];
+  const budget = await checkAdminReportErrorBudget();
+  const recovery = await checkRecoveryBacklog();
+  const checks = [envCheck, redisCheck, supabaseCheck, budget.check, recovery.check];
+  const alarms = [budget.alarm, recovery.alarm].filter(Boolean) as ReadinessAlarm[];
   const hasFailure = checks.some((check) => check.status === 'fail');
+
+  void emitTelemetryEvent({
+    category: 'readiness',
+    metric: 'readiness.degraded',
+    value: hasFailure ? 1 : 0,
+    status: hasFailure ? 'fail' : alarms.length > 0 ? 'warn' : 'ok',
+    dimensions: {
+      failedChecks: checks.filter((check) => check.status === 'fail').map((check) => check.id),
+      warningChecks: checks.filter((check) => check.status === 'warn').map((check) => check.id)
+    }
+  });
 
   return {
     ok: !hasFailure,

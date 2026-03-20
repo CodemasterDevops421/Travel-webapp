@@ -51,6 +51,10 @@ Important UI/API fields:
 - Booking-critical persistence must fail closed in production instead of silently degrading.
 - LiteAPI webhook and email proof are post-deploy checks and require a public deployment URL.
 
+## Current Status Label
+
+- Launch Hardening Implemented — Awaiting Environment Validation
+
 ## Track A Status: Launch Hardening
 
 Track A has already been implemented in code.
@@ -70,6 +74,9 @@ Track A has already been implemented in code.
 
 ### Still requires deployed verification
 
+- target-environment migration/RPC verification
+- deployed failure-proof artifact bundle
+- readiness and alert validation against persisted telemetry
 - live LiteAPI webhook proof
 - live email delivery proof
 - production environment validation on a public deployment target

@@ -47,6 +47,7 @@ function parseLimit(raw: string | null): number {
 export async function GET(request: NextRequest) {
   const startedAt = Date.now();
   let responseStatus = 500;
+  let reportMeta: { scannedRows?: number; totalRows?: number } | undefined;
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -73,28 +74,23 @@ export async function GET(request: NextRequest) {
       (request.nextUrl.searchParams.get('includeResolved') ?? '').trim().toLowerCase()
     );
 
-    const cacheKey = `admin:reconciliation:${user.id}:${periodDays}:${includeResolved ? '1' : '0'}`;
+    const cacheKey = `admin:reconciliation:${user.id}:${periodDays}:${includeResolved ? '1' : '0'}:${page}:${limit}`;
     const report = await getOrSetAdminReportCache(cacheKey, ADMIN_REPORT_CACHE_TTL_SECONDS, () =>
       buildReconciliationReport(supabase, {
         periodDays,
         includeResolved,
-        maxIssues: 500
+        maxIssues: 500,
+        page,
+        limit
       })
     );
-
-    const start = (page - 1) * limit;
+    reportMeta = {
+      scannedRows: report.processing?.scannedBookings,
+      totalRows: report.pagination?.total
+    };
 
     responseStatus = 200;
-    return NextResponse.json({
-      ...report,
-      issues: report.issues.slice(start, start + limit),
-      pagination: {
-        page,
-        limit,
-        total: report.issues.length,
-        totalPages: Math.max(1, Math.ceil(report.issues.length / limit))
-      }
-    }, {
+    return NextResponse.json(report, {
       headers: {
         'cache-control': `private, max-age=${ADMIN_REPORT_CACHE_TTL_SECONDS}`
       }
@@ -107,6 +103,6 @@ export async function GET(request: NextRequest) {
     responseStatus = 500;
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   } finally {
-    recordAdminReportObservation('admin_reconciliation_get', responseStatus, Date.now() - startedAt);
+    recordAdminReportObservation('admin_reconciliation_get', responseStatus, Date.now() - startedAt, reportMeta);
   }
 }

@@ -3,6 +3,9 @@ import { createServerSupabaseClient } from '@/server/supabase/server';
 import { assertAdminAuthorized } from '@/server/authz';
 import { HttpError } from '@/server/errors';
 import { buildSettlementLedgerReport } from '@/server/admin/settlement-ledger-report';
+import { assertRateLimit, createRateLimitKey } from '@/server/ratelimit';
+import { getClientIp } from '@/server/request';
+import { recordAdminReportObservation } from '@/server/admin/report-observability';
 
 function parsePeriodDays(raw: string | null): number {
   if (raw == null || raw.trim() === '') return 30;
@@ -26,6 +29,9 @@ function parseLimit(raw: string | null): number {
 }
 
 export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
+  let responseStatus = 500;
+  let reportMeta: { scannedRows?: number; totalRows?: number } | undefined;
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -33,8 +39,15 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      responseStatus = 401;
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const clientIp = getClientIp(request);
+    await assertRateLimit(
+      createRateLimitKey('mutation', clientIp, 'admin-settlement-ledger-get'),
+      'mutation'
+    );
 
     await assertAdminAuthorized(supabase, user);
 
@@ -43,25 +56,23 @@ export async function GET(request: NextRequest) {
 
     const report = await buildSettlementLedgerReport(supabase, {
       periodDays: parsePeriodDays(request.nextUrl.searchParams.get('days')),
-      limit: 500
+      page,
+      limit
     });
-
-    const start = (page - 1) * limit;
-
-    return NextResponse.json({
-      ...report,
-      ledger: report.ledger.slice(start, start + limit),
-      pagination: {
-        page,
-        limit,
-        total: report.ledger.length,
-        totalPages: Math.max(1, Math.ceil(report.ledger.length / limit))
-      }
-    });
+    reportMeta = {
+      scannedRows: report.processing?.scannedRows,
+      totalRows: report.pagination?.total
+    };
+    responseStatus = 200;
+    return NextResponse.json(report);
   } catch (error) {
     if (error instanceof HttpError) {
+      responseStatus = error.status;
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    responseStatus = 500;
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } finally {
+    recordAdminReportObservation('admin_settlement_ledger_get', responseStatus, Date.now() - startedAt, reportMeta);
   }
 }

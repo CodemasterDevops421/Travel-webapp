@@ -156,7 +156,7 @@ describe('admin RBAC enforcement', () => {
     }));
 
     const { GET } = await import('@/app/api/admin/stats/route');
-    const response = await GET();
+    const response = await GET(new Request('https://example.com/api/admin/stats') as never);
 
     expect(response.status).toBe(403);
   });

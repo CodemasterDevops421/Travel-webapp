@@ -26,6 +26,7 @@ describe('admin report error-budget readiness alarms', () => {
         'admin_reconciliation_get',
         i < 3 ? 500 : 200,
         300,
+        undefined,
         baseNow - 1000
       );
     }

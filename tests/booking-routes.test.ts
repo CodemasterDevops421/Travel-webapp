@@ -730,7 +730,7 @@ describe('booking route handlers', () => {
     expect(body.ok).toBe(true);
     expect(updateByLiteApiId).toHaveBeenCalledWith(
       'lite-booking-1',
-      'failed',
+      'booking_failed',
       expect.objectContaining({ bookingId: 'lite-booking-1' })
     );
     expect(loggerInfo).toHaveBeenCalled();

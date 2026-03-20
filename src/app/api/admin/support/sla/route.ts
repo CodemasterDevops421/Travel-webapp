@@ -49,6 +49,7 @@ function parseLimit(raw: string | null): number {
 export async function GET(request: NextRequest) {
   const startedAt = Date.now();
   let responseStatus = 500;
+  let reportMeta: { scannedRows?: number; totalRows?: number } | undefined;
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -72,30 +73,23 @@ export async function GET(request: NextRequest) {
     const breachHours = parseBreachHours(request.nextUrl.searchParams.get('breachHours'));
     const page = parsePage(request.nextUrl.searchParams.get('page'));
     const limit = parseLimit(request.nextUrl.searchParams.get('limit'));
-    const cacheKey = `admin:support-sla:${user.id}:${periodDays}:${breachHours}`;
+    const cacheKey = `admin:support-sla:${user.id}:${periodDays}:${breachHours}:${page}:${limit}`;
 
     const report = await getOrSetAdminReportCache(cacheKey, ADMIN_REPORT_CACHE_TTL_SECONDS, () =>
       buildSupportSlaReport(supabase, {
         periodDays,
         breachHours,
-        limit: 500
+        page,
+        limit
       })
     );
-
-    const start = (page - 1) * limit;
-    const cases = report.cases.slice(start, start + limit);
+    reportMeta = {
+      scannedRows: report.processing?.scannedBookings,
+      totalRows: report.pagination?.total
+    };
 
     responseStatus = 200;
-    return NextResponse.json({
-      ...report,
-      cases,
-      pagination: {
-        page,
-        limit,
-        total: report.cases.length,
-        totalPages: Math.max(1, Math.ceil(report.cases.length / limit))
-      }
-    }, {
+    return NextResponse.json(report, {
       headers: {
         'cache-control': `private, max-age=${ADMIN_REPORT_CACHE_TTL_SECONDS}`
       }
@@ -108,6 +102,6 @@ export async function GET(request: NextRequest) {
     responseStatus = 500;
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   } finally {
-    recordAdminReportObservation('admin_support_sla_get', responseStatus, Date.now() - startedAt);
+    recordAdminReportObservation('admin_support_sla_get', responseStatus, Date.now() - startedAt, reportMeta);
   }
 }

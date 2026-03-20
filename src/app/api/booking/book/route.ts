@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
     };
     const liteApiBookingId = bookingData.data?.bookingId ?? bookingData.bookingId ?? null;
     const supplierStatus = bookingData.data?.status ?? bookingData.status ?? 'unknown';
-    const lifecycleStatus = 'pending';
+    const lifecycleStatus = 'booking_requested';
     const localBookingId = await persistBooking({
       quoteId: session.quoteId,
       userId: user.id,
@@ -234,6 +234,7 @@ export async function POST(request: NextRequest) {
         transactionId: payload.transactionId,
         prebookId: payload.prebookId,
         supplierStatus,
+        supplierLifecycleState: 'requesting',
         paymentStatus: 'pending',
         itinerary: {
           hotelId: quoteToVerify.hotelId,

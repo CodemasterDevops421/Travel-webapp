@@ -25,7 +25,7 @@ function emitStructuredEvent(
 
 type ReconciliationUpdate = {
   transactionId: string | null;
-  status: 'payment_authorized' | 'confirmed' | 'failed' | 'refunded';
+  status: 'payment_authorized' | 'booking_failed' | 'refund_pending';
   metadata: Record<string, unknown>;
 };
 
@@ -79,6 +79,7 @@ function buildReconciliationUpdate(event: Stripe.Event): ReconciliationUpdate | 
         stripeCheckoutSessionId: session.id,
         stripePaymentIntentId: readString(session.payment_intent),
         stripeCustomerId: readString(session.customer),
+        paymentLifecycleState: 'authorized',
         paymentStatus: 'authorized'
       }
     };
@@ -88,12 +89,13 @@ function buildReconciliationUpdate(event: Stripe.Event): ReconciliationUpdate | 
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
     return {
       transactionId: extractMetadataTransactionId(paymentIntent.metadata),
-      status: 'confirmed',
+      status: 'payment_authorized',
       metadata: {
         stripeEventId: event.id,
         stripeEventType: event.type,
         stripePaymentIntentId: paymentIntent.id,
         stripeCustomerId: readString(paymentIntent.customer),
+        paymentLifecycleState: 'captured',
         paymentStatus: 'captured'
       }
     };
@@ -103,12 +105,13 @@ function buildReconciliationUpdate(event: Stripe.Event): ReconciliationUpdate | 
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
     return {
       transactionId: extractMetadataTransactionId(paymentIntent.metadata),
-      status: 'failed',
+      status: 'booking_failed',
       metadata: {
         stripeEventId: event.id,
         stripeEventType: event.type,
         stripePaymentIntentId: paymentIntent.id,
         stripeCustomerId: readString(paymentIntent.customer),
+        paymentLifecycleState: 'failed',
         paymentStatus: 'failed',
         paymentFailureMessage: paymentIntent.last_payment_error?.message ?? null
       }
@@ -119,11 +122,12 @@ function buildReconciliationUpdate(event: Stripe.Event): ReconciliationUpdate | 
     const charge = event.data.object as Stripe.Charge;
     return {
       transactionId: extractMetadataTransactionId(charge.metadata),
-      status: 'refunded',
+      status: 'refund_pending',
       metadata: {
         stripeEventId: event.id,
         stripeEventType: event.type,
         stripePaymentIntentId: readString(charge.payment_intent),
+        paymentLifecycleState: 'refunded',
         paymentStatus: 'refunded',
         refundedAmount: charge.amount_refunded
       }

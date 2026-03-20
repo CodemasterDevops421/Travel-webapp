@@ -165,16 +165,27 @@ describe('booking notification lifecycle', () => {
 
     vi.doMock('@/server/supabase/admin', () => ({
       createAdminClient: vi.fn(() => ({
-        from: vi.fn(() => ({
-          insert: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
+        from: vi.fn((table: string) => {
+          if (table === 'booking_outbox_events') {
+            return {
+              insert: vi.fn().mockResolvedValue({
                 data: null,
-                error: { code: 'PGRST205', message: 'missing booking schema' }
+                error: { code: 'PGRST205', message: 'missing outbox schema' }
               })
+            };
+          }
+
+          return {
+            insert: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: { code: 'PGRST205', message: 'missing booking schema' }
+                })
+              }))
             }))
-          }))
-        }))
+          };
+        })
       }))
     }));
     vi.doMock('@/server/logger', () => ({
@@ -193,7 +204,7 @@ describe('booking notification lifecycle', () => {
     const bookingId = await repo.persistBooking({
       quoteId: 'quote-1',
       liteApiBookingId: 'lite-booking-1',
-      status: 'pending',
+      status: 'payment_pending',
       metadata: {
         transactionId: 'txn-1',
         paymentStatus: 'pending',
@@ -220,7 +231,13 @@ describe('booking notification lifecycle', () => {
     });
     expect(authorized).toBe(true);
 
-    const confirmedFirst = await repo.updateBookingStatusByTransactionId('txn-1', 'confirmed', {
+    const requested = await repo.updateBookingStatusByTransactionId('txn-1', 'booking_requested', {
+      supplierStatus: 'pending',
+      supplierLifecycleState: 'requesting'
+    });
+    expect(requested).toBe(true);
+
+    const confirmedFirst = await repo.updateBookingStatusByTransactionId('txn-1', 'booking_confirmed', {
       paymentStatus: 'captured',
       confirmationCode: 'CONF-123',
       stripeEventId: 'evt_payment_1',
@@ -228,7 +245,7 @@ describe('booking notification lifecycle', () => {
     });
     expect(confirmedFirst).toBe(true);
 
-    const confirmedSecond = await repo.updateBookingStatusByTransactionId('txn-1', 'confirmed', {
+    const confirmedSecond = await repo.updateBookingStatusByTransactionId('txn-1', 'booking_confirmed', {
       paymentStatus: 'captured',
       confirmationCode: 'CONF-123',
       stripeEventId: 'evt_payment_2',

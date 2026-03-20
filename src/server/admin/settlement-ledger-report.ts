@@ -30,6 +30,20 @@ type PaymentLedgerRow = {
   created_at: string;
 };
 
+type SettlementLedgerRpcRow = {
+  booking_id: string;
+  booking_status: string;
+  payment_status: string | null;
+  gross_amount: number | null;
+  commission_amount: number | null;
+  currency: string | null;
+  tracking_present: boolean | null;
+  payment_log_present: boolean | null;
+  settlement_status: 'settled' | 'awaiting_tracking' | 'awaiting_payment' | 'exception';
+  issue: string | null;
+  created_at: string;
+};
+
 export type SettlementLedgerEntry = {
   bookingId: string;
   bookingStatus: string;
@@ -46,6 +60,10 @@ export type SettlementLedgerEntry = {
 
 export type SettlementLedgerReport = {
   periodDays: number;
+  dataFreshness: {
+    generatedAt: string;
+    source: 'rpc' | 'fallback';
+  };
   summary: {
     totalRows: number;
     settledRows: number;
@@ -54,6 +72,18 @@ export type SettlementLedgerReport = {
     exceptionRows: number;
   };
   ledger: SettlementLedgerEntry[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  processing: {
+    truncated: boolean;
+    truncationReason: 'none' | 'rpc_unavailable';
+    scannedRows: number;
+    returnedRows: number;
+  };
 };
 
 function toCurrency(value: string | null | undefined): string {
@@ -90,21 +120,93 @@ function pickSettlementStatus(
 
 export async function buildSettlementLedgerReport(
   supabase: any,
-  options?: { periodDays?: number; limit?: number }
+  options?: { periodDays?: number; page?: number; limit?: number }
 ): Promise<SettlementLedgerReport> {
   const periodDays = options?.periodDays ?? 30;
-  const limit = options?.limit ?? 300;
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 50;
 
   const periodStart = new Date();
   periodStart.setDate(periodStart.getDate() - periodDays);
+  const periodStartIso = periodStart.toISOString();
+
+  if (supabase && typeof supabase.rpc === 'function') {
+    const [pageResult, countResult] = await Promise.all([
+      supabase.rpc('fn_admin_settlement_ledger_page', {
+        period_start_iso: periodStartIso,
+        page_offset: (page - 1) * limit,
+        page_limit: limit
+      }),
+      supabase.rpc('fn_admin_settlement_ledger_count', {
+        period_start_iso: periodStartIso
+      })
+    ]);
+
+    if (!pageResult?.error && !countResult?.error) {
+      const rows = Array.isArray(pageResult?.data) ? pageResult.data as SettlementLedgerRpcRow[] : [];
+      const totalRow = Array.isArray(countResult?.data)
+        ? countResult.data[0] as { total_count?: number } | undefined
+        : countResult?.data as { total_count?: number } | null;
+      const total = typeof totalRow?.total_count === 'number' ? totalRow.total_count : 0;
+
+      const summary = rows.reduce((acc, row) => {
+        acc.totalRows = total;
+        if (row.settlement_status === 'settled') acc.settledRows += 1;
+        if (row.settlement_status === 'awaiting_tracking') acc.awaitingTrackingRows += 1;
+        if (row.settlement_status === 'awaiting_payment') acc.awaitingPaymentRows += 1;
+        if (row.settlement_status === 'exception') acc.exceptionRows += 1;
+        return acc;
+      }, {
+        totalRows: total,
+        settledRows: 0,
+        awaitingTrackingRows: 0,
+        awaitingPaymentRows: 0,
+        exceptionRows: 0
+      });
+
+      return {
+        periodDays,
+        dataFreshness: {
+          generatedAt: new Date().toISOString(),
+          source: 'rpc'
+        },
+        summary,
+        ledger: rows.map((row) => ({
+          bookingId: row.booking_id,
+          bookingStatus: row.booking_status,
+          paymentStatus: row.payment_status,
+          grossAmount: typeof row.gross_amount === 'number' ? row.gross_amount : 0,
+          commissionAmount: typeof row.commission_amount === 'number' ? row.commission_amount : 0,
+          currency: toCurrency(row.currency),
+          trackingPresent: row.tracking_present === true,
+          paymentLogPresent: row.payment_log_present === true,
+          settlementStatus: row.settlement_status,
+          issue: row.issue,
+          createdAt: row.created_at
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit))
+        },
+        processing: {
+          truncated: false,
+          truncationReason: 'none',
+          scannedRows: rows.length,
+          returnedRows: rows.length
+        }
+      };
+    }
+  }
 
   const bookingsResult = await supabase
     .from('bookings')
     .select('id, status, total_amount, commission_amount, currency, payment_status, liteapi_booking_id, created_at')
-    .gte('created_at', periodStart.toISOString())
+    .gte('created_at', periodStartIso)
     .in('status', ['confirmed', 'payment_authorized', 'refunded'])
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(page * limit);
   if (bookingsResult.error) {
     throw new HttpError(503, 'Failed to load bookings for settlement ledger report');
   }
@@ -113,11 +215,11 @@ export async function buildSettlementLedgerReport(
   const bookingIds = bookings.map((b) => b.id);
 
   const commissionResult = bookingIds.length > 0
-    ? (await supabase
+    ? await supabase
       .from('commission_tracking')
       .select('booking_id, gross_booking_value, commission_amount, currency, updated_at')
       .in('booking_id', bookingIds)
-      .order('updated_at', { ascending: false }))
+      .order('updated_at', { ascending: false })
     : { data: [] as CommissionLedgerRow[], error: null as unknown };
   if (commissionResult.error) {
     throw new HttpError(503, 'Failed to load commission tracking for settlement ledger report');
@@ -125,11 +227,11 @@ export async function buildSettlementLedgerReport(
   const commissionRows: CommissionLedgerRow[] = (commissionResult.data as CommissionLedgerRow[] | null) ?? [];
 
   const paymentResult = bookingIds.length > 0
-    ? (await supabase
+    ? await supabase
       .from('payment_logs')
       .select('booking_id, provider, event_type, status, amount, currency, created_at')
       .in('booking_id', bookingIds)
-      .order('created_at', { ascending: false }))
+      .order('created_at', { ascending: false })
     : { data: [] as PaymentLedgerRow[], error: null as unknown };
   if (paymentResult.error) {
     throw new HttpError(503, 'Failed to load payment logs for settlement ledger report');
@@ -156,8 +258,7 @@ export async function buildSettlementLedgerReport(
   let awaitingPaymentRows = 0;
   let exceptionRows = 0;
 
-  const ledger: SettlementLedgerEntry[] = [];
-  for (const booking of bookings) {
+  const ledger = bookings.map((booking) => {
     const tracking = commissionByBooking.get(booking.id) ?? null;
     const payment = paymentByBooking.get(booking.id) ?? null;
     const settlement = pickSettlementStatus(booking, tracking, payment);
@@ -167,7 +268,7 @@ export async function buildSettlementLedgerReport(
     if (settlement.status === 'awaiting_payment') awaitingPaymentRows += 1;
     if (settlement.status === 'exception') exceptionRows += 1;
 
-    ledger.push({
+    return {
       bookingId: booking.id,
       bookingStatus: booking.status,
       paymentStatus: booking.payment_status,
@@ -179,11 +280,17 @@ export async function buildSettlementLedgerReport(
       settlementStatus: settlement.status,
       issue: settlement.issue,
       createdAt: booking.created_at
-    });
-  }
+    };
+  });
+
+  const start = (page - 1) * limit;
 
   return {
     periodDays,
+    dataFreshness: {
+      generatedAt: new Date().toISOString(),
+      source: 'fallback'
+    },
     summary: {
       totalRows: ledger.length,
       settledRows,
@@ -191,6 +298,18 @@ export async function buildSettlementLedgerReport(
       awaitingPaymentRows,
       exceptionRows
     },
-    ledger
+    ledger: ledger.slice(start, start + limit),
+    pagination: {
+      page,
+      limit,
+      total: ledger.length,
+      totalPages: Math.max(1, Math.ceil(ledger.length / limit))
+    },
+    processing: {
+      truncated: false,
+      truncationReason: 'rpc_unavailable',
+      scannedRows: bookings.length,
+      returnedRows: Math.min(limit, Math.max(0, ledger.length - start))
+    }
   };
 }

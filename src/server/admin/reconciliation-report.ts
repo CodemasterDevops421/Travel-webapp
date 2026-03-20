@@ -41,6 +41,14 @@ type ReconciliationSummaryRpcRow = {
   coverage_percent: number | null;
 };
 
+type ReconciliationIssueRpcRow = {
+  booking_id: string;
+  issue_type: ReconciliationIssue['type'];
+  detail: string;
+  created_at: string;
+  reconciliation: Record<string, unknown> | null;
+};
+
 export type ReconciliationIssue = {
   bookingId: string;
   type: 'missing_tracking' | 'amount_mismatch' | 'currency_mismatch';
@@ -65,8 +73,18 @@ export type ReconciliationSummary = {
 
 export type ReconciliationReport = {
   periodDays: number;
+  dataFreshness: {
+    generatedAt: string;
+    source: 'rpc' | 'fallback';
+  };
   summary: ReconciliationSummary;
   issues: ReconciliationIssue[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
   processing: {
     truncated: boolean;
     truncationReason: 'none' | 'booking_scan_limit' | 'issue_limit';
@@ -84,10 +102,7 @@ const MAX_SCANNED_BOOKINGS = 5000;
 const COMMISSION_BATCH_SIZE = 200;
 
 function toNumber(value: number | null | undefined, fallback = 0): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  return fallback;
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
 function mapRpcSummary(row: ReconciliationSummaryRpcRow): ReconciliationSummary {
@@ -126,11 +141,7 @@ async function fetchReconciliationSummaryFromRpc(
     ? (rpcResult.data[0] as ReconciliationSummaryRpcRow | undefined)
     : (rpcResult?.data as ReconciliationSummaryRpcRow | null);
 
-  if (!row) {
-    return null;
-  }
-
-  return mapRpcSummary(row);
+  return row ? mapRpcSummary(row) : null;
 }
 
 function readMetadataNumber(metadata: Record<string, unknown> | null, key: string): number | null {
@@ -157,18 +168,98 @@ function readReconciliationState(metadata: Record<string, unknown> | null): Reco
   };
 }
 
+function mapRpcIssue(row: ReconciliationIssueRpcRow): ReconciliationIssue {
+  return {
+    bookingId: row.booking_id,
+    type: row.issue_type,
+    detail: row.detail,
+    createdAt: row.created_at,
+    reconciliation: readReconciliationState(row.reconciliation)
+  };
+}
+
+async function fetchReconciliationIssuesFromRpc(
+  supabase: any,
+  periodStartIso: string,
+  includeResolved: boolean,
+  page: number,
+  limit: number
+): Promise<{ issues: ReconciliationIssue[]; total: number } | null> {
+  if (!supabase || typeof supabase.rpc !== 'function') {
+    return null;
+  }
+
+  const [issuePage, issueCount] = await Promise.all([
+    supabase.rpc('fn_admin_reconciliation_issue_page', {
+      period_start_iso: periodStartIso,
+      include_resolved: includeResolved,
+      page_offset: (page - 1) * limit,
+      page_limit: limit
+    }),
+    supabase.rpc('fn_admin_reconciliation_issue_count', {
+      period_start_iso: periodStartIso,
+      include_resolved: includeResolved
+    })
+  ]);
+
+  if (issuePage?.error || issueCount?.error) {
+    return null;
+  }
+
+  const rows = Array.isArray(issuePage?.data) ? issuePage.data as ReconciliationIssueRpcRow[] : [];
+  const countRow = Array.isArray(issueCount?.data)
+    ? issueCount.data[0] as { total_count?: number } | undefined
+    : issueCount?.data as { total_count?: number } | null;
+
+  return {
+    issues: rows.map(mapRpcIssue),
+    total: toNumber(countRow?.total_count)
+  };
+}
+
 export async function buildReconciliationReport(
   supabase: any,
-  options?: { periodDays?: number; includeResolved?: boolean; maxIssues?: number }
+  options?: { periodDays?: number; includeResolved?: boolean; maxIssues?: number; page?: number; limit?: number }
 ): Promise<ReconciliationReport> {
   const periodDays = options?.periodDays ?? 30;
   const includeResolved = options?.includeResolved ?? false;
   const maxIssues = options?.maxIssues ?? 200;
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 50;
 
   const periodStart = new Date();
   periodStart.setDate(periodStart.getDate() - periodDays);
   const periodStartIso = periodStart.toISOString();
   const rpcSummary = await fetchReconciliationSummaryFromRpc(supabase, periodStartIso);
+  const rpcIssues = await fetchReconciliationIssuesFromRpc(supabase, periodStartIso, includeResolved, page, limit);
+
+  if (rpcSummary && rpcIssues) {
+    return {
+      periodDays,
+      dataFreshness: {
+        generatedAt: new Date().toISOString(),
+        source: 'rpc'
+      },
+      summary: rpcSummary,
+      issues: rpcIssues.issues,
+      pagination: {
+        page,
+        limit,
+        total: rpcIssues.total,
+        totalPages: Math.max(1, Math.ceil(rpcIssues.total / limit))
+      },
+      processing: {
+        truncated: false,
+        truncationReason: 'none',
+        scannedBookings: 0,
+        maxScannedBookings: MAX_SCANNED_BOOKINGS,
+        returnedIssues: rpcIssues.issues.length,
+        maxIssues,
+        commissionQueryBatches: 0,
+        maxCommissionIdsPerBatch: COMMISSION_BATCH_SIZE
+      }
+    };
+  }
 
   const bookings: BookingRow[] = [];
   let bookingScanTruncated = false;
@@ -178,7 +269,7 @@ export async function buildReconciliationReport(
       .from('bookings')
       .select('id, status, total_amount, commission_amount, currency, metadata, created_at')
       .gte('created_at', periodStartIso)
-      .in('status', ['confirmed', 'refunded'])
+      .in('status', ['booking_confirmed', 'refunded', 'confirmed'])
       .order('created_at', { ascending: false })
       .range(offset, offset + BOOKING_PAGE_SIZE - 1);
 
@@ -253,10 +344,10 @@ export async function buildReconciliationReport(
       typeof booking.commission_amount === 'number'
         ? booking.commission_amount
         : readMetadataNumber(booking.metadata, 'commissionAmount');
-
     const commissionPercent = readMetadataPercent(booking.metadata);
-    const expectedFromPercent =
-      typeof commissionPercent === 'number' ? bookingTotal * (commissionPercent / 100) : null;
+    const expectedFromPercent = typeof commissionPercent === 'number'
+      ? bookingTotal * (commissionPercent / 100)
+      : null;
     const expectedCommission = bookingCommission ?? expectedFromPercent ?? tracking?.commission_amount ?? 0;
     if (!rpcSummary) {
       expectedCommissionAmount += expectedCommission;
@@ -351,34 +442,43 @@ export async function buildReconciliationReport(
     }
   }
 
-  const computedConfirmedCount = bookings.length;
-  const computedPendingCount = Math.max(computedConfirmedCount - reconciledCount, 0);
-  const computedCoveragePercent = computedConfirmedCount > 0 ? (reconciledCount / computedConfirmedCount) * 100 : 100;
-  const computedVarianceAmount = roundCurrency(expectedCommissionAmount - recordedCommissionAmount);
   const summary: ReconciliationSummary = rpcSummary ?? {
-    confirmedCount: computedConfirmedCount,
+    confirmedCount: bookings.length,
     reconciledCount,
-    pendingCount: computedPendingCount,
+    pendingCount: Math.max(bookings.length - reconciledCount, 0),
     mismatchCount,
     openIssueCount,
     resolvedIssueCount,
     grossConfirmedAmount: roundCurrency(grossConfirmedAmount),
     expectedCommissionAmount: roundCurrency(expectedCommissionAmount),
     recordedCommissionAmount: roundCurrency(recordedCommissionAmount),
-    varianceAmount: computedVarianceAmount,
-    coveragePercent: Number(computedCoveragePercent.toFixed(1))
+    varianceAmount: roundCurrency(expectedCommissionAmount - recordedCommissionAmount),
+    coveragePercent: bookings.length > 0 ? Number(((reconciledCount / bookings.length) * 100).toFixed(1)) : 100
   };
+
+  const totalIssues = issues.length;
+  const start = (page - 1) * limit;
 
   return {
     periodDays,
+    dataFreshness: {
+      generatedAt: new Date().toISOString(),
+      source: 'fallback'
+    },
     summary,
-    issues,
+    issues: issues.slice(start, start + limit),
+    pagination: {
+      page,
+      limit,
+      total: totalIssues,
+      totalPages: Math.max(1, Math.ceil(totalIssues / limit))
+    },
     processing: {
       truncated: bookingScanTruncated || issuesTruncated,
       truncationReason: bookingScanTruncated ? 'booking_scan_limit' : issuesTruncated ? 'issue_limit' : 'none',
       scannedBookings: bookings.length,
       maxScannedBookings: MAX_SCANNED_BOOKINGS,
-      returnedIssues: issues.length,
+      returnedIssues: Math.min(limit, Math.max(0, totalIssues - start)),
       maxIssues,
       commissionQueryBatches,
       maxCommissionIdsPerBatch: COMMISSION_BATCH_SIZE

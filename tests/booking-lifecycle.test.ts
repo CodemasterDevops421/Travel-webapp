@@ -1,52 +1,76 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOOKING_LIFECYCLE_STATES,
+  PAYMENT_LIFECYCLE_STATES,
+  SUPPLIER_LIFECYCLE_STATES,
   assertValidBookingTransition,
+  assertValidPaymentTransition,
+  assertValidSupplierTransition,
   canTransitionBookingState,
+  canTransitionPaymentState,
+  canTransitionSupplierState,
   getAllowedBookingTransitions
 } from '@/server/booking/lifecycle';
 
 describe('booking lifecycle guards', () => {
-  it('accepts legal status transitions', () => {
-    expect(canTransitionBookingState('pending', 'payment_authorized')).toBe(true);
-    expect(canTransitionBookingState('payment_authorized', 'confirmed')).toBe(true);
-    expect(canTransitionBookingState('payment_authorized', 'failed')).toBe(true);
-    expect(canTransitionBookingState('confirmed', 'refunded')).toBe(true);
+  it('accepts legal booking transitions', () => {
+    expect(canTransitionBookingState('draft', 'prebooked')).toBe(true);
+    expect(canTransitionBookingState('payment_authorized', 'booking_requested')).toBe(true);
+    expect(canTransitionBookingState('booking_requested', 'booking_confirmed')).toBe(true);
+    expect(canTransitionBookingState('booking_confirmed', 'refund_pending')).toBe(true);
+    expect(canTransitionBookingState('refund_pending', 'refunded')).toBe(true);
   });
 
-  it('rejects illegal status jumps', () => {
-    expect(canTransitionBookingState('pending', 'confirmed')).toBe(false);
-    expect(canTransitionBookingState('pending', 'refunded')).toBe(false);
-    expect(canTransitionBookingState('confirmed', 'failed')).toBe(false);
-    expect(canTransitionBookingState('failed', 'pending')).toBe(false);
-    expect(canTransitionBookingState('refunded', 'confirmed')).toBe(false);
+  it('rejects illegal booking jumps', () => {
+    expect(canTransitionBookingState('draft', 'booking_confirmed')).toBe(false);
+    expect(canTransitionBookingState('payment_pending', 'refunded')).toBe(false);
+    expect(canTransitionBookingState('booking_confirmed', 'payment_authorized')).toBe(false);
+    expect(canTransitionBookingState('booking_failed', 'draft')).toBe(false);
+    expect(canTransitionBookingState('refunded', 'booking_confirmed')).toBe(false);
   });
 
-  it('treats failed and refunded as terminal states', () => {
-    expect(getAllowedBookingTransitions('failed')).toEqual([]);
+  it('treats refunded as terminal', () => {
     expect(getAllowedBookingTransitions('refunded')).toEqual([]);
-    expect(canTransitionBookingState('failed', 'confirmed')).toBe(false);
-    expect(canTransitionBookingState('refunded', 'pending')).toBe(false);
+    expect(canTransitionBookingState('refunded', 'refund_pending')).toBe(false);
   });
 
-  it('allows idempotent writes for same status', () => {
+  it('allows idempotent writes for same booking status', () => {
     for (const state of BOOKING_LIFECYCLE_STATES) {
       expect(canTransitionBookingState(state, state)).toBe(true);
     }
   });
 
-  it('throws when asserting an invalid transition', () => {
-    expect(() => assertValidBookingTransition('pending', 'confirmed')).toThrow(
-      'Invalid booking transition: pending -> confirmed'
+  it('supports idempotent writes for payment and supplier states', () => {
+    for (const state of PAYMENT_LIFECYCLE_STATES) {
+      expect(canTransitionPaymentState(state, state)).toBe(true);
+    }
+
+    for (const state of SUPPLIER_LIFECYCLE_STATES) {
+      expect(canTransitionSupplierState(state, state)).toBe(true);
+    }
+  });
+
+  it('throws when asserting an invalid booking transition', () => {
+    expect(() => assertValidBookingTransition('draft', 'booking_confirmed')).toThrow(
+      'Invalid booking transition: draft -> booking_confirmed'
     );
   });
 
   it('throws on unknown lifecycle states', () => {
-    expect(() => assertValidBookingTransition('unknown', 'pending')).toThrow(
+    expect(() => assertValidBookingTransition('unknown', 'draft')).toThrow(
       'Invalid booking lifecycle state: unknown'
     );
-    expect(() => assertValidBookingTransition('pending', 'unknown')).toThrow(
+    expect(() => assertValidBookingTransition('draft', 'unknown')).toThrow(
       'Invalid booking lifecycle state: unknown'
+    );
+  });
+
+  it('enforces payment and supplier monotonic transitions', () => {
+    expect(() => assertValidPaymentTransition('authorized', 'pending')).toThrow(
+      'Invalid payment transition: authorized -> pending'
+    );
+    expect(() => assertValidSupplierTransition('confirmed', 'requesting')).toThrow(
+      'Invalid supplier transition: confirmed -> requesting'
     );
   });
 });

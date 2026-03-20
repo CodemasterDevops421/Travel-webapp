@@ -107,19 +107,21 @@ function deriveBookingCanonicalFields(
   };
 }
 
-type LifecycleNotificationStatus = 'confirmed' | 'failed' | 'refunded';
+type LifecycleNotificationStatus = 'booking_confirmed' | 'booking_failed' | 'refunded';
 
 const LIFECYCLE_NOTIFICATION_STATUSES = new Set<LifecycleNotificationStatus>([
-  'confirmed',
-  'failed',
+  'booking_confirmed',
+  'booking_failed',
   'refunded'
 ]);
 
 const COMMISSION_TRACKING_STATUSES = new Set([
   'payment_authorized',
-  'confirmed',
+  'booking_requested',
+  'booking_confirmed',
+  'refund_pending',
   'refunded',
-  'failed'
+  'booking_failed'
 ]);
 
 type CommissionTrackingLifecycleInput = {
@@ -204,19 +206,19 @@ function deriveInvoiceStatus(
   paymentStatus: string | null,
   metadata?: Record<string, unknown> | null
 ): string {
-  if (metadata?.refundPending === true) {
+  if (metadata?.refundPending === true || status === 'refund_pending') {
     return 'pending_refund';
   }
 
-  if (status === 'refunded') {
+  if (status === 'refunded' || paymentStatus === 'refunded') {
     return 'refunded';
   }
 
-  if (status === 'confirmed') {
+  if (status === 'booking_confirmed') {
     return paymentStatus === 'captured' ? 'paid' : 'issued';
   }
 
-  if (status === 'failed') {
+  if (status === 'booking_failed' || status === 'cancelled') {
     return 'void';
   }
 
@@ -266,7 +268,11 @@ function maybeEnqueueLifecycleNotification(input: LifecycleNotificationInput): v
 
   enqueueBookingLifecycleNotification({
     bookingId: input.id,
-    transition: eventStatus,
+    transition: eventStatus === 'booking_confirmed'
+      ? 'confirmed'
+      : eventStatus === 'booking_failed'
+        ? 'failed'
+        : 'refunded',
     toEmail,
     bookingReference,
     checkIn: input.check_in,
@@ -666,6 +672,15 @@ function resolvePersistedStatus(existingStatus: string, incomingStatus: string):
   return existingStatus;
 }
 
+function canReconcileBookingStatus(existingStatus: string, incomingStatus: string): boolean {
+  if (existingStatus === incomingStatus) {
+    return true;
+  }
+
+  return canTransitionBookingState(existingStatus, incomingStatus)
+    || canTransitionBookingState(incomingStatus, existingStatus);
+}
+
 export async function getBookingById(id: string): Promise<BookingRecord | null> {
   if (supabaseSchemaUnavailable) {
     if (failClosed) {
@@ -710,19 +725,18 @@ export async function updateBookingStatusById(
       return false;
     }
 
-    try {
-      assertValidBookingTransition(booking.status, status);
-    } catch (error) {
-      logger.warn({ error, bookingId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
+    if (!canReconcileBookingStatus(booking.status, status)) {
+      logger.warn({ bookingId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
       return false;
     }
+    const nextStatus = resolvePersistedStatus(booking.status, status);
 
     const mergedMetadata = mergeMetadata(booking.metadata, metadata);
     const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
-    const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+    const normalizedMetadata = withLifecycleMetadata(mergedMetadata, nextStatus, fields.paymentStatus);
     const updatedBooking: FallbackBookingRecord = {
       ...booking,
-      status,
+      status: nextStatus,
       total_amount: fields.totalAmount,
       commission_amount: fields.commissionAmount,
       payment_status: fields.paymentStatus,
@@ -734,7 +748,7 @@ export async function updateBookingStatusById(
     maybeEnqueueLifecycleNotification(updatedBooking);
     const commissionPersisted = await maybeUpsertCommissionTracking({
       bookingId,
-      status,
+      status: nextStatus,
       totalAmount: updatedBooking.total_amount,
       commissionAmount: updatedBooking.commission_amount,
       currency: updatedBooking.currency,
@@ -764,12 +778,11 @@ export async function updateBookingStatusById(
     return false;
   }
 
-  try {
-    assertValidBookingTransition(data.status, status);
-  } catch (transitionError) {
-    logger.warn({ error: transitionError, bookingId, from: data.status, to: status }, 'Rejected invalid booking lifecycle transition');
+  if (!canReconcileBookingStatus(data.status, status)) {
+    logger.warn({ bookingId, from: data.status, to: status }, 'Rejected invalid booking lifecycle transition');
     return false;
   }
+  const nextStatus = resolvePersistedStatus(data.status, status);
 
   const mergedMetadata = mergeMetadata(data.metadata as Record<string, unknown> | null | undefined, metadata);
   const fields = deriveBookingCanonicalFields(
@@ -781,12 +794,12 @@ export async function updateBookingStatusById(
     },
     mergedMetadata
   );
-  const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+  const normalizedMetadata = withLifecycleMetadata(mergedMetadata, nextStatus, fields.paymentStatus);
 
   const { error: updateError } = await supabase
     .from('bookings')
     .update({
-      status,
+      status: nextStatus,
       total_amount: fields.totalAmount,
       commission_amount: fields.commissionAmount,
       payment_status: fields.paymentStatus,
@@ -957,12 +970,11 @@ export async function updateBookingStatusByLiteApiId(
 ): Promise<boolean> {
   for (const [id, booking] of fallbackBookings) {
     if (booking.liteapi_booking_id === liteApiBookingId) {
-      try {
-        assertValidBookingTransition(booking.status, status);
-      } catch (error) {
-        logger.warn({ error, liteApiBookingId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
+      if (!canReconcileBookingStatus(booking.status, status)) {
+        logger.warn({ liteApiBookingId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
         return false;
       }
+      const nextStatus = resolvePersistedStatus(booking.status, status);
 
       const mergedMetadata = mergeMetadata(booking.metadata, metadata);
       const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
@@ -972,10 +984,10 @@ export async function updateBookingStatusByLiteApiId(
         ? mergedMetadata.stripeCheckoutSessionId
         : booking.stripe_checkout_session_id;
       const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
-      const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+      const normalizedMetadata = withLifecycleMetadata(mergedMetadata, nextStatus, fields.paymentStatus);
       const updatedBooking: FallbackBookingRecord = {
         ...booking,
-        status,
+        status: nextStatus,
         total_amount: fields.totalAmount,
         commission_amount: fields.commissionAmount,
         payment_status: fields.paymentStatus,
@@ -990,7 +1002,7 @@ export async function updateBookingStatusByLiteApiId(
       maybeEnqueueLifecycleNotification(updatedBooking);
       const commissionPersisted = await maybeUpsertCommissionTracking({
         bookingId: id,
-        status,
+        status: nextStatus,
         totalAmount: updatedBooking.total_amount,
         commissionAmount: updatedBooking.commission_amount,
         currency: updatedBooking.currency,
@@ -1026,12 +1038,11 @@ export async function updateBookingStatusByLiteApiId(
     return false;
   }
 
-  try {
-    assertValidBookingTransition(data.status, status);
-  } catch (error) {
-    logger.warn({ error, liteApiBookingId, from: data.status, to: status }, 'Rejected invalid booking lifecycle transition');
+  if (!canReconcileBookingStatus(data.status, status)) {
+    logger.warn({ liteApiBookingId, from: data.status, to: status }, 'Rejected invalid booking lifecycle transition');
     return false;
   }
+  const nextStatus = resolvePersistedStatus(data.status, status);
 
   const mergedMetadata = mergeMetadata(
     data.metadata as Record<string, unknown> | null | undefined,
@@ -1052,11 +1063,11 @@ export async function updateBookingStatusByLiteApiId(
     },
     mergedMetadata
   );
-  const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+  const normalizedMetadata = withLifecycleMetadata(mergedMetadata, nextStatus, fields.paymentStatus);
   const { error } = await supabase
     .from('bookings')
     .update({
-      status,
+      status: nextStatus,
       total_amount: fields.totalAmount,
       commission_amount: fields.commissionAmount,
       payment_status: fields.paymentStatus,
@@ -1079,7 +1090,7 @@ export async function updateBookingStatusByLiteApiId(
 
   maybeEnqueueLifecycleNotification({
     id: data.id as string,
-    status,
+    status: nextStatus,
     liteapi_booking_id: (data.liteapi_booking_id as string | null) ?? null,
     confirmation_code: fields.confirmationCode,
     check_in: (data.check_in as string | null) ?? null,
@@ -1096,7 +1107,7 @@ export async function updateBookingStatusByLiteApiId(
       : (data.latest_payment_log_id as string | null) ?? null;
   const commissionPersisted = await maybeUpsertCommissionTracking({
     bookingId: data.id as string,
-    status,
+    status: nextStatus,
     totalAmount: fields.totalAmount,
     commissionAmount: fields.commissionAmount,
     currency: (data.currency as string | null) ?? null,
@@ -1118,12 +1129,11 @@ export async function updateBookingStatusByTransactionId(
   for (const [id, booking] of fallbackBookings) {
     const existingTransactionId = booking.transaction_id ?? readTransactionId(booking.metadata);
     if (existingTransactionId === transactionId) {
-      try {
-        assertValidBookingTransition(booking.status, status);
-      } catch (error) {
-        logger.warn({ error, transactionId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
+      if (!canReconcileBookingStatus(booking.status, status)) {
+        logger.warn({ transactionId, from: booking.status, to: status }, 'Rejected invalid booking lifecycle transition');
         return false;
       }
+      const nextStatus = resolvePersistedStatus(booking.status, status);
 
       const mergedMetadata = mergeMetadata(booking.metadata, metadata);
       const stripePaymentIntentId = typeof mergedMetadata.stripePaymentIntentId === 'string'
@@ -1133,10 +1143,10 @@ export async function updateBookingStatusByTransactionId(
         ? mergedMetadata.stripeCheckoutSessionId
         : booking.stripe_checkout_session_id;
       const fields = deriveBookingCanonicalFields(booking, mergedMetadata);
-      const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+      const normalizedMetadata = withLifecycleMetadata(mergedMetadata, nextStatus, fields.paymentStatus);
       const updatedBooking: FallbackBookingRecord = {
         ...booking,
-        status,
+        status: nextStatus,
         total_amount: fields.totalAmount,
         commission_amount: fields.commissionAmount,
         payment_status: fields.paymentStatus,
@@ -1151,7 +1161,7 @@ export async function updateBookingStatusByTransactionId(
       maybeEnqueueLifecycleNotification(updatedBooking);
       const commissionPersisted = await maybeUpsertCommissionTracking({
         bookingId: id,
-        status,
+        status: nextStatus,
         totalAmount: updatedBooking.total_amount,
         commissionAmount: updatedBooking.commission_amount,
         currency: updatedBooking.currency,
@@ -1196,12 +1206,11 @@ export async function updateBookingStatusByTransactionId(
     return false;
   }
 
-  try {
-    assertValidBookingTransition(resolvedData.status, status);
-  } catch (transitionError) {
-    logger.warn({ error: transitionError, transactionId, from: resolvedData.status, to: status }, 'Rejected invalid booking lifecycle transition');
+  if (!canReconcileBookingStatus(resolvedData.status, status)) {
+    logger.warn({ transactionId, from: resolvedData.status, to: status }, 'Rejected invalid booking lifecycle transition');
     return false;
   }
+  const nextStatus = resolvePersistedStatus(resolvedData.status, status);
 
   const mergedMetadata = mergeMetadata(
     resolvedData.metadata as Record<string, unknown> | null | undefined,
@@ -1222,11 +1231,11 @@ export async function updateBookingStatusByTransactionId(
     },
     mergedMetadata
   );
-  const normalizedMetadata = withLifecycleMetadata(mergedMetadata, status, fields.paymentStatus);
+  const normalizedMetadata = withLifecycleMetadata(mergedMetadata, nextStatus, fields.paymentStatus);
   const { error: updateError } = await supabase
     .from('bookings')
     .update({
-      status,
+      status: nextStatus,
       total_amount: fields.totalAmount,
       commission_amount: fields.commissionAmount,
       payment_status: fields.paymentStatus,
@@ -1245,7 +1254,7 @@ export async function updateBookingStatusByTransactionId(
 
   maybeEnqueueLifecycleNotification({
     id: resolvedData.id as string,
-    status,
+    status: nextStatus,
     liteapi_booking_id: (resolvedData.liteapi_booking_id as string | null) ?? null,
     confirmation_code: fields.confirmationCode,
     check_in: (resolvedData.check_in as string | null) ?? null,
@@ -1262,7 +1271,7 @@ export async function updateBookingStatusByTransactionId(
       : (resolvedData.latest_payment_log_id as string | null) ?? null;
   const commissionPersisted = await maybeUpsertCommissionTracking({
     bookingId: resolvedData.id as string,
-    status,
+    status: nextStatus,
     totalAmount: fields.totalAmount,
     commissionAmount: fields.commissionAmount,
     currency: (resolvedData.currency as string | null) ?? null,

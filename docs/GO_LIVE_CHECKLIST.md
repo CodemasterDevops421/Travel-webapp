@@ -127,3 +127,21 @@ Must include:
 - Evidence links and timestamps
 - Remaining blockers and explicit owner
 - Go/No-Go decision
+
+## 7) Final Environment Validation Gate
+
+Goal: clear launch only from deployment evidence, not repo confidence.
+
+Command:
+
+```bash
+npm run verify:launch:clearance
+```
+
+Required outcome:
+- `Cleared` only if migration/RPC verification, failure-proof artifacts, and readiness/alert validation are all clean at the same time
+- otherwise `Blocked`, with the failed artifact or blocking signal named explicitly and rollback decision recorded
+
+Evidence to capture:
+- launch-clearance JSON summary from `docs/perf/launch-clearance-results`
+- launch-clearance Markdown note from `docs/perf/launch-clearance-results`

@@ -17,7 +17,14 @@
     "perf:admin:report": "node scripts/generate-admin-capacity-report.js",
     "verify:live:webhook": "node scripts/verify-live-webhook.js",
     "verify:live:webhook:liteapi": "node scripts/verify-live-liteapi-webhook.js",
-    "verify:live:email": "node scripts/verify-live-email.js"
+    "verify:live:email": "node scripts/verify-live-email.js",
+    "smoke:booking": "node scripts/smoke-booking.js",
+    "smoke:webhooks": "node scripts/smoke-webhooks.js",
+    "smoke:admin": "node scripts/smoke-admin.js",
+    "smoke:readiness": "node scripts/smoke-readiness.js",
+    "smoke": "node scripts/smoke-runner.js",
+    "perf:failure-proof": "node scripts/run-failure-proof.js",
+    "verify:launch:clearance": "node scripts/run-launch-clearance.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

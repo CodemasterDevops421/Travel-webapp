@@ -27,7 +27,7 @@ function emitStructuredEvent(
 type ReconciliationUpdate = {
   bookingId: string | null;
   transactionId: string | null;
-  status: 'pending' | 'payment_authorized' | 'confirmed' | 'failed' | 'refunded';
+  status: 'draft' | 'prebooked' | 'payment_pending' | 'payment_authorized' | 'booking_requested' | 'booking_confirmed' | 'booking_failed' | 'cancelled' | 'refund_pending' | 'refunded';
   metadata: Record<string, unknown>;
 };
 
@@ -115,13 +115,13 @@ function derivePaymentStatus(canonicalState: ReconciliationUpdate['status']): st
   if (canonicalState === 'payment_authorized') {
     return 'authorized';
   }
-  if (canonicalState === 'confirmed') {
+  if (canonicalState === 'booking_confirmed') {
     return 'captured';
   }
-  if (canonicalState === 'refunded') {
+  if (canonicalState === 'refunded' || canonicalState === 'refund_pending') {
     return 'refunded';
   }
-  if (canonicalState === 'failed') {
+  if (canonicalState === 'booking_failed') {
     return 'failed';
   }
   return 'pending';

@@ -153,21 +153,42 @@ export async function insertPaymentLog(input: InsertPaymentLogInput): Promise<st
     }
   }
 
-  const { data, error } = await supabase
-    .from('payment_logs')
-    .insert({
-      booking_id: input.bookingId ?? null,
-      provider: input.provider,
-      external_payment_id: input.externalPaymentId ?? null,
-      event_type: input.eventType,
-      status: input.status,
-      amount: typeof input.amount === 'number' ? input.amount : null,
-      currency: input.currency ?? null,
-      correlation_id: input.correlationId ?? null,
-      metadata: normalizeMetadata(input.metadata)
-    })
-    .select('id')
-    .single();
+  const writeQuery = naturalKey && input.externalPaymentId
+    ? supabase
+      .from('payment_logs')
+      .upsert({
+        booking_id: input.bookingId ?? null,
+        provider: input.provider,
+        external_payment_id: input.externalPaymentId ?? null,
+        event_type: input.eventType,
+        status: input.status,
+        amount: typeof input.amount === 'number' ? input.amount : null,
+        currency: input.currency ?? null,
+        correlation_id: input.correlationId ?? null,
+        metadata: normalizeMetadata(input.metadata)
+      }, {
+        onConflict: 'provider,event_type,external_payment_id',
+        ignoreDuplicates: false
+      })
+      .select('id')
+      .single()
+    : supabase
+      .from('payment_logs')
+      .insert({
+        booking_id: input.bookingId ?? null,
+        provider: input.provider,
+        external_payment_id: input.externalPaymentId ?? null,
+        event_type: input.eventType,
+        status: input.status,
+        amount: typeof input.amount === 'number' ? input.amount : null,
+        currency: input.currency ?? null,
+        correlation_id: input.correlationId ?? null,
+        metadata: normalizeMetadata(input.metadata)
+      })
+      .select('id')
+      .single();
+
+  const { data, error } = await writeQuery;
 
   if (error) {
     if (isSchemaMissingError(error)) {

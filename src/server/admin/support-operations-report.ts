@@ -32,15 +32,25 @@ export type SupportOpsSummary = {
 export type SupportOpsReport = {
   periodDays: number;
   breachHours: number;
+  dataFreshness: {
+    generatedAt: string;
+    source: 'rpc' | 'fallback';
+  };
   summary: SupportOpsSummary;
   cases: SupportOpsCase[];
   processing: {
     truncated: boolean;
-    truncationReason: 'none' | 'booking_scan_limit' | 'case_limit';
+    truncationReason: 'none' | 'booking_scan_limit' | 'case_limit' | 'rpc_unavailable';
     scannedBookings: number;
     maxScannedBookings: number;
     returnedCases: number;
     maxCases: number;
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
   };
 };
 
@@ -58,6 +68,22 @@ type SupportOpsSummaryRpcRow = {
   high_priority_open_cases: number | null;
   assigned_cases: number | null;
   unresolved_forwarding_failures: number | null;
+};
+
+type SupportOpsCaseRpcRow = {
+  booking_id: string;
+  booking_status: string;
+  state: SupportCaseState;
+  priority: SupportCasePriority;
+  assigned_to: string | null;
+  support_request_id: string | null;
+  support_requested_at: string;
+  updated_at: string;
+  age_hours: number | null;
+  sla_breach: boolean | null;
+  support_forwarded: boolean | null;
+  last_error: string | null;
+  resolution_note: string | null;
 };
 
 function toIsoString(value: unknown): string | null {
@@ -97,10 +123,7 @@ const BOOKING_PAGE_SIZE = 500;
 const MAX_SCANNED_BOOKINGS = 5000;
 
 function toNumber(value: number | null | undefined, fallback = 0): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  return fallback;
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
 function mapSupportOpsSummaryRpc(row: SupportOpsSummaryRpcRow): SupportOpsSummary {
@@ -144,16 +167,78 @@ async function fetchSupportOpsSummaryFromRpc(
 
 export async function buildSupportOperationsReport(
   supabase: any,
-  options?: { periodDays?: number; breachHours?: number; limit?: number }
+  options?: { periodDays?: number; breachHours?: number; page?: number; limit?: number }
 ): Promise<SupportOpsReport> {
   const periodDays = options?.periodDays ?? 30;
   const breachHours = options?.breachHours ?? 24;
-  const limit = options?.limit ?? 300;
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 50;
 
   const periodStart = new Date();
   periodStart.setDate(periodStart.getDate() - periodDays);
   const periodStartIso = periodStart.toISOString();
   const rpcSummary = await fetchSupportOpsSummaryFromRpc(supabase, periodStartIso, breachHours);
+
+  if (rpcSummary && supabase && typeof supabase.rpc === 'function') {
+    const [pageResult, countResult] = await Promise.all([
+      supabase.rpc('fn_admin_support_operations_case_page', {
+        period_start_iso: periodStartIso,
+        breach_hours_input: breachHours,
+        page_offset: (page - 1) * limit,
+        page_limit: limit
+      }),
+      supabase.rpc('fn_admin_support_operations_case_count', {
+        period_start_iso: periodStartIso
+      })
+    ]);
+
+    if (!pageResult?.error && !countResult?.error) {
+      const rows = Array.isArray(pageResult?.data) ? pageResult.data as SupportOpsCaseRpcRow[] : [];
+      const totalRow = Array.isArray(countResult?.data)
+        ? countResult.data[0] as { total_count?: number } | undefined
+        : countResult?.data as { total_count?: number } | null;
+      const total = typeof totalRow?.total_count === 'number' ? totalRow.total_count : 0;
+
+      return {
+        periodDays,
+        breachHours,
+        dataFreshness: {
+          generatedAt: new Date().toISOString(),
+          source: 'rpc'
+        },
+        summary: rpcSummary,
+        cases: rows.map((row) => ({
+          bookingId: row.booking_id,
+          bookingStatus: row.booking_status,
+          state: row.state,
+          priority: row.priority,
+          assignedTo: row.assigned_to,
+          supportRequestId: row.support_request_id,
+          supportRequestedAt: row.support_requested_at,
+          updatedAt: row.updated_at,
+          ageHours: toNumber(row.age_hours),
+          slaBreach: row.sla_breach === true,
+          supportForwarded: row.support_forwarded === true,
+          lastError: row.last_error,
+          resolutionNote: row.resolution_note
+        })),
+        processing: {
+          truncated: false,
+          truncationReason: 'none',
+          scannedBookings: rows.length,
+          maxScannedBookings: MAX_SCANNED_BOOKINGS,
+          returnedCases: rows.length,
+          maxCases: limit
+        },
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit))
+        }
+      };
+    }
+  }
 
   const now = Date.now();
   const cases: SupportOpsCase[] = [];
@@ -188,9 +273,7 @@ export async function buildSupportOperationsReport(
       const requestedAt = toIsoString(metadata.supportRequestedAt);
       if (!requestedAt) continue;
 
-      if (!rpcSummary) {
-        totalCases += 1;
-      }
+      totalCases += 1;
 
       const state = normalizeState(metadata.supportState);
       const priority = normalizePriority(metadata.supportPriority);
@@ -203,21 +286,19 @@ export async function buildSupportOperationsReport(
       const ageHours = (now - Date.parse(requestedAt)) / (1000 * 60 * 60);
       const slaBreach = ageHours > breachHours && isOpenState(state);
 
-      if (!rpcSummary) {
-        if (isOpenState(state)) {
-          openCases += 1;
-          if ((priority === 'high' || priority === 'urgent')) {
-            highPriorityOpenCases += 1;
-          }
-          if (lastError && !supportForwarded) {
-            unresolvedForwardingFailures += 1;
-          }
+      if (isOpenState(state)) {
+        openCases += 1;
+        if ((priority === 'high' || priority === 'urgent')) {
+          highPriorityOpenCases += 1;
         }
-        if (slaBreach) breachedCases += 1;
-        if (assignedTo) assignedCases += 1;
+        if (lastError && !supportForwarded) {
+          unresolvedForwardingFailures += 1;
+        }
       }
+      if (slaBreach) breachedCases += 1;
+      if (assignedTo) assignedCases += 1;
 
-      if (cases.length < limit) {
+      if (cases.length < page * limit) {
         cases.push({
           bookingId: booking.id,
           bookingStatus: booking.status,
@@ -235,7 +316,7 @@ export async function buildSupportOperationsReport(
         });
       }
 
-      if (cases.length >= limit) {
+      if (cases.length >= page * limit) {
         stopProcessing = true;
         truncationReason = 'case_limit';
         break;
@@ -252,27 +333,37 @@ export async function buildSupportOperationsReport(
     }
   }
 
-  const summary: SupportOpsSummary = rpcSummary ?? {
-    totalCases,
-    openCases,
-    breachedCases,
-    highPriorityOpenCases,
-    assignedCases,
-    unresolvedForwardingFailures
-  };
+  const start = (page - 1) * limit;
 
   return {
     periodDays,
     breachHours,
-    summary,
-    cases,
+    dataFreshness: {
+      generatedAt: new Date().toISOString(),
+      source: 'fallback'
+    },
+    summary: {
+      totalCases,
+      openCases,
+      breachedCases,
+      highPriorityOpenCases,
+      assignedCases,
+      unresolvedForwardingFailures
+    },
+    cases: cases.slice(start, start + limit),
     processing: {
       truncated: truncationReason !== 'none',
-      truncationReason,
+      truncationReason: truncationReason === 'none' ? 'rpc_unavailable' : truncationReason,
       scannedBookings,
       maxScannedBookings: MAX_SCANNED_BOOKINGS,
-      returnedCases: cases.length,
-      maxCases: limit
+      returnedCases: Math.min(limit, Math.max(0, cases.length - start)),
+      maxCases: page * limit
+    },
+    pagination: {
+      page,
+      limit,
+      total: totalCases,
+      totalPages: Math.max(1, Math.ceil(totalCases / limit))
     }
   };
 }

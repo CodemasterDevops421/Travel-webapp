@@ -292,7 +292,12 @@ describe('booking repository fallback mode', () => {
     );
     expect(authorized).toBe(true);
 
-    const confirmed = await repo.updateBookingStatusByTransactionId('txn-1', 'confirmed', {
+    const requested = await repo.updateBookingStatusByTransactionId('txn-1', 'booking_requested', {
+      supplierStatus: 'pending'
+    });
+    expect(requested).toBe(true);
+
+    const confirmed = await repo.updateBookingStatusByTransactionId('txn-1', 'booking_confirmed', {
       paymentStatus: 'captured',
       confirmationCode: 'CONF-123'
     });
@@ -301,7 +306,7 @@ describe('booking repository fallback mode', () => {
 
     expect(confirmed).toBe(true);
     expect(booking).toMatchObject({
-      status: 'confirmed',
+      status: 'booking_confirmed',
       payment_status: 'captured',
       total_amount: 525,
       commission_amount: 52.5,
@@ -347,13 +352,18 @@ describe('booking repository fallback mode', () => {
 
     expect(bookingId).toBeTypeOf('string');
 
-    const confirmed = await repo.updateBookingStatusByTransactionId('txn-1', 'confirmed', {
+    const requested = await repo.updateBookingStatusByTransactionId('txn-1', 'booking_requested', {
+      supplierStatus: 'pending'
+    });
+    expect(requested).toBe(true);
+
+    const confirmed = await repo.updateBookingStatusByTransactionId('txn-1', 'booking_confirmed', {
       paymentStatus: 'captured',
       confirmationCode: 'CONF-999'
     });
 
     expect(confirmed).toBe(true);
-    expect(upsertCommissionTracking).toHaveBeenCalledTimes(2);
+    expect(upsertCommissionTracking).toHaveBeenCalledTimes(3);
     expect(upsertCommissionTracking).toHaveBeenNthCalledWith(1, expect.objectContaining({
       bookingId,
       commissionAmount: 20,
@@ -362,7 +372,13 @@ describe('booking repository fallback mode', () => {
     expect(upsertCommissionTracking).toHaveBeenNthCalledWith(2, expect.objectContaining({
       bookingId,
       metadata: expect.objectContaining({
-        bookingStatus: 'confirmed',
+        bookingStatus: 'booking_requested'
+      })
+    }));
+    expect(upsertCommissionTracking).toHaveBeenNthCalledWith(3, expect.objectContaining({
+      bookingId,
+      metadata: expect.objectContaining({
+        bookingStatus: 'booking_confirmed',
         confirmationCode: 'CONF-999'
       })
     }));
@@ -410,7 +426,12 @@ describe('booking repository fallback mode', () => {
 
     expect(bookingId).toBeTypeOf('string');
 
-    const confirmed = await repo.updateBookingStatusByTransactionId('txn-commission-1', 'confirmed', {
+    const requested = await repo.updateBookingStatusByTransactionId('txn-commission-1', 'booking_requested', {
+      supplierStatus: 'pending'
+    });
+    expect(requested).toBe(true);
+
+    const confirmed = await repo.updateBookingStatusByTransactionId('txn-commission-1', 'booking_confirmed', {
       paymentStatus: 'captured',
       confirmationCode: 'CONF-COMM-1'
     });
@@ -423,7 +444,7 @@ describe('booking repository fallback mode', () => {
       commissionAmount: 60,
       currency: 'USD',
       metadata: expect.objectContaining({
-        bookingStatus: 'confirmed',
+        bookingStatus: 'booking_confirmed',
         confirmationCode: 'CONF-COMM-1'
       })
     }));

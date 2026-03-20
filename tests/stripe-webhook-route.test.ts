@@ -144,15 +144,16 @@ describe('stripe webhook route', () => {
     expect(insertPaymentLog).toHaveBeenCalledWith(expect.objectContaining({
       provider: 'stripe',
       externalPaymentId: 'evt_success',
-      status: 'confirmed'
+      status: 'payment_authorized'
     }));
     expect(updateBookingStatusByTransactionId).toHaveBeenCalledWith(
       'txn_123',
-      'confirmed',
+      'payment_authorized',
       expect.objectContaining({
         stripeEventId: 'evt_success',
         stripeEventType: 'payment_intent.succeeded',
         stripePaymentIntentId: 'pi_123',
+        paymentLifecycleState: 'captured',
         paymentStatus: 'captured',
         latestPaymentLogId: 'payment-log-1',
         paymentLogId: 'payment-log-1'
@@ -211,6 +212,7 @@ describe('stripe webhook route', () => {
         transactionId: 'txn_456',
         stripeCheckoutSessionId: 'cs_123',
         stripePaymentIntentId: 'pi_123',
+        paymentLifecycleState: 'authorized',
         latestPaymentLogId: 'payment-log-2',
         paymentLogId: 'payment-log-2'
       })
@@ -358,7 +360,7 @@ describe('stripe webhook route', () => {
       route: 'webhook-stripe',
       module: 'webhook.stripe',
       event_id: 'evt_structured',
-      booking_status: 'confirmed'
+      booking_status: 'payment_authorized'
     });
   });
 
